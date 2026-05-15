@@ -102,6 +102,7 @@ Le concept central de l'application est la gestion multi-sociétés (Multi-Tenan
   - `Prospection/` : Index (Kanban pipeline)
   - `Incentives/` : Index, Validation
   - `Parametres/` : Index (société), OKR (8 onglets de configuration)
+  - `Missions/` : Index (tableau + panneau latéral : onglets Livrables, Infos, Journal)
   - `LMS/`, `Reporting/` : Pages placeholder
 - `resources/js/Components/` : Composants réutilisables (`Sidebar`, `TopbarNav`, `StatsCard`, `EmptyState`).
 - `resources/js/Components/ui/` : Composants UI (Button, Input, NumberInput, Select, Badge, Card, Dialog, Table, Tabs, Progress, Avatar, DropdownMenu, Tooltip, Separator).
@@ -143,26 +144,26 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - **Onglets de période** : style underline avec plage de dates (ex: "Q2 2026 Avr-Juin"). Clic toggle sélection.
 - **Barre de filtres** : FILTRES label + recherche + responsables + statuts + bouton "× Effacer".
 - **Bandeau de progression globale** : barre pleine largeur avec gradient, dot coloré, pourcentage.
-- **Bouton "+ Nouvel objectif"** : ouvre un **modal de création rapide** (intitulé + période + responsable + KRs dynamiques). Utilise `router.post` avec `preserveState: true` et validation client-side. KRs vides filtrés automatiquement. Erreurs affichées dans un bandeau rouge.
+- **Bouton "+ Nouvel objectif"** : ouvre un **modal de création rapide** (intitulé + **périodes multi-sélection** (checkboxes) + responsable + KRs dynamiques). Utilise `router.post` avec `preserveState: true` et validation client-side. KRs vides filtrés automatiquement. Erreurs affichées dans un bandeau rouge. Un objectif peut couvrir **plusieurs trimestres** via la table pivot `objectif_periode`.
 - **Cartes objectif expandables** (composant `ObjectifCard`) :
   - Header : chevron expand + dot axe + titre + badge axe (couleur) + badge type + badge % progression.
   - Sub-line : X/Y tâches · N KR + mini progress bar.
-  - Actions : bouton éditer (lien Show) + dropdown (Détails, Supprimer).
+  - Actions : bouton crayon (éditer via `EditObjectifModal`) + dropdown (Détails, Supprimer).
   - **Hiérarchie Objectif → KR → Tâche** : chaque KR affiche ses tâches directement en dessous.
   - **Section Résultats Clés** : grandes barres `h-7` colorées (palette `krBarColors`) avec texte intégré, compteur tâches, et % à droite.
   - **Tâches groupées par KR** : sous chaque barre KR, les tâches associées sont affichées avec colonnes Checkbox | Tâche | Resp. | Prio. | Deadline | Actions.
   - **Checkbox fonctionnelle** : toggle `a_faire` ↔ `termine` via `PUT /taches/{id}/status`. Texte barré quand terminé.
   - **Boutons d'action tâche** : œil → ouvre panneau détail slide-over ; poubelle → suppression avec confirmation.
   - **"+ Ajouter une tâche"** par KR : chaque KR a son bouton pour ajouter une tâche directement liée à ce KR.
+- **Modal d'édition d'objectif** (`EditObjectifModal`) : formulaire complet inline pour modifier titre, responsable, **périodes multiples** (checkboxes), axe, type, visibilité, prime, et tous les KRs (ajout/modification/suppression). Les KRs ont un champ `description_detaillee` (textarea). Envoi via `router.put` avec sync des KRs et périodes.
 - **Modal d'ajout de tâche** (`AddTaskModal`) : formulaire compact avec sélection obligatoire du KR cible, `router.post` vers `taches.store`, validation client-side, `preserveState: true`.
-- **Panneau de détail tâche** (`TaskDetailPanel`) : slide-over animé (framer-motion spring) depuis la droite :
-  - Header : titre + sous-titre KR + bouton ×.
+- **Panneau de détail tâche** (`TaskDetailPanel`) : slide-over animé (framer-motion spring) depuis la droite avec **mode édition** complet :
+  - Header : titre (éditable) + sous-titre KR + boutons ×/✓/crayon.
   - Onglets : Fiche (actif) / Note (textarea libre).
-  - Sections Fiche : 📋 Informations (badges), 📝 Description & Contexte, 📋 Mode Opératoire (étapes numérotées avec cercles colorés), 🔧 Outils & Ressources (pill badges), ✅ Définition de "Done" (checklist verte).
-  - Footer : bouton "Modifier" + poubelle.
-  - Description structurée parsée via séparateurs `---MO---`, `---OUTILS---`, `---DONE---`.
+  - Sections Fiche : 📋 Informations (badges éditables : statut, priorité, eisenhower, date, responsable), 📝 Description & Contexte (textarea), 📋 Mode Opératoire (étapes dynamiques ajout/suppression), 🔧 Outils & Ressources (input texte), ✅ Définition de "Done" (critères dynamiques ajout/suppression).
+  - Footer : bouton "Modifier" / "Enregistrer" + poubelle.
 - **Page Create** (`OKR/Create.jsx`) : formulaire complet pour création avancée (tous les champs : axe, type, visibilité, prime, KRs détaillés avec type/cible/poids/unité).
-- **Page Show** (`OKR/Show.jsx`) : détail objectif avec édition progression KR, gestion tâches liées, sidebar infos.
+- **Page Show** (`OKR/Show.jsx`) : détail objectif avec édition progression KR, historique progression (graphique LineChart), gestion tâches liées, sidebar infos.
 
 ---
 
@@ -229,8 +230,11 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - [x] Module Tâches : Vue Kanban, drag & drop, édition complète, suppression.
 - [x] Bilans journaliers (Daily) : onglets équipe, compteurs activité (5 types), historique 7j, mode lecture seule.
 - [x] Formatage des nombres français partout (NumberInput).
-- [x] Panneau de détail tâche (slide-over) avec sections structurées.
+- [x] Panneau de détail tâche (slide-over) avec sections structurées et **mode édition inline complet**.
 - [x] Checkbox tâche fonctionnelle (toggle statut a_faire ↔ termine).
+- [x] **Objectif multi-trimestres** : table pivot `objectif_periode`, sélection multi-période (checkboxes) à la création et à l'édition. Un objectif apparaît dans chaque période sélectionnée.
+- [x] **Édition complète Objectif/KR/Tâche** : `EditObjectifModal` (titre, périodes, axe, type, visibilité, prime, KRs), édition KR inline (description, description détaillée, type, cible, poids, unité), `TaskDetailPanel` avec mode édition (tous les champs).
+- [x] **Description détaillée KR** : colonne `description_detaillee` (text) ajoutée à `resultats_cles`. Éditable dans le modal d'édition d'objectif via textarea.
 
 ### Phase 3 : Prospection et Incentives ✅
 - [x] Module Prospection : Vue Pipeline (Kanban) avec drag & drop, recherche, création avec secteur/contact/RDV/notes.
@@ -273,6 +277,31 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - [x] Colonnes `mois` (date) et `note_contexte` (text) ajoutées à la table `objectifs`.
 - [x] Navigation : TopbarNav pill "Individuels" (rose) + Sidebar "Individuels" sous MANAGEMENT.
 
+### Phase 4e : Devise & Multi-Devises ✅
+- [x] Table `devises` (9 devises : GNF, XOF, XAF, CDF, MAD, DZD, TND, EUR, USD).
+- [x] Relation `societes.devise_id` → `devises.id` (FK nullable).
+- [x] Modèle `Devise` avec relation `societes()`.
+- [x] `HandleInertiaRequests` partage `auth.societe.devise` (id, code, nom, symbole, decimales) à tous les composants.
+- [x] `formatCurrency(value, devise)` dans `lib/utils.js` : formatage dynamique selon la devise active de la société.
+- [x] Remplacement de tous les GNF/XOF/FCFA hardcodés dans : OKR/Show, OKR/Index, OKR/Create, Individuels/Index, Individuels/ObjectifModal, Parametres/OKR, Incentives/Index, Incentives/Validation, Prospection/Index.
+- [x] Sélecteur de devise dans Paramètres société (liste déroulante des devises actives).
+- [x] Seeders : `DeviseSeeder` (idempotent) → `SocieteSeeder` (GNF par défaut).
+
+### Phase 4f : Module Missions (War Room Ops) ✅
+- [x] **Tables** : `missions`, `livrables`, `mission_logs` (migration `2026_05_15_210001`).
+- [x] **Modèles** : `Mission`, `Livrable`, `MissionLog` (trait `BelongsToSociete`).
+- [x] **Calcul de pression** (`Mission::getPressureAttribute`) : 5 niveaux — `critical` (deadline dépassée), `warning` (deadline < 3j ou SLA dépassé), `watch` (inactif 7j+), `ok`, `done`.
+- [x] **SLA par canal** : WhatsApp 2h, Appel 4h, Email/Réunion 24h.
+- [x] **Lifecycle livrables** : draft → review → validated → sent → feedback → approved → archived.
+- [x] **Controller** `MissionController` : 9 routes (CRUD missions, CRUD livrables, avancement livrable, journal).
+- [x] **Page React** `Missions/Index.jsx` : tableau avec dots de pression + panneau latéral (slide-over Framer Motion) avec 3 onglets :
+  - **Livrables** : liste des livrables avec avancement statut en 1 clic, ajout inline.
+  - **Infos** : édition complète de la mission (formulaire complet : client, type, statut, responsable, deadline, canal SLA, prochaine action, note).
+  - **Journal** : fil d'activité avec types (action/note/statut/livrable), ajout rapide.
+- [x] **Résumé de pression** : bandeau coloré en haut de page par niveau (Critique/Alerte/Veille/OK/Terminé).
+- [x] **Navigation** : TopbarNav pill "Missions" → `missions.index` (sky-500) + Sidebar "Missions & Delivery" (Briefcase) sous BUSINESS.
+- [x] **Filtres** : recherche texte, filtre statut, filtre type de mission.
+
 ### Phase 5 : LMS et Reporting ⏳
 - [ ] Module LMS : Formations et modules d'apprentissage (page placeholder, modèles et migration existants).
 - [ ] Module Reporting : Synthèses et graphiques avancés (page placeholder).
@@ -308,7 +337,8 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 | `societes` | Entreprises (multi-tenant, layout_mode) |
 | `collaborateurs` | Collaborateurs liés à une société (rôle, poste) |
 | `objectifs` | Objectifs OKR (titre, axe, période, type, statut, visibilité, prime) |
-| `resultats_cles` | Résultats clés liés à un objectif (description, progression, poids, valeur_cible, unité, type) |
+| `resultats_cles` | Résultats clés liés à un objectif (description, description_detaillee, progression, poids, valeur_cible, unité, type) |
+| `objectif_periode` | Table pivot multi-périodes (objectif_id, periode_id) — permet à un objectif de couvrir plusieurs trimestres |
 | `taches` | Tâches liées à un KR (titre, description, statut, priorité, date, collaborateur, objectif_id, resultat_cle_id). Hiérarchie : Objectif → KR → Tâche. |
 | `prospects` | Prospects CRM (nom, contact, secteur, statut pipeline, prochain RDV, notes) |
 | `objectifs_remuneres` | Objectifs liés à des primes |
@@ -330,4 +360,4 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 
 ---
 
-*Dernière mise à jour : 30 Avril 2026*
+*Dernière mise à jour : 15 Mai 2026*

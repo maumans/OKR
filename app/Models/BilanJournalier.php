@@ -16,6 +16,7 @@ class BilanJournalier extends Model
         'collaborateur_id',
         'note',
         'blocages',
+        'priorites_demain',
         'seminaires',
         'recherches',
         'prospection',

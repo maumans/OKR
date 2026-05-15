@@ -6,10 +6,10 @@ import { Input } from '@/Components/ui/Input';
 import { Label } from '@/Components/ui/Label';
 import { Separator } from '@/Components/ui/Separator';
 import { motion } from 'framer-motion';
-import { Select } from '@/Components/ui/Select';
-import { Settings, Palette, Building2, Save, Layout } from 'lucide-react';
+import { NativeSelect as Select } from '@/Components/ui/Select';
+import { Settings, Palette, Building2, Save, Layout, Coins } from 'lucide-react';
 
-export default function ParametresIndex({ societe }) {
+export default function ParametresIndex({ societe, devises = [] }) {
     const { flash } = usePage().props;
 
     const { data, setData, put, processing, errors } = useForm({
@@ -20,6 +20,7 @@ export default function ParametresIndex({ societe }) {
         couleur_secondaire: societe?.couleur_secondaire || '#FEAC00',
         mode_sombre: societe?.mode_sombre ?? true,
         layout_mode: societe?.layout_mode || 'sidebar',
+        devise_id: societe?.devise_id || '',
     });
 
     const logoForm = useForm({
@@ -108,6 +109,24 @@ export default function ParametresIndex({ societe }) {
                                         <p className="text-xs text-gray-400 mt-1.5">
                                             {data.layout_mode === 'sidebar' ? 'Navigation classique avec menu à gauche.' : 'Navigation compacte avec barre en haut, style tracker.'}
                                         </p>
+                                    </div>
+                                </div>
+
+                                <Separator />
+
+                                <div>
+                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
+                                        <Coins className="h-4 w-4 text-amber-500" /> Devise
+                                    </h3>
+                                    <div>
+                                        <Label htmlFor="devise_id">Devise utilisée</Label>
+                                        <Select id="devise_id" value={data.devise_id} onChange={(e) => setData('devise_id', e.target.value)} className="mt-1.5">
+                                            <option value="">-- Choisir une devise --</option>
+                                            {devises.map(d => (
+                                                <option key={d.id} value={d.id}>{d.code} — {d.nom} {d.symbole ? `(${d.symbole})` : ''}</option>
+                                            ))}
+                                        </Select>
+                                        {errors.devise_id && <p className="text-xs text-red-500 mt-1">{errors.devise_id}</p>}
                                     </div>
                                 </div>
 

@@ -100,6 +100,10 @@ class TacheController extends Controller
             'objectif_id'      => 'nullable|exists:objectifs,id',
             'resultat_cle_id'  => 'nullable|exists:resultats_cles,id',
         ]);
+        $currentCollabId = $request->user()->collaborateurActuel()->id;
+        if ((int)$validated['collaborateur_id'] !== $currentCollabId && !$request->user()->estResponsable()) {
+            abort(403, 'Vous ne pouvez assigner une tâche qu\'à vous-même.');
+        }
 
         Tache::create([
             'societe_id'       => session('societe_id'),

@@ -56,36 +56,35 @@
         @apply bg-gray-400 dark:bg-dark-500;
     }
 
-    /* Premium Form Controls (Select & Date) */
-    select, input[type="date"] {
-        @apply bg-gray-50/50 dark:bg-dark-800/50 border border-gray-200 dark:border-dark-700 shadow-sm transition-all duration-300 text-gray-700 dark:text-gray-200 cursor-pointer hover:bg-white dark:hover:bg-dark-900;
-        appearance: none !important;
+    /* Flèche CSS pour TOUS les <select> natifs (NativeSelect + raw selects dans les pages) */
+    select {
+        appearance: none;
+        -webkit-appearance: none;
+        color: rgb(31 41 55) !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
         background-position: right 0.75rem center !important;
         background-repeat: no-repeat !important;
         background-size: 1.25em 1.25em !important;
-        padding-right: 2.5rem;
-    }
-
-    select:focus, input[type="date"]:focus {
-        @apply outline-none ring-2 ring-primary-500/20 border-primary-500 bg-white dark:bg-dark-900;
-        box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), 0 0 20px rgba(0, 201, 255, 0.15) !important;
-    }
-
-    select {
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+        padding-right: 2.5rem !important;
     }
     .dark select {
+        color: rgb(229 231 235) !important;
         background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
     }
 
     input[type="date"] {
+        appearance: none;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' /%3E%3C/svg%3E") !important;
+        background-position: right 0.75rem center !important;
+        background-repeat: no-repeat !important;
+        background-size: 1.25em 1.25em !important;
+        padding-right: 2.5rem;
         position: relative;
     }
     .dark input[type="date"] {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' /%3E%3C/svg%3E") !important;
     }
-    
+
     input[type="date"]::-webkit-calendar-picker-indicator {
         opacity: 0;
         position: absolute;

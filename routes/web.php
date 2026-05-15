@@ -12,6 +12,7 @@ use App\Http\Controllers\IncentiveController;
 use App\Http\Controllers\ParametreOkrController;
 use App\Http\Controllers\EisenhowerController;
 use App\Http\Controllers\IndividuelController;
+use App\Http\Controllers\MissionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -90,6 +91,17 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     Route::post('/incentives', [IncentiveController::class, 'store'])->name('incentives.store');
     Route::get('/incentives/validation', [IncentiveController::class, 'validationIndex'])->name('incentives.validation');
     Route::post('/incentives/{objectifRemunere}/validate', [IncentiveController::class, 'validateIncentive'])->name('incentives.validate');
+    // Missions (War Room Ops)
+    Route::get('/missions', [MissionController::class, 'index'])->name('missions.index');
+    Route::post('/missions', [MissionController::class, 'store'])->name('missions.store');
+    Route::put('/missions/{mission}', [MissionController::class, 'update'])->name('missions.update');
+    Route::delete('/missions/{mission}', [MissionController::class, 'destroy'])->name('missions.destroy');
+    Route::post('/missions/{mission}/livrables', [MissionController::class, 'storeLivrable'])->name('missions.livrables.store');
+    Route::put('/missions/{mission}/livrables/{livrable}', [MissionController::class, 'updateLivrable'])->name('missions.livrables.update');
+    Route::put('/missions/{mission}/livrables/{livrable}/advance', [MissionController::class, 'advanceLivrable'])->name('missions.livrables.advance');
+    Route::delete('/missions/{mission}/livrables/{livrable}', [MissionController::class, 'destroyLivrable'])->name('missions.livrables.destroy');
+    Route::post('/missions/{mission}/logs', [MissionController::class, 'storeLog'])->name('missions.logs.store');
+
     // Reporting
     Route::get('/syntheses', fn () => Inertia::render('Reporting/Index'))->name('syntheses.index');
     // Matrice Eisenhower

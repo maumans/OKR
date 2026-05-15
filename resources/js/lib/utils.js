@@ -34,10 +34,13 @@ export function parseFormattedNumber(str) {
 }
 
 /**
- * Format currency (FCFA)
+ * Format currency using the society's devise object from auth.societe.devise.
+ * Falls back to GNF (0 decimals) if no devise provided.
  */
-export function formatCurrency(value) {
-    return formatNumber(value, 0) + ' FCFA';
+export function formatCurrency(value, devise = null) {
+    const decimales = devise?.decimales ?? 0;
+    const code = devise?.code ?? 'GNF';
+    return formatNumber(value, decimales) + ' ' + code;
 }
 
 /**

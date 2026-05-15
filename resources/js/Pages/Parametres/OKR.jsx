@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/Components/ui/Tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/Card';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { Label } from '@/Components/ui/Label';
-import { Select } from '@/Components/ui/Select';
+import { NativeSelect as Select } from '@/Components/ui/Select';
 import { Badge } from '@/Components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/Table';
@@ -68,6 +68,7 @@ export default function ParametresOKR({
     axes, periodes, typesObjectifs, typesResultatsCles,
     statuts, seuils, configuration, configurationPrime, templates
 }) {
+    const devise = usePage().props.auth?.societe?.devise;
     const [activeDialog, setActiveDialog] = useState(null);
     const [editingItem, setEditingItem] = useState(null);
 
@@ -375,7 +376,7 @@ export default function ParametresOKR({
                                 {primeForm.data.actif && (<>
                                     <div>
                                         <Label>Montant maximum (optionnel)</Label>
-                                        <NumberInput value={primeForm.data.montant_max} onChange={v => primeForm.setData('montant_max', v)} className="mt-1.5" placeholder="Illimité si vide" suffix="GNF" />
+                                        <NumberInput value={primeForm.data.montant_max} onChange={v => primeForm.setData('montant_max', v)} className="mt-1.5" placeholder="Illimité si vide" suffix={devise?.code || 'GNF'} />
                                     </div>
                                     <div>
                                         <Label>Seuil minimum de déclenchement (%)</Label>
@@ -430,7 +431,7 @@ export default function ParametresOKR({
 
             {/* Axe Dialog */}
             <Dialog open={activeDialog === 'axe'} onOpenChange={(o) => !o && setActiveDialog(null)}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un axe stratégique</DialogTitle></DialogHeader>
                     <form onSubmit={submitAxe} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={axeForm.data.nom} onChange={e => axeForm.setData('nom', e.target.value)} error={axeForm.errors.nom} /></div>
@@ -455,7 +456,7 @@ export default function ParametresOKR({
 
             {/* Periode Dialog */}
             <Dialog open={activeDialog === 'periode'} onOpenChange={(o) => !o && setActiveDialog(null)}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} une période</DialogTitle></DialogHeader>
                     <form onSubmit={submitPeriode} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={periodeForm.data.nom} onChange={e => periodeForm.setData('nom', e.target.value)} error={periodeForm.errors.nom} placeholder="Ex: Q2 2026" /></div>
@@ -487,7 +488,7 @@ export default function ParametresOKR({
 
             {/* Type Objectif Dialog */}
             <Dialog open={activeDialog === 'typeObj'} onOpenChange={(o) => !o && setActiveDialog(null)}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un type d'objectif</DialogTitle></DialogHeader>
                     <form onSubmit={submitTypeObj} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={typeObjForm.data.nom} onChange={e => typeObjForm.setData('nom', e.target.value)} error={typeObjForm.errors.nom} /></div>
@@ -507,7 +508,7 @@ export default function ParametresOKR({
 
             {/* Type KR Dialog */}
             <Dialog open={activeDialog === 'typeKR'} onOpenChange={(o) => !o && setActiveDialog(null)}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un type de résultat clé</DialogTitle></DialogHeader>
                     <form onSubmit={submitTypeKR} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={typeKRForm.data.nom} onChange={e => typeKRForm.setData('nom', e.target.value)} error={typeKRForm.errors.nom} /></div>
@@ -529,7 +530,7 @@ export default function ParametresOKR({
 
             {/* Statut Dialog */}
             <Dialog open={activeDialog === 'statut'} onOpenChange={(o) => !o && setActiveDialog(null)}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un statut</DialogTitle></DialogHeader>
                     <form onSubmit={submitStatut} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={statutForm.data.nom} onChange={e => statutForm.setData('nom', e.target.value)} error={statutForm.errors.nom} /></div>
@@ -551,7 +552,7 @@ export default function ParametresOKR({
 
             {/* Seuil Dialog */}
             <Dialog open={activeDialog === 'seuil'} onOpenChange={(o) => !o && setActiveDialog(null)}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un seuil de performance</DialogTitle></DialogHeader>
                     <form onSubmit={submitSeuil} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={seuilForm.data.nom} onChange={e => seuilForm.setData('nom', e.target.value)} error={seuilForm.errors.nom} placeholder="Ex: En retard" /></div>

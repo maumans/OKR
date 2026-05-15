@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            DeviseSeeder::class,
             SocieteSeeder::class,
             CollaborateurSeeder::class,
             ParametreOKRSeeder::class,

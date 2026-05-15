@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useForm, Link } from '@inertiajs/react';
+import { useForm, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/Card';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { Label } from '@/Components/ui/Label';
-import { Select } from '@/Components/ui/Select';
+import { NativeSelect as Select } from '@/Components/ui/Select';
 import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { Badge } from '@/Components/ui/Badge';
 import { NumberInput } from '@/Components/ui/NumberInput';
@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Target, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 
 export default function OKRCreate({ collaborateurs, axes = [], periodes = [], typesObjectifs = [], typesResultatsCles = [], configuration }) {
+    const devise = usePage().props.auth?.societe?.devise;
     const isPondere = configuration?.mode_calcul === 'pondere';
 
     const { data, setData, post, processing, errors } = useForm({
@@ -20,16 +21,16 @@ export default function OKRCreate({ collaborateurs, axes = [], periodes = [], ty
         axe: '',
         axe_objectif_id: '',
         periode: '',
-        periode_id: '',
+        periode_ids: [],
         type_objectif_id: '',
         visibilite: configuration?.visibilite_defaut || 'equipe',
         prime: '',
         collaborateur_id: '',
-        resultats_cles: [{ description: '', type_resultat_cle_id: '', valeur_cible: 100, poids: 1, unite: '' }],
+        resultats_cles: [{ description: '', description_detaillee: '', type_resultat_cle_id: '', valeur_cible: 100, poids: 1, unite: '' }],
     });
 
     const addResultat = () => {
-        setData('resultats_cles', [...data.resultats_cles, { description: '', type_resultat_cle_id: '', valeur_cible: 100, poids: 1, unite: '' }]);
+        setData('resultats_cles', [...data.resultats_cles, { description: '', description_detaillee: '', type_resultat_cle_id: '', valeur_cible: 100, poids: 1, unite: '' }]);
     };
 
     const removeResultat = (index) => {
@@ -99,17 +100,30 @@ export default function OKRCreate({ collaborateurs, axes = [], periodes = [], ty
                                     />
                                 </div>
                                 <div>
-                                    <Label htmlFor="periode_id">Période *</Label>
+                                    <Label>Périodes *</Label>
                                     {periodes.length > 0 ? (
-                                        <Select id="periode_id" value={data.periode_id} onChange={e => setData('periode_id', e.target.value)} error={errors.periode_id} className="mt-1.5">
-                                            <option value="">Sélectionner une période...</option>
+                                        <div className="flex flex-wrap gap-2 mt-1.5">
                                             {periodes.map(p => (
-                                                <option key={p.id} value={p.id}>{p.nom}</option>
+                                                <label key={p.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-200 dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-800 cursor-pointer text-sm">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                                        checked={data.periode_ids.includes(p.id)} 
+                                                        onChange={(e) => {
+                                                            const newIds = e.target.checked 
+                                                                ? [...data.periode_ids, p.id]
+                                                                : data.periode_ids.filter(id => id !== p.id);
+                                                            setData('periode_ids', newIds);
+                                                        }} 
+                                                    />
+                                                    {p.nom}
+                                                </label>
                                             ))}
-                                        </Select>
+                                        </div>
                                     ) : (
                                         <Input id="periode" value={data.periode} onChange={e => setData('periode', e.target.value)} error={errors.periode} className="mt-1.5" placeholder="Ex: Q2-2026" />
                                     )}
+                                    {errors.periode_ids && <p className="text-xs text-red-500 mt-1">{errors.periode_ids}</p>}
                                 </div>
                             </div>
                             
@@ -145,7 +159,7 @@ export default function OKRCreate({ collaborateurs, axes = [], periodes = [], ty
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <Label htmlFor="prime">Prime associée (Optionnelle)</Label>
-                                    <NumberInput id="prime" value={data.prime} onChange={v => setData('prime', v)} placeholder="0" className="mt-1.5" suffix="GNF" />
+                                    <NumberInput id="prime" value={data.prime} onChange={v => setData('prime', v)} placeholder="0" className="mt-1.5" suffix={devise?.code || 'GNF'} />
                                 </div>
                                 <div>
                                     <Label htmlFor="visibilite">Visibilité</Label>
@@ -186,12 +200,18 @@ export default function OKRCreate({ collaborateurs, axes = [], periodes = [], ty
                                                 className="p-4 rounded-lg border border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 space-y-3">
                                                 <div className="flex gap-2 items-start">
                                                     <span className="text-xs font-bold text-slate-400 mt-2.5 w-5 shrink-0">#{index + 1}</span>
-                                                    <div className="flex-1">
+                                                    <div className="flex-1 space-y-2">
                                                         <Input
                                                             value={resultat.description}
                                                             onChange={e => updateResultat(index, 'description', e.target.value)}
-                                                            placeholder="Ex: Atteindre 100 ventes, Réduire le churn à 5%..."
+                                                            placeholder="Titre du KR (Ex: Atteindre 100 ventes...)"
                                                             error={errors[`resultats_cles.${index}.description`]}
+                                                        />
+                                                        <textarea
+                                                            value={resultat.description_detaillee || ''}
+                                                            onChange={e => updateResultat(index, 'description_detaillee', e.target.value)}
+                                                            placeholder="Description détaillée, contexte, ou notes supplémentaires..."
+                                                            className="w-full rounded-md border-gray-300 dark:border-dark-700 bg-white dark:bg-dark-900 text-sm focus:border-primary-500 focus:ring-primary-500 min-h-[60px]"
                                                         />
                                                     </div>
                                                     {typesResultatsCles.length > 0 && (

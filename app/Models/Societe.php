@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Seeders\DefaultOkrConfigSeeder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Societe extends Model
@@ -27,6 +28,7 @@ class Societe extends Model
         'couleur_secondaire',
         'mode_sombre',
         'layout_mode',
+        'devise_id',
     ];
 
     protected function casts(): array
@@ -37,6 +39,11 @@ class Societe extends Model
     }
 
     // ─── Relations ─────────────────────────────────────────
+
+    public function devise(): BelongsTo
+    {
+        return $this->belongsTo(Devise::class);
+    }
 
     public function collaborateurs(): HasMany
     {

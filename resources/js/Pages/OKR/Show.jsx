@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm, Link, router } from '@inertiajs/react';
+import { useForm, Link, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/Card';
@@ -12,8 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/u
 import { Input } from '@/Components/ui/Input';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 import { Label } from '@/Components/ui/Label';
-import { Select } from '@/Components/ui/Select';
-import { formatNumber } from '@/lib/utils';
+import { NativeSelect as Select } from '@/Components/ui/Select';
+import { formatNumber, formatCurrency } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import {
@@ -21,6 +21,7 @@ import {
     CheckSquare, Plus, Calendar, ExternalLink,
     Clock, AlertCircle, CheckCheck, Ban,
 } from 'lucide-react';
+import TaskDetailPanel from '../Individuels/Components/TaskDetailPanel';
 
 const statutColors  = { brouillon: 'outline', actif: 'default', termine: 'success', annule: 'destructive' };
 const statutLabels  = { brouillon: 'Brouillon', actif: 'Actif', termine: 'Terminé', annule: 'Annulé' };
@@ -41,8 +42,10 @@ function getSeuilColor(progression, seuils) {
 }
 
 export default function OKRShow({ objectif, seuils = [], configuration, taches = [], collaborateurs = [] }) {
+    const devise = usePage().props.auth?.societe?.devise;
     const isPondere = configuration?.mode_calcul === 'pondere';
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [selectedTask, setSelectedTask] = useState(null);
     
     // Historique Modal
     const [historyOpen, setHistoryOpen] = useState(false);
@@ -136,7 +139,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                 </>
                             )}
                             {objectif.type_nom && <><span>•</span><Badge variant="outline" className="text-xs">{objectif.type_nom}</Badge></>}
-                            {Number(objectif.prime) > 0 && <><span>•</span><span>Prime : {formatNumber(objectif.prime, 0)} FCFA</span></>}
+                            {Number(objectif.prime) > 0 && <><span>•</span><span>Prime : {formatCurrency(objectif.prime, devise)}</span></>}
                         </div>
                     </motion.div>
 
@@ -313,10 +316,10 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                                 const cfg = tacheStatutConfig[tache.statut] ?? tacheStatutConfig.a_faire;
                                                 const Icon = cfg.icon;
                                                 return (
-                                                    <div key={tache.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800/50 transition-colors group">
+                                                    <div key={tache.id} onClick={() => setSelectedTask(tache)} className="cursor-pointer flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800/50 transition-colors group">
                                                         <Icon className={`h-4 w-4 shrink-0 ${cfg.color}`} />
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{tache.titre}</p>
+                                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-primary-600 truncate transition-colors">{tache.titre}</p>
                                                             <p className="text-xs text-gray-400 truncate">{tache.collaborateur}</p>
                                                         </div>
                                                         <div className="flex items-center gap-2 shrink-0">
@@ -382,60 +385,62 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
 
             {/* ── Dialog Créer Tâche ────────────────────────────────── */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Nouvelle tâche pour cet OKR</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={submitCreateTask} className="space-y-4 mt-4">
-                        <div>
-                            <Label>Titre *</Label>
-                            <Input value={taskData.titre} onChange={e => setTaskData('titre', e.target.value)} error={taskErrors.titre} className="mt-1" />
-                        </div>
-                        <div>
-                            <Label>Description</Label>
-                            <textarea
-                                className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:ring-offset-dark-900 dark:placeholder:text-gray-400 dark:focus-visible:ring-primary-500 mt-1.5"
-                                value={taskData.description}
-                                onChange={e => setTaskData('description', e.target.value)}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden p-0 flex flex-col">
+                    <div className="px-6 pt-6 pb-4 shrink-0 border-b border-gray-100 dark:border-dark-700">
+                        <DialogHeader>
+                            <DialogTitle>Nouvelle tâche pour cet OKR</DialogTitle>
+                        </DialogHeader>
+                    </div>
+                    <form onSubmit={submitCreateTask} className="flex flex-col flex-1 min-h-0">
+                        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
                             <div>
-                                <Label>Priorité</Label>
-                                <Select value={taskData.priorite} onChange={e => setTaskData('priorite', e.target.value)} className="mt-1.5">
-                                    <option value="basse">Basse</option>
-                                    <option value="normale">Normale</option>
-                                    <option value="haute">Haute</option>
-                                    <option value="urgente">Urgente</option>
-                                </Select>
+                                <Label>Titre *</Label>
+                                <Input value={taskData.titre} onChange={e => setTaskData('titre', e.target.value)} error={taskErrors.titre} className="mt-1" />
                             </div>
                             <div>
-                                <Label>Date d'échéance</Label>
-                                <CustomDatePicker value={taskData.date} onChange={v => setTaskData('date', v)} error={taskErrors.date} className="mt-1.5" />
+                                <Label>Description</Label>
+                                <textarea
+                                    className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:ring-offset-dark-900 dark:placeholder:text-gray-400 dark:focus-visible:ring-primary-500 mt-1.5"
+                                    value={taskData.description}
+                                    onChange={e => setTaskData('description', e.target.value)}
+                                />
                             </div>
-                        </div>
-                        <div>
-                            <Label>Assigné à *</Label>
-                            <Select value={taskData.collaborateur_id} onChange={e => setTaskData('collaborateur_id', e.target.value)} error={taskErrors.collaborateur_id} className="mt-1.5">
-                                <option value="">Sélectionner...</option>
-                                {collaborateurs.map(c => (
-                                    <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>
-                                ))}
-                            </Select>
-                        </div>
-                        
-                        {objectif.resultats_cles.length > 0 && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label>Priorité</Label>
+                                    <Select value={taskData.priorite} onChange={e => setTaskData('priorite', e.target.value)} className="mt-1.5">
+                                        <option value="basse">Basse</option>
+                                        <option value="normale">Normale</option>
+                                        <option value="haute">Haute</option>
+                                        <option value="urgente">Urgente</option>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label>Date d'échéance</Label>
+                                    <CustomDatePicker value={taskData.date} onChange={v => setTaskData('date', v)} error={taskErrors.date} className="mt-1.5" />
+                                </div>
+                            </div>
                             <div>
-                                <Label>Résultat Clé *</Label>
-                                <Select value={taskData.resultat_cle_id || ''} onChange={e => setTaskData('resultat_cle_id', e.target.value || null)} className="mt-1.5">
-                                    {objectif.resultats_cles.map(r => (
-                                        <option key={r.id} value={r.id}>{r.description}</option>
+                                <Label>Assigné à *</Label>
+                                <Select value={taskData.collaborateur_id} onChange={e => setTaskData('collaborateur_id', e.target.value)} error={taskErrors.collaborateur_id} className="mt-1.5">
+                                    <option value="">Sélectionner...</option>
+                                    {collaborateurs.map(c => (
+                                        <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>
                                     ))}
                                 </Select>
                             </div>
-                        )}
-
-                        <div className="flex justify-end gap-2 pt-2">
+                            {objectif.resultats_cles.length > 0 && (
+                                <div>
+                                    <Label>Résultat Clé *</Label>
+                                    <Select value={taskData.resultat_cle_id || ''} onChange={e => setTaskData('resultat_cle_id', e.target.value || null)} className="mt-1.5">
+                                        {objectif.resultats_cles.map(r => (
+                                            <option key={r.id} value={r.id}>{r.description}</option>
+                                        ))}
+                                    </Select>
+                                </div>
+                            )}
+                        </div>
+                        <div className="px-6 py-4 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 shrink-0 flex justify-end gap-2">
                             <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Annuler</Button>
                             <Button type="submit" disabled={processingTask}>Créer</Button>
                         </div>
@@ -445,7 +450,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
 
             {/* Dialog Historique */}
             <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Historique de progression</DialogTitle>
                     </DialogHeader>
@@ -495,6 +500,13 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                     )}
                 </DialogContent>
             </Dialog>
+
+            <TaskDetailPanel 
+                tache={selectedTask}
+                onClose={() => setSelectedTask(null)}
+                krDescription={selectedTask && objectif.resultats_cles ? objectif.resultats_cles.find(r => r.id === selectedTask.resultat_cle_id)?.description : ''}
+                collaborateurs={collaborateurs}
+            />
         </AppLayout>
     );
 }

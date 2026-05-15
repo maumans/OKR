@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/u
 import { NumberInput } from '@/Components/ui/NumberInput';
 import { Target, X } from 'lucide-react';
 
-export default function ObjectifModal({ open, onClose, collaborateurs, selectedCollaborateur, moisActuel, moisOptions, axes, editData = null }) {
+export default function ObjectifModal({ open, onClose, collaborateurs, selectedCollaborateur, moisActuel, moisOptions, axes, editData = null, auth }) {
+    const devise = auth?.societe?.devise;
     const isEdit = !!editData;
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -76,7 +77,7 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
                         <div className="mt-4 space-y-3 overflow-y-auto max-h-[55vh] pr-1">
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Collaborateur</label>
-                                <select value={form.collaborateur_id || ''} onChange={e => setField('collaborateur_id', e.target.value)} className={inputCls}>
+                                <select value={form.collaborateur_id || ''} onChange={e => setField('collaborateur_id', e.target.value)} disabled={!auth?.isResponsable} className={inputCls + " disabled:opacity-50 disabled:cursor-not-allowed"}>
                                     {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
                                 </select>
                             </div>
@@ -129,8 +130,8 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
                             </div>
                             <div>
                                 <div className="h-1 w-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 mb-1.5" />
-                                <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Prime si ≥ 80% atteint (GNF)</label>
-                                <NumberInput value={form.prime} onChange={v => setField('prime', v)} decimals={0} suffix="GNF" placeholder="Ex : 400 000" className="mt-1" />
+                                <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Prime si ≥ 80% atteint ({devise?.code || 'GNF'})</label>
+                                <NumberInput value={form.prime} onChange={v => setField('prime', v)} decimals={0} suffix={devise?.code || 'GNF'} placeholder="Ex : 400 000" className="mt-1" />
                             </div>
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Note / Contexte</label>

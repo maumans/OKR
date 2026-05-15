@@ -230,6 +230,11 @@ class IndividuelController extends Controller
 
         $moisDate = Carbon::createFromFormat('Y-m', $validated['mois'])->startOfMonth();
 
+        $currentCollabId = $request->user()->collaborateurActuel()->id;
+        if ((int)$validated['collaborateur_id'] !== $currentCollabId && !$request->user()->estResponsable()) {
+            abort(403, 'Vous ne pouvez créer un objectif individuel que pour vous-même.');
+        }
+
         // Résoudre le nom de l'axe
         $axeNom = '';
         if (!empty($validated['axe_objectif_id'])) {

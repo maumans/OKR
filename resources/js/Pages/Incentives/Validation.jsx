@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm, Link } from '@inertiajs/react';
+import { useForm, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
@@ -14,9 +14,10 @@ import {
 } from '@/Components/ui/Table';
 import { ArrowLeft, Calculator, CheckCircle2 } from 'lucide-react';
 import { NumberInput } from '@/Components/ui/NumberInput';
-import { formatNumber } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 
 export default function IncentivesValidation({ objectifs }) {
+    const devise = usePage().props.auth?.societe?.devise;
     const { data, setData, post, processing, reset } = useForm({
         taux_atteinte: '',
     });
@@ -70,7 +71,7 @@ export default function IncentivesValidation({ objectifs }) {
                                     <TableCell className="font-medium">{obj.collaborateur}</TableCell>
                                     <TableCell>{obj.titre}</TableCell>
                                     <TableCell className="text-right font-medium">
-                                        {formatNumber(obj.prime_cible, 0)} FCFA
+                                        {formatCurrency(obj.prime_cible, devise)}
                                     </TableCell>
                                     <TableCell>
                                         <span className={`font-semibold ${obj.taux_actuel >= 100 ? 'text-emerald-500' : 'text-slate-600'}`}>

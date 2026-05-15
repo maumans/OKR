@@ -17,6 +17,16 @@ use Inertia\Inertia;
 
 class ParametreOkrController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (!$request->user() || !$request->user()->estAdmin()) {
+                abort(403, 'Accès réservé aux administrateurs.');
+            }
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         $societeId = session('societe_id');

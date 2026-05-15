@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Devise;
 use App\Models\Societe;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +19,8 @@ class SocieteController extends Controller
         }
 
         return Inertia::render('Parametres/Index', [
-            'societe' => $societe,
+            'societe' => $societe->load('devise'),
+            'devises' => Devise::where('actif', true)->orderBy('code')->get(),
         ]);
     }
 
@@ -34,6 +36,7 @@ class SocieteController extends Controller
             'couleur_secondaire' => 'nullable|string|max:7',
             'mode_sombre' => 'boolean',
             'layout_mode' => 'nullable|string|in:sidebar,topbar',
+            'devise_id'   => 'nullable|exists:devises,id',
         ]);
 
         $societe->update($validated);

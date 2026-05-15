@@ -41,6 +41,37 @@ class DailyService
         return $score;
     }
 
+    public function calculerActivitesJour(int $collabId, Carbon $date): void
+    {
+        // Map categorie enum values → bilan column names
+        $catMap = [
+            'seminaire'   => 'seminaires',
+            'recherche'   => 'recherches',
+            'prospection' => 'prospection',
+            'rdv'         => 'rdv',
+            'delivery'    => 'delivery',
+        ];
+
+        $counts = TacheDaily::where('collaborateur_id', $collabId)
+            ->whereDate('date', $date)
+            ->where('statut', 'termine')
+            ->whereNotNull('categorie')
+            ->whereIn('categorie', array_keys($catMap))
+            ->get(['categorie'])
+            ->groupBy('categorie')
+            ->map->count();
+
+        $activites = [];
+        foreach ($catMap as $cat => $col) {
+            $activites[$col] = $counts[$cat] ?? 0;
+        }
+
+        $bilan = \App\Models\BilanJournalier::firstOrCreate(
+            ['collaborateur_id' => $collabId, 'date' => $date->format('Y-m-d')]
+        );
+        $bilan->update($activites);
+    }
+
     /**
      * Obtient les stats sur 7 jours avec le score journalier.
      */

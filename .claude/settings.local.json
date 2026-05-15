@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan *)",
+      "Bash(del \"d:\\\\Maurice\\\\Programmation\\\\Addvalis\\\\Projet\\\\OKR\\\\Application\\\\OKR\\\\database\\\\migrations\\\\2026_05_15_123936_create_objectif_periode_table.php\")",
+      "Bash(Remove-Item \"d:\\\\Maurice\\\\Programmation\\\\Addvalis\\\\Projet\\\\OKR\\\\Application\\\\OKR\\\\database\\\\migrations\\\\2026_05_15_123936_create_objectif_periode_table.php\")",
+      "Bash(Get-ChildItem -Path \"d:/Maurice/Programmation/Addvalis/Projet/OKR/Application/OKR/resources/js\" -Recurse -Force)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(npx vite *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Maurice\\\\Programmation\\\\Addvalis\\\\Projet\\\\OKR\" -Recurse -Filter \"*.html\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}; [print\\(k,v\\) for k,v in sorted\\(deps.items\\(\\)\\) if any\\(x in k for x in ['radix','shadcn','cmdk','vaul','lucide','class-variance','tailwind-merge','clsx']\\)]\")",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

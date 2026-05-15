@@ -31,7 +31,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         $collaborateur = $user?->collaborateurActuel();
-        $societe = $collaborateur?->societe;
+        $societe = $collaborateur?->societe?->load('devise');
 
         return [
             ...parent::share($request),
@@ -45,6 +45,8 @@ class HandleInertiaRequests extends Middleware
                     'role' => $collaborateur->role,
                     'actif' => $collaborateur->actif,
                     'nom_complet' => $collaborateur->nomComplet(),
+                    'isResponsable' => $collaborateur->estAdmin() || $collaborateur->estManager(),
+                    'isAdmin' => $collaborateur->estAdmin(),
                 ] : null,
                 'societe' => $societe ? [
                     'id' => $societe->id,
@@ -54,6 +56,13 @@ class HandleInertiaRequests extends Middleware
                     'couleur_secondaire' => $societe->couleur_secondaire,
                     'mode_sombre' => $societe->mode_sombre,
                     'layout_mode' => $societe->layout_mode ?? 'sidebar',
+                    'devise' => $societe->devise ? [
+                        'id'        => $societe->devise->id,
+                        'code'      => $societe->devise->code,
+                        'nom'       => $societe->devise->nom,
+                        'symbole'   => $societe->devise->symbole,
+                        'decimales' => $societe->devise->decimales,
+                    ] : ['id' => null, 'code' => 'GNF', 'nom' => 'Franc Guinéen', 'symbole' => 'GF', 'decimales' => 0],
                 ] : null,
             ],
             'flash' => [

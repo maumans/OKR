@@ -35,10 +35,12 @@ class BilanJournalierController extends Controller
         $dateStr = $request->input('date', Carbon::today()->format('Y-m-d'));
         $date = Carbon::parse($dateStr);
 
+        app(DailyService::class)->calculerActivitesJour($selectedCollab->id, $date);
+
         // Bilan du jour pour le collaborateur sélectionné
         $bilan = BilanJournalier::where('collaborateur_id', $selectedCollab->id)
             ->where('date', $date->format('Y-m-d'))
-            ->first();
+            ->first(['id', 'date', 'note', 'blocages', 'priorites_demain', 'seminaires', 'recherches', 'prospection', 'rdv', 'delivery']);
 
         // Tâches Daily du jour (table séparée des tâches OKR)
         $tachesDuJour = TacheDaily::with(['tache.objectif', 'typeTache'])->where('collaborateur_id', $selectedCollab->id)
@@ -54,6 +56,7 @@ class BilanJournalierController extends Controller
                 'type_tache' => $t->type_tache,
                 'type_tache_nom' => $t->typeTache?->nom,
                 'type_tache_couleur' => $t->typeTache?->couleur,
+                'categorie'   => $t->categorie,
                 'temps_estime' => $t->temps_estime,
                 'temps_reel' => $t->temps_reel,
                 'score' => $t->score,
@@ -84,14 +87,16 @@ class BilanJournalierController extends Controller
             ->orderByDesc('date')
             ->get()
             ->map(fn ($b) => [
-                'id' => $b->id,
-                'date' => $b->date->format('Y-m-d'),
-                'note' => $b->note,
-                'seminaires' => $b->seminaires ?? 0,
-                'recherches' => $b->recherches ?? 0,
-                'prospection' => $b->prospection ?? 0,
-                'rdv' => $b->rdv ?? 0,
-                'delivery' => $b->delivery ?? 0,
+                'id'              => $b->id,
+                'date'            => $b->date->format('Y-m-d'),
+                'note'            => $b->note,
+                'blocages'        => $b->blocages,
+                'priorites_demain'=> $b->priorites_demain,
+                'seminaires'      => $b->seminaires ?? 0,
+                'recherches'      => $b->recherches ?? 0,
+                'prospection'     => $b->prospection ?? 0,
+                'rdv'             => $b->rdv ?? 0,
+                'delivery'        => $b->delivery ?? 0,
             ]);
 
         // Compteur de tâches Daily par jour (pour l'historique)
@@ -132,29 +137,21 @@ class BilanJournalierController extends Controller
         $collaborateur = $request->user()->collaborateurActuel();
 
         $validated = $request->validate([
-            'note' => 'nullable|string',
-            'blocages' => 'nullable|string',
-            'date' => 'required|date',
-            'seminaires' => 'nullable|integer|min:0',
-            'recherches' => 'nullable|integer|min:0',
-            'prospection' => 'nullable|integer|min:0',
-            'rdv' => 'nullable|integer|min:0',
-            'delivery' => 'nullable|integer|min:0',
+            'note'             => 'nullable|string',
+            'blocages'         => 'nullable|string',
+            'priorites_demain' => 'nullable|string',
+            'date'             => 'required|date',
         ]);
 
+        // Auto-compute activity counts from completed tasks by categorie
+        app(DailyService::class)->calculerActivitesJour($collaborateur->id, Carbon::parse($validated['date']));
+
         BilanJournalier::updateOrCreate(
+            ['collaborateur_id' => $collaborateur->id, 'date' => $validated['date']],
             [
-                'collaborateur_id' => $collaborateur->id,
-                'date' => $validated['date'],
-            ],
-            [
-                'note' => $validated['note'],
-                'blocages' => $validated['blocages'],
-                'seminaires' => $validated['seminaires'] ?? 0,
-                'recherches' => $validated['recherches'] ?? 0,
-                'prospection' => $validated['prospection'] ?? 0,
-                'rdv' => $validated['rdv'] ?? 0,
-                'delivery' => $validated['delivery'] ?? 0,
+                'note'             => $validated['note'],
+                'blocages'         => $validated['blocages'],
+                'priorites_demain' => $validated['priorites_demain'],
             ]
         );
 
@@ -168,27 +165,31 @@ class BilanJournalierController extends Controller
         $collaborateur = $request->user()->collaborateurActuel();
 
         $validated = $request->validate([
-            'titre' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'priorite' => 'required|in:basse,normale,haute,urgente',
-            'date' => 'required|date',
-            'tache_id' => 'nullable|exists:taches,id',
-            'type_tache' => 'nullable|string',
+            'titre'        => 'required|string|max:255',
+            'description'  => 'nullable|string',
+            'priorite'     => 'required|in:basse,normale,haute,urgente',
+            'date'         => 'required|date',
+            'tache_id'     => 'nullable|exists:taches,id',
+            'type_tache'   => 'nullable|string',
+            'categorie'    => 'nullable|in:prospection,rdv,delivery,seminaire,recherche,autre',
             'temps_estime' => 'nullable|integer|min:0',
         ]);
 
         TacheDaily::create([
-            'societe_id' => session('societe_id'),
-            'collaborateur_id' => $collaborateur->id,
-            'tache_id' => $validated['tache_id'] ?? null,
-            'titre' => $validated['titre'],
-            'description' => $validated['description'] ?? null,
-            'priorite' => $validated['priorite'],
-            'type_tache' => $validated['type_tache'] ?? null,
-            'temps_estime' => $validated['temps_estime'] ?? null,
-            'statut' => 'a_faire',
-            'date' => $validated['date'],
+            'societe_id'      => session('societe_id'),
+            'collaborateur_id'=> $collaborateur->id,
+            'tache_id'        => $validated['tache_id'] ?? null,
+            'titre'           => $validated['titre'],
+            'description'     => $validated['description'] ?? null,
+            'priorite'        => $validated['priorite'],
+            'type_tache'      => $validated['type_tache'] ?? null,
+            'categorie'       => $validated['categorie'] ?? null,
+            'temps_estime'    => $validated['temps_estime'] ?? null,
+            'statut'          => 'a_faire',
+            'date'            => $validated['date'],
         ]);
+
+        app(DailyService::class)->calculerActivitesJour($collaborateur->id, Carbon::parse($validated['date']));
 
         return redirect()->back()->with('success', 'Tâche ajoutée.');
     }
@@ -197,6 +198,11 @@ class BilanJournalierController extends Controller
     {
         if ($tacheDaily->societe_id !== session('societe_id')) {
             abort(403);
+        }
+
+        $currentCollabId = $request->user()->collaborateurActuel()->id;
+        if ($tacheDaily->collaborateur_id !== $currentCollabId && !$request->user()->estResponsable()) {
+            abort(403, 'Vous n\'êtes pas autorisé à modifier cette tâche.');
         }
 
         $validated = $request->validate([
@@ -209,6 +215,7 @@ class BilanJournalierController extends Controller
         if ($validated['statut'] === 'termine') {
             app(DailyService::class)->calculerScoreJour($tacheDaily->collaborateur_id, Carbon::parse($tacheDaily->date));
         }
+        app(DailyService::class)->calculerActivitesJour($tacheDaily->collaborateur_id, Carbon::parse($tacheDaily->date));
 
         return redirect()->back();
     }
@@ -219,36 +226,54 @@ class BilanJournalierController extends Controller
             abort(403);
         }
 
+        $currentCollabId = $request->user()->collaborateurActuel()->id;
+        if ($tacheDaily->collaborateur_id !== $currentCollabId && !$request->user()->estResponsable()) {
+            abort(403, 'Vous n\'êtes pas autorisé à modifier cette tâche.');
+        }
+
         $validated = $request->validate([
-            'titre' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'priorite' => 'required|in:basse,normale,haute,urgente',
-            'tache_id' => 'nullable|exists:taches,id',
-            'type_tache' => 'nullable|string',
+            'titre'        => 'required|string|max:255',
+            'description'  => 'nullable|string',
+            'priorite'     => 'required|in:basse,normale,haute,urgente',
+            'tache_id'     => 'nullable|exists:taches,id',
+            'type_tache'   => 'nullable|string',
+            'categorie'    => 'nullable|in:prospection,rdv,delivery,seminaire,recherche,autre',
             'temps_estime' => 'nullable|integer|min:0',
-            'temps_reel' => 'nullable|integer|min:0',
+            'temps_reel'   => 'nullable|integer|min:0',
         ]);
 
         $tacheDaily->update([
-            'titre' => $validated['titre'],
+            'titre'       => $validated['titre'],
             'description' => $validated['description'] ?? null,
-            'priorite' => $validated['priorite'],
-            'tache_id' => $validated['tache_id'] ?? null,
-            'type_tache' => $validated['type_tache'] ?? null,
-            'temps_estime' => $validated['temps_estime'] ?? null,
-            'temps_reel' => $validated['temps_reel'] ?? null,
+            'priorite'    => $validated['priorite'],
+            'tache_id'    => $validated['tache_id'] ?? null,
+            'type_tache'  => $validated['type_tache'] ?? null,
+            'categorie'   => $validated['categorie'] ?? null,
+            'temps_estime'=> $validated['temps_estime'] ?? null,
+            'temps_reel'  => $validated['temps_reel'] ?? null,
         ]);
+
+        app(DailyService::class)->calculerActivitesJour($tacheDaily->collaborateur_id, Carbon::parse($tacheDaily->date));
 
         return redirect()->back()->with('success', 'Tâche mise à jour.');
     }
 
-    public function destroyTask(TacheDaily $tacheDaily)
+    public function destroyTask(Request $request, TacheDaily $tacheDaily)
     {
         if ($tacheDaily->societe_id !== session('societe_id')) {
             abort(403);
         }
 
+        $currentCollabId = $request->user()->collaborateurActuel()->id;
+        if ($tacheDaily->collaborateur_id !== $currentCollabId && !$request->user()->estResponsable()) {
+            abort(403, 'Vous n\'êtes pas autorisé à supprimer cette tâche.');
+        }
+
+        $collabId = $tacheDaily->collaborateur_id;
+        $date = Carbon::parse($tacheDaily->date);
         $tacheDaily->delete();
+
+        app(DailyService::class)->calculerActivitesJour($collabId, $date);
 
         return redirect()->back()->with('success', 'Tâche supprimée.');
     }

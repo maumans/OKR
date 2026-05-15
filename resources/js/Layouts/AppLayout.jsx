@@ -36,7 +36,7 @@ export default function AppLayout({ title, children }) {
                 <Toaster position="top-right" richColors closeButton duration={3000} />
                 <TopbarNav />
                 <main className="px-4 sm:px-6 py-5">
-                    <div className="max-w-[1400px] mx-auto w-full">
+                    <div className="max-w-5xl mx-auto w-full">
                         {children}
                     </div>
                 </main>
@@ -94,7 +94,7 @@ export default function AppLayout({ title, children }) {
                 </header>
 
                 <main className="flex-1 p-4 sm:p-6">
-                    <div className="max-w-[1400px] mx-auto w-full">
+                    <div className="max-w-5xl mx-auto w-full">
                         {children}
                     </div>
                 </main>

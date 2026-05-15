@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 import { CustomSelect } from '@/Components/ui/CustomSelect';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 
-export default function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultResultatCleId, collaborateurs, defaultCollaborateurId }) {
+export default function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultResultatCleId, collaborateurs, defaultCollaborateurId, auth }) {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [data, setData] = useState({ titre: '', priorite: 'normale', eisenhower: '', collaborateur_id: '', resultat_cle_id: '', date: '' });
@@ -95,11 +95,13 @@ export default function AddTaskModal({ open, onClose, objectifId, resultatsCles 
                                 onChange={v => setF('date', v)} 
                                 placeholder="Sélectionner une date"
                             />
-                            <CustomSelect 
-                                value={data.collaborateur_id} 
-                                onChange={v => setF('collaborateur_id', v)} 
-                                options={collaborateurs.map(c => ({ value: c.id, label: `${c.prenom} ${c.nom}` }))}
-                            />
+                            {auth?.isResponsable && collaborateurs.length > 1 && (
+                                <CustomSelect 
+                                    value={data.collaborateur_id} 
+                                    onChange={v => setF('collaborateur_id', v)} 
+                                    options={collaborateurs.map(c => ({ value: c.id, label: `${c.prenom} ${c.nom}` }))}
+                                />
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">

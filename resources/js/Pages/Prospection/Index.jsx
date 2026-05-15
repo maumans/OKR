@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, usePage } from '@inertiajs/react';
+import { formatCurrency } from '@/lib/utils';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { Label } from '@/Components/ui/Label';
 import { Badge } from '@/Components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
-import { Select } from '@/Components/ui/Select';
+import { NativeSelect as Select } from '@/Components/ui/Select';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, GripVertical, Building2, Phone, Briefcase, Calendar, DollarSign, User } from 'lucide-react';
@@ -22,6 +23,7 @@ const columns = [
 ];
 
 export default function ProspectionIndex({ prospects, filters, collaborateurs = [], secteurs = [], statsPipeline, valeurPipeline }) {
+    const devise = usePage().props.auth?.societe?.devise;
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [collabFilter, setCollabFilter] = useState(filters?.collaborateur_id || '');
     const [secteurFilter, setSecteurFilter] = useState(filters?.secteur || '');
@@ -166,7 +168,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                 <div className="bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-dark-800 p-5 flex flex-col justify-center">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Valeur du Pipeline</p>
                     <p className="text-3xl font-bold text-slate-900 dark:text-white">
-                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(valeurPipeline || 0)}
+                        {formatCurrency(valeurPipeline || 0, devise)}
                     </p>
                 </div>
                 <div className="bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-dark-800 p-5 flex flex-col justify-center">
@@ -180,7 +182,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                     <ResponsiveContainer width="100%" height="100%">
                         <FunnelChart>
                             <RechartsTooltip 
-                                formatter={(value, name, props) => [`${value} prospect(s) - ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(props.payload.valeurTotal)}`, 'Détails']}
+                                formatter={(value, name, props) => [`${value} prospect(s) - ${formatCurrency(props.payload.valeurTotal, devise)}`, 'Détails']}
                                 contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6', borderRadius: '0.5rem', fontSize: '12px' }}
                             />
                             <Funnel
@@ -221,7 +223,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                                             </div>
                                             {prospect.valeur > 0 && (
                                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2">
-                                                    <DollarSign className="h-3 w-3" /> {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(prospect.valeur)}
+                                                    <DollarSign className="h-3 w-3" /> {formatCurrency(prospect.valeur, devise)}
                                                 </div>
                                             )}
                                             {prospect.collaborateur && (
@@ -293,7 +295,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <Label>Valeur estimée (XOF)</Label>
+                                <Label>Valeur estimée ({devise?.code || 'GNF'})</Label>
                                 <Input type="number" icon={DollarSign} value={data.valeur} onChange={e => setData('valeur', e.target.value)} error={errors.valeur} placeholder="1000000" />
                             </div>
                             <div>

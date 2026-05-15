@@ -17,6 +17,7 @@ class ResultatCle extends Model
         'objectif_id',
         'type_resultat_cle_id',
         'description',
+        'description_detaillee',
         'mode_calcul',
         'milestones',
         'progression',

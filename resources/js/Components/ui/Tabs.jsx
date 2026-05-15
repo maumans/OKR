@@ -8,7 +8,9 @@ const TabsList = forwardRef(({ className, ...props }, ref) => (
     <TabsPrimitive.List
         ref={ref}
         className={cn(
-            'inline-flex h-11 items-center justify-center rounded-xl bg-gray-100 dark:bg-dark-800 p-1 text-gray-500 dark:text-gray-400',
+            'inline-flex h-10 items-center justify-center rounded-xl',
+            'bg-gray-100 dark:bg-dark-800 p-1',
+            'text-gray-500 dark:text-gray-400',
             className
         )}
         {...props}
@@ -20,12 +22,16 @@ const TabsTrigger = forwardRef(({ className, ...props }, ref) => (
     <TabsPrimitive.Trigger
         ref={ref}
         className={cn(
-            'inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+            'inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium',
+            'ring-offset-white dark:ring-offset-dark-900',
+            'transition-all duration-200',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2',
             'disabled:pointer-events-none disabled:opacity-50',
             'data-[state=active]:bg-white dark:data-[state=active]:bg-dark-700',
             'data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100',
             'data-[state=active]:shadow-sm',
+            'data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400',
+            'data-[state=inactive]:hover:text-gray-700 dark:data-[state=inactive]:hover:text-gray-300',
             className
         )}
         {...props}
@@ -37,7 +43,9 @@ const TabsContent = forwardRef(({ className, ...props }, ref) => (
     <TabsPrimitive.Content
         ref={ref}
         className={cn(
-            'mt-4 focus-visible:outline-none animate-fade-in',
+            'mt-4 ring-offset-white dark:ring-offset-dark-900',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2',
+            'animate-fade-in',
             className
         )}
         {...props}

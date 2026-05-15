@@ -5,7 +5,7 @@ import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 import { Label } from '@/Components/ui/Label';
-import { Select } from '@/Components/ui/Select';
+import { NativeSelect as Select } from '@/Components/ui/Select';
 import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { Badge } from '@/Components/ui/Badge';
 import { Card, CardContent } from '@/Components/ui/Card';

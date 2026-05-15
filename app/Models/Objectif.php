@@ -64,6 +64,11 @@ class Objectif extends Model
         return $this->belongsTo(Periode::class, 'periode_id');
     }
 
+    public function periodes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Periode::class, 'objectif_periode');
+    }
+
     public function typeObjectif(): BelongsTo
     {
         return $this->belongsTo(TypeObjectif::class, 'type_objectif_id');

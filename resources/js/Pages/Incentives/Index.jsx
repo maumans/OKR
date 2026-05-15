@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useForm, Link } from '@inertiajs/react';
+import { useForm, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { Label } from '@/Components/ui/Label';
-import { Select } from '@/Components/ui/Select';
+import { NativeSelect as Select } from '@/Components/ui/Select';
 import { Badge } from '@/Components/ui/Badge';
 import { Card, CardContent } from '@/Components/ui/Card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
@@ -19,9 +19,10 @@ import {
 import { Progress } from '@/Components/ui/Progress';
 import { Award, Plus, Calculator } from 'lucide-react';
 import { NumberInput } from '@/Components/ui/NumberInput';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, formatCurrency } from '@/lib/utils';
 
 export default function IncentivesIndex({ objectifs, collaborateurs }) {
+    const devise = usePage().props.auth?.societe?.devise;
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -94,7 +95,7 @@ export default function IncentivesIndex({ objectifs, collaborateurs }) {
                                         <Badge variant="outline">{obj.periode}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right font-medium text-slate-900 dark:text-white">
-                                        {formatNumber(obj.prime_cible, 0)} FCFA
+                                        {formatCurrency(obj.prime_cible, devise)}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
@@ -103,7 +104,7 @@ export default function IncentivesIndex({ objectifs, collaborateurs }) {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-bold text-emerald-600">
-                                        {formatNumber(obj.prime_versee, 0)} FCFA
+                                        {formatCurrency(obj.prime_versee, devise)}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -158,8 +159,8 @@ export default function IncentivesIndex({ objectifs, collaborateurs }) {
                                 </Select>
                             </div>
                             <div>
-                                <Label>Prime Cible (FCFA) *</Label>
-                                <NumberInput value={data.prime} onChange={v => setData('prime', v)} error={errors.prime} suffix="GNF" />
+                                <Label>Prime Cible ({devise?.code || 'GNF'}) *</Label>
+                                <NumberInput value={data.prime} onChange={v => setData('prime', v)} error={errors.prime} suffix={devise?.code || 'GNF'} />
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-4">

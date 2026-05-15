@@ -1,17 +1,17 @@
 import { Link, usePage } from '@inertiajs/react';
-import { 
-    LayoutDashboard, 
-    Users, 
-    Target, 
+import {
+    LayoutDashboard,
+    Users,
+    Target,
     CheckSquare,
     TrendingUp,
     Award,
     Settings,
     Settings2,
     PenTool,
-    Bell,
     Grid3X3,
-    GraduationCap
+    GraduationCap,
+    Briefcase,
 } from 'lucide-react';
 import { UserAvatar } from '@/Components/ui/Avatar';
 
@@ -36,6 +36,7 @@ const navigation = [
     {
         name: 'BUSINESS',
         items: [
+            { name: 'Missions & Delivery', href: 'missions.index', icon: Briefcase },
             { name: 'Prospection', href: 'prospects.index', icon: TrendingUp },
             { name: 'Incentives', href: 'incentives.index', icon: Award },
         ]
@@ -56,15 +57,21 @@ const navigation = [
 ];
 
 export default function Sidebar() {
-    const { url } = usePage();
     const { auth } = usePage().props;
     const user = auth.collaborateur || auth.user;
 
-    const allPaths = navigation.flatMap(g => g.items.map(i => new URL(route(i.href)).pathname)).sort((a, b) => b.length - a.length);
+    const toPath = (href) => {
+        try { return new URL(route(href), window.location.origin).pathname; }
+        catch { return null; }
+    };
+
+    const allPaths = navigation.flatMap(g => g.items.map(i => toPath(i.href))).filter(Boolean).sort((a, b) => b.length - a.length);
 
     const isActive = (href) => {
-        const path = new URL(route(href)).pathname;
-        const currentMatch = allPaths.find(p => url === p || url.startsWith(p + '/'));
+        const path = toPath(href);
+        if (!path) return false;
+        const currentPath = window.location.pathname;
+        const currentMatch = allPaths.find(p => currentPath === p || currentPath.startsWith(p + '/'));
         return currentMatch === path;
     };
 

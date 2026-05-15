@@ -15,7 +15,7 @@ const navItems = [
     { name: 'Daily', href: 'daily.index', color: 'bg-violet-500', textColor: 'text-violet-500' },
     { name: 'Prospection', href: 'prospects.index', color: 'bg-green-500', textColor: 'text-green-500' },
     { name: 'LMS', href: 'formations.index', color: 'bg-orange-500', textColor: 'text-orange-500' },
-    { name: 'Missions', href: 'taches.index', color: 'bg-sky-500', textColor: 'text-sky-500' },
+    { name: 'Missions', href: 'missions.index', color: 'bg-sky-500', textColor: 'text-sky-500' },
     { name: 'Incentives', href: 'incentives.index', color: 'bg-pink-500', textColor: 'text-pink-500' },
     { name: 'Synthèse', href: 'syntheses.index', color: 'bg-indigo-500', textColor: 'text-indigo-500' },
     { name: 'Équipe', href: 'collaborateurs.index', color: 'bg-teal-500', textColor: 'text-teal-500' },
@@ -24,15 +24,21 @@ const navItems = [
 ];
 
 export default function TopbarNav() {
-    const { url } = usePage();
     const { auth } = usePage().props;
     const user = auth.collaborateur || auth.user;
     const societe = auth.societe;
 
-    const allPaths = navItems.map(i => new URL(route(i.href)).pathname).sort((a, b) => b.length - a.length);
+    const toPath = (href) => {
+        try { return new URL(route(href), window.location.origin).pathname; }
+        catch { return null; }
+    };
+
+    const allPaths = navItems.map(i => toPath(i.href)).filter(Boolean).sort((a, b) => b.length - a.length);
     const isActive = (href) => {
-        const path = new URL(route(href)).pathname;
-        const match = allPaths.find(p => url === p || url.startsWith(p + '/'));
+        const path = toPath(href);
+        if (!path) return false;
+        const currentPath = window.location.pathname;
+        const match = allPaths.find(p => currentPath === p || currentPath.startsWith(p + '/'));
         return match === path;
     };
 

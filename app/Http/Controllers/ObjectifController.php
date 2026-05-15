@@ -39,7 +39,7 @@ class ObjectifController extends Controller
         }
 
         $objectifs = Objectif::where('societe_id', $societeId)
-            ->with(['collaborateur', 'resultatsCles.typeResultatCle', 'resultatsCles.taches.collaborateur', 'axeObjectif', 'periodeRelation', 'typeObjectif', 'taches.collaborateur'])
+            ->with(['collaborateur', 'resultatsCles.typeResultatCle', 'resultatsCles.taches.collaborateur', 'axeObjectif', 'periodeRelation', 'periodes', 'typeObjectif', 'taches.collaborateur'])
             ->when($request->search, function ($query, $search) {
                 $query->where('titre', 'like', "%{$search}%");
             })
@@ -50,7 +50,10 @@ class ObjectifController extends Controller
                 $query->where('collaborateur_id', $collabId);
             })
             ->when($request->periode_id, function ($query, $periodeId) {
-                $query->where('periode_id', $periodeId);
+                $query->where(function($q) use ($periodeId) {
+                    $q->where('periode_id', $periodeId)
+                      ->orWhereHas('periodes', fn($sq) => $sq->where('periodes.id', $periodeId));
+                });
             })
             ->when($request->axe_objectif_id, function ($query, $axeId) {
                 $query->where('axe_objectif_id', $axeId);
@@ -69,8 +72,9 @@ class ObjectifController extends Controller
                 'titre' => $objectif->titre,
                 'axe' => $objectif->axeObjectif?->nom ?? $objectif->axe,
                 'axe_couleur' => $objectif->axeObjectif?->couleur,
-                'periode' => $objectif->periodeRelation?->nom ?? $objectif->periode,
+                'periode' => $objectif->periodes->count() > 0 ? $objectif->periodes->pluck('nom')->join(', ') : ($objectif->periodeRelation?->nom ?? $objectif->periode),
                 'periode_id' => $objectif->periode_id,
+                'periode_ids' => $objectif->periodes->pluck('id')->toArray(),
                 'axe_objectif_id' => $objectif->axe_objectif_id,
                 'type_objectif_id' => $objectif->type_objectif_id,
                 'type' => $objectif->typeObjectif?->nom,
@@ -87,6 +91,7 @@ class ObjectifController extends Controller
                 'resultats_cles' => $objectif->resultatsCles->map(fn ($r) => [
                     'id' => $r->id,
                     'description' => $r->description,
+                    'description_detaillee' => $r->description_detaillee,
                     'progression' => $r->progression,
                     'valeur_cible' => $r->valeur_cible,
                     'unite' => $r->unite,
@@ -193,6 +198,8 @@ class ObjectifController extends Controller
             'axe' => 'nullable|string|max:255',
             'axe_objectif_id' => 'nullable|exists:axes_objectifs,id',
             'periode' => 'nullable|string|max:50',
+            'periode_ids' => 'nullable|array',
+            'periode_ids.*' => 'exists:periodes,id',
             'periode_id' => 'nullable|exists:periodes,id',
             'type_objectif_id' => 'nullable|exists:types_objectifs,id',
             'visibilite' => 'nullable|string|in:tous,equipe,prive',
@@ -200,13 +207,20 @@ class ObjectifController extends Controller
             'collaborateur_id' => 'required|exists:collaborateurs,id',
             'resultats_cles' => 'required|array|min:1',
             'resultats_cles.*.description' => 'required|string|max:255',
+            'resultats_cles.*.description_detaillee' => 'nullable|string',
             'resultats_cles.*.type_resultat_cle_id' => 'nullable|exists:types_resultats_cles,id',
             'resultats_cles.*.valeur_cible' => 'nullable|numeric|min:0',
             'resultats_cles.*.poids' => 'nullable|numeric|min:0',
             'resultats_cles.*.unite' => 'nullable|string|max:50',
         ]);
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $request, $historiqueService) {
+            // Vérification de permission : un simple collaborateur ne peut créer que pour lui-même
+            $currentCollabId = $request->user()->collaborateurActuel()->id;
+            if ((int)$validated['collaborateur_id'] !== $currentCollabId && !$request->user()->estResponsable()) {
+                abort(403, 'Vous ne pouvez créer un objectif que pour vous-même.');
+            }
+
             // Résoudre le nom de la période si seul periode_id est fourni
             $periodeNom = $validated['periode'] ?? null;
             if (!$periodeNom && !empty($validated['periode_id'])) {
@@ -230,12 +244,17 @@ class ObjectifController extends Controller
                 ResultatCle::create([
                     'objectif_id' => $objectif->id,
                     'description' => $resultat['description'],
+                    'description_detaillee' => $resultat['description_detaillee'] ?? null,
                     'type_resultat_cle_id' => $resultat['type_resultat_cle_id'] ?? null,
                     'valeur_cible' => $resultat['valeur_cible'] ?? 100,
                     'poids' => $resultat['poids'] ?? 1,
                     'unite' => $resultat['unite'] ?? null,
                     'progression' => 0,
                 ]);
+            }
+
+            if (!empty($validated['periode_ids'])) {
+                $objectif->periodes()->sync($validated['periode_ids']);
             }
             
             $historiqueService->enregistrerAction('objectif.cree', $objectif, ['titre' => $objectif->titre]);
@@ -248,7 +267,7 @@ class ObjectifController extends Controller
     {
         Gate::authorize('view', $objectif);
 
-        $objectif->load(['collaborateur', 'resultatsCles.typeResultatCle', 'resultatsCles.taches', 'resultatsCles.historiqueProgressions.collaborateur', 'axeObjectif', 'periodeRelation', 'typeObjectif', 'taches.collaborateur']);
+        $objectif->load(['collaborateur', 'resultatsCles.typeResultatCle', 'resultatsCles.taches', 'resultatsCles.historiqueProgressions.collaborateur', 'axeObjectif', 'periodeRelation', 'periodes', 'typeObjectif', 'taches.collaborateur']);
         $societeId = session('societe_id');
 
         // Récupérer les collaborateurs pour le formulaire de création de tâche
@@ -276,7 +295,8 @@ class ObjectifController extends Controller
                 'progression_globale' => $objectif->progression_globale,
                 'axe_nom'            => $objectif->axeObjectif?->nom ?? $objectif->axe,
                 'axe_couleur'        => $objectif->axeObjectif?->couleur,
-                'periode_nom'        => $objectif->periodeRelation?->nom ?? $objectif->periode,
+                'periode_nom'        => $objectif->periodes->count() > 0 ? $objectif->periodes->pluck('nom')->join(', ') : ($objectif->periodeRelation?->nom ?? $objectif->periode),
+                'periode_ids'        => $objectif->periodes->pluck('id')->toArray(),
                 'type_nom'           => $objectif->typeObjectif?->nom,
                 'niveau'             => $objectif->typeObjectif?->niveau,
                 'nom_complet'        => $objectif->collaborateur->nomComplet(),
@@ -297,6 +317,8 @@ class ObjectifController extends Controller
             'axe' => 'nullable|string|max:255',
             'axe_objectif_id' => 'nullable|exists:axes_objectifs,id',
             'periode' => 'nullable|string|max:50',
+            'periode_ids' => 'nullable|array',
+            'periode_ids.*' => 'exists:periodes,id',
             'periode_id' => 'nullable|exists:periodes,id',
             'type_objectif_id' => 'nullable|exists:types_objectifs,id',
             'visibilite' => 'nullable|string|in:tous,equipe,prive',
@@ -305,6 +327,7 @@ class ObjectifController extends Controller
             'resultats_cles' => 'required|array|min:1',
             'resultats_cles.*.id' => 'nullable|exists:resultats_cles,id',
             'resultats_cles.*.description' => 'required|string|max:255',
+            'resultats_cles.*.description_detaillee' => 'nullable|string',
             'resultats_cles.*.type_resultat_cle_id' => 'nullable|exists:types_resultats_cles,id',
             'resultats_cles.*.valeur_cible' => 'nullable|numeric|min:0',
             'resultats_cles.*.poids' => 'nullable|numeric|min:0',
@@ -339,6 +362,7 @@ class ObjectifController extends Controller
                     if ($kr) {
                         $kr->update([
                             'description' => $krData['description'],
+                            'description_detaillee' => $krData['description_detaillee'] ?? null,
                             'type_resultat_cle_id' => $krData['type_resultat_cle_id'] ?? null,
                             'valeur_cible' => $krData['valeur_cible'] ?? 100,
                             'poids' => $krData['poids'] ?? 1,
@@ -351,6 +375,7 @@ class ObjectifController extends Controller
                     $kr = ResultatCle::create([
                         'objectif_id' => $objectif->id,
                         'description' => $krData['description'],
+                        'description_detaillee' => $krData['description_detaillee'] ?? null,
                         'type_resultat_cle_id' => $krData['type_resultat_cle_id'] ?? null,
                         'valeur_cible' => $krData['valeur_cible'] ?? 100,
                         'poids' => $krData['poids'] ?? 1,
@@ -362,6 +387,10 @@ class ObjectifController extends Controller
             }
 
             // Delete KRs that were removed
+            if (isset($validated['periode_ids'])) {
+                $objectif->periodes()->sync($validated['periode_ids']);
+            }
+
             ResultatCle::where('objectif_id', $objectif->id)
                 ->whereNotIn('id', $existingIds)
                 ->delete();
@@ -426,3 +455,4 @@ class ObjectifController extends Controller
         return redirect()->route('objectifs.index')->with('success', 'Objectif supprimé.');
     }
 }
+
