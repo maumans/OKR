@@ -162,6 +162,7 @@ function KrProgressRow({ kr, krIdx, seuils, objectifId, onAddTask, onViewTask, a
 
 // ─── Objectif Card with expand/collapse ─────────────────────
 function ObjectifCard({ obj, seuils, seuilPrime, onEdit, onDelete, onAddTask, onViewTask, auth }) {
+ const devise = auth?.societe?.devise;
  const [expanded, setExpanded] = useState(true);
  const progression = obj.progression_globale || 0;
  const seuilColor = getSeuilColor(progression, seuils) || '#3b82f6';
