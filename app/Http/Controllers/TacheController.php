@@ -220,7 +220,7 @@ class TacheController extends Controller
         $file = $request->file('fichier');
         $nomStockage = $file->store("taches/{$tache->societe_id}/{$tache->id}");
 
-        TacheFichier::create([
+        $fichier = TacheFichier::create([
             'societe_id'       => $tache->societe_id,
             'tache_id'         => $tache->id,
             'collaborateur_id' => $request->user()->collaborateurActuel()->id,
@@ -230,7 +230,14 @@ class TacheController extends Controller
             'taille'           => $file->getSize(),
         ]);
 
-        return redirect()->back()->with('success', 'Fichier joint.');
+        return response()->json([
+            'id'           => $fichier->id,
+            'nom_original' => $fichier->nom_original,
+            'mime_type'    => $fichier->mime_type,
+            'taille'       => $fichier->tailleFormatee(),
+            'uploader'     => $request->user()->collaborateurActuel()->nomComplet(),
+            'created_at'   => $fichier->created_at->format('d/m/Y'),
+        ], 201);
     }
 
     public function downloadFichier(Tache $tache, TacheFichier $fichier)
@@ -249,7 +256,7 @@ class TacheController extends Controller
         Storage::delete($fichier->nom_stockage);
         $fichier->delete();
 
-        return redirect()->back()->with('success', 'Fichier supprimé.');
+        return response()->json(['success' => true]);
     }
 
     /**

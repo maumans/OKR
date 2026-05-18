@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, router } from '@inertiajs/react';
+import axios from 'axios';
 import { toast } from 'sonner';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
@@ -840,6 +841,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  const [editData, setEditData] = useState({});
  const [saving, setSaving] = useState(false);
  const [uploading, setUploading] = useState(false);
+ const [localFichiers, setLocalFichiers] = useState([]);
 
  const parseJsonArray = (val) => {
  if (Array.isArray(val)) return val;
@@ -848,6 +850,11 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  }
  return [];
  };
+
+ // Sync localFichiers quand tache change
+ useEffect(() => {
+ if (tache) setLocalFichiers(tache.fichiers || []);
+ }, [tache?.id]);
 
  // Reset quand une nouvelle tâche s'ouvre
  useEffect(() => {
@@ -891,27 +898,36 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  });
  };
 
- const handleUpload = (e) => {
+ const handleUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
+  const input = e.target;
   setUploading(true);
   const formData = new FormData();
   formData.append('fichier', file);
-  router.post(route('taches.fichiers.store', tache.id), formData, {
-   forceFormData: true,
-   preserveScroll: true,
-   onSuccess: () => { toast.success('Fichier joint'); setUploading(false); },
-   onError: () => { toast.error('Erreur lors de l\'upload'); setUploading(false); },
-   onFinish: () => { setUploading(false); e.target.value = ''; },
-  });
+  try {
+   const { data } = await axios.post(route('taches.fichiers.store', tache.id), formData, {
+    headers: { 'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || '') },
+   });
+   setLocalFichiers(prev => [...prev, data]);
+   toast.success('Fichier joint');
+  } catch {
+   toast.error('Erreur lors de l\'envoi');
+  } finally {
+   setUploading(false);
+   try { input.value = ''; } catch {}
+  }
  };
 
- const handleDeleteFichier = (fichierId) => {
+ const handleDeleteFichier = async (fichierId) => {
   if (!confirm('Supprimer ce fichier ?')) return;
-  router.delete(route('taches.fichiers.destroy', { tache: tache.id, fichier: fichierId }), {
-   preserveScroll: true,
-   onSuccess: () => toast.success('Fichier supprimé'),
-  });
+  try {
+   await axios.delete(route('taches.fichiers.destroy', { tache: tache.id, fichier: fichierId }));
+   setLocalFichiers(prev => prev.filter(f => f.id !== fichierId));
+   toast.success('Fichier supprimé');
+  } catch {
+   toast.error('Erreur lors de la suppression');
+  }
  };
 
  if (!tache) return null;
@@ -996,9 +1012,9 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  >
  <Paperclip className="h-3 w-3" />
  Fichiers
- {(tache.fichiers?.length > 0) && (
+ {localFichiers.length > 0 && (
   <span className="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
-  {tache.fichiers.length}
+  {localFichiers.length}
   </span>
  )}
  </button>
@@ -1239,9 +1255,9 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  </label>
 
  {/* Liste des fichiers */}
- {(tache.fichiers?.length > 0) ? (
+ {localFichiers.length > 0 ? (
  <div className="space-y-1.5">
-  {tache.fichiers.map((f) => {
+  {localFichiers.map((f) => {
   const MimeIcon = getMimeIcon(f.mime_type);
   return (
    <div key={f.id} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-gray-50 dark:bg-dark-800 border border-gray-100 dark:border-dark-700 group">
