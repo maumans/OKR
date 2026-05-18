@@ -275,7 +275,7 @@ export default function DailyBilan({
  active ? 'bg-primary-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-800'
  }`}>
  <div className={`h-2 w-2 rounded-full ${active ? 'bg-white' : collabColors[i % collabColors.length]}`} />
- {c.prenom}
+ {c.prenom || c.nom}
  </button>
  );
  })}

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/u
 import { NumberInput } from '@/Components/ui/NumberInput';
 import { Target, X } from 'lucide-react';
 
-export default function ObjectifModal({ open, onClose, collaborateurs, selectedCollaborateur, moisActuel, moisOptions, axes, editData = null, auth }) {
+export default function ObjectifModal({ open, onClose, collaborateurs, selectedCollaborateur, moisActuel, moisOptions, axes, editData = null, auth, missions = [] }) {
     const devise = auth?.societe?.devise;
     const isEdit = !!editData;
     const [error, setError] = useState('');
@@ -21,12 +21,13 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
                     titre: editData.titre || '',
                     resultats_cles: (editData.resultats_cles || []).map(kr => ({ id: kr.id, description: kr.description })),
                     prime: editData.prime || '', note_contexte: editData.note_contexte || '',
+                    mission_id: String(editData.mission_id || ''),
                 });
             } else {
                 setForm({
                     collaborateur_id: String(selectedCollaborateur?.id || ''), mois: moisActuel,
                     axe_objectif_id: '', titre: '', resultats_cles: [{ id: null, description: '' }],
-                    prime: '', note_contexte: '',
+                    prime: '', note_contexte: '', mission_id: '',
                 });
             }
             setError('');
@@ -44,7 +45,7 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
         const filledKRs = form.resultats_cles.filter(kr => kr.description.trim());
         if (!filledKRs.length) { setError('Ajoutez au moins un résultat clé.'); return; }
         setSubmitting(true);
-        const payload = { ...form, resultats_cles: filledKRs, prime: form.prime || 0 };
+        const payload = { ...form, resultats_cles: filledKRs, prime: form.prime || 0, mission_id: form.mission_id || null };
         const config = {
             preserveScroll: true, preserveState: true,
             onSuccess: () => { toast.success(isEdit ? 'Objectif mis à jour' : 'Objectif créé'); setSubmitting(false); onClose(); },
@@ -133,6 +134,15 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
                                 <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Prime si ≥ 80% atteint ({devise?.code || 'GNF'})</label>
                                 <NumberInput value={form.prime} onChange={v => setField('prime', v)} decimals={0} suffix={devise?.code || 'GNF'} placeholder="Ex : 400 000" className="mt-1" />
                             </div>
+                            {missions.length > 0 && (
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mission / Projet</label>
+                                    <select value={form.mission_id || ''} onChange={e => setField('mission_id', e.target.value)} className={inputCls}>
+                                        <option value="">Aucune mission</option>
+                                        {missions.map(m => <option key={m.id} value={String(m.id)}>{m.titre}{m.client ? ` — ${m.client}` : ''}</option>)}
+                                    </select>
+                                </div>
+                            )}
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Note / Contexte</label>
                                 <textarea value={form.note_contexte || ''} onChange={e => setField('note_contexte', e.target.value)}

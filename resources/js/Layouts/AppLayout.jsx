@@ -12,11 +12,13 @@ function useFlashToast() {
 
     useEffect(() => {
         if (flash?.success && shown.current.success !== flash.success) {
-            toast.success(flash.success);
+            const msg = typeof flash.success === 'string' ? flash.success : flash.success?.message;
+            if (msg) toast.success(msg);
             shown.current.success = flash.success;
         }
         if (flash?.error && shown.current.error !== flash.error) {
-            toast.error(flash.error);
+            const msg = typeof flash.error === 'string' ? flash.error : flash.error?.message;
+            if (msg) toast.error(msg);
             shown.current.error = flash.error;
         }
     }, [flash]);

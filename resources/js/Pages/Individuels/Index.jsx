@@ -242,7 +242,7 @@ export default function IndividuelsIndex({
  collaborateurs = [], selectedCollaborateur, moisActuel, moisOptions = [],
  objectifs = [], scoreGlobal = 0, progressionParAxe = [],
  primeEnAttente = 0, primeTotale = 0, seuilPrime = 80,
- axes = [], seuils = [], filters = {}, auth
+ axes = [], seuils = [], filters = {}, auth, missions = []
 }) {
  const devise = auth?.societe?.devise;
  const [showCreate, setShowCreate] = useState(false);
@@ -358,12 +358,12 @@ export default function IndividuelsIndex({
 
  {/* Modals */}
  <ObjectifModal open={showCreate} onClose={() => setShowCreate(false)} collaborateurs={collaborateurs}
- selectedCollaborateur={selectedCollaborateur} moisActuel={moisActuel} moisOptions={moisOptions} axes={axes} auth={auth} />
+ selectedCollaborateur={selectedCollaborateur} moisActuel={moisActuel} moisOptions={moisOptions} axes={axes} auth={auth} missions={missions} />
  <ObjectifModal open={!!editObj} onClose={() => setEditObj(null)} collaborateurs={collaborateurs}
- selectedCollaborateur={selectedCollaborateur} moisActuel={moisActuel} moisOptions={moisOptions} axes={axes} editData={editObj} auth={auth} />
+ selectedCollaborateur={selectedCollaborateur} moisActuel={moisActuel} moisOptions={moisOptions} axes={axes} editData={editObj} auth={auth} missions={missions} />
  <AddTaskModal open={taskModal.open} onClose={() => setTaskModal({ open: false, objectifId: null, resultatsCles: [], defaultResultatCleId: null })}
  objectifId={taskModal.objectifId} resultatsCles={taskModal.resultatsCles} defaultResultatCleId={taskModal.defaultResultatCleId}
- collaborateurs={collaborateurs} defaultCollaborateurId={selectedCollaborateur?.id} auth={auth} />
+ collaborateurs={collaborateurs} defaultCollaborateurId={selectedCollaborateur?.id} auth={auth} missions={missions} />
  <AnimatePresence>
  {taskPanel.tache && (
  <TaskDetailPanel tache={taskPanel.tache} krDescription={taskPanel.krDescription}

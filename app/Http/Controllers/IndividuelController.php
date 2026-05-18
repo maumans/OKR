@@ -6,6 +6,7 @@ use App\Models\Objectif;
 use App\Models\ResultatCle;
 use App\Models\Collaborateur;
 use App\Models\AxeObjectif;
+use App\Models\Mission;
 use App\Models\ConfigurationOkr;
 use App\Models\ConfigurationPrime;
 use App\Models\SeuilPerformance;
@@ -194,6 +195,10 @@ class IndividuelController extends Controller
             ? $scoreService->getHistoriqueScores($selectedCollaborateur->id)
             : [];
 
+        $missions = Mission::pourSociete($societeId)
+            ->whereNotIn('statut', ['completed', 'archived'])
+            ->get(['id', 'titre', 'client']);
+
         return Inertia::render('Individuels/Index', [
             'collaborateurs'       => $collaborateurs,
             'selectedCollaborateur' => $selectedCollaborateur,
@@ -209,6 +214,7 @@ class IndividuelController extends Controller
             'seuils'               => $seuils,
             'historiqueScores'     => $historiqueScores,
             'filters'              => $request->only(['collaborateur_id', 'mois']),
+            'missions'             => $missions,
         ]);
     }
 
@@ -226,6 +232,7 @@ class IndividuelController extends Controller
             'resultats_cles.*.description' => 'required|string|max:500',
             'prime'            => 'nullable|numeric|min:0',
             'note_contexte'    => 'nullable|string|max:2000',
+            'mission_id'       => 'nullable|exists:missions,id',
         ]);
 
         $moisDate = Carbon::createFromFormat('Y-m', $validated['mois'])->startOfMonth();
@@ -251,6 +258,7 @@ class IndividuelController extends Controller
                 'mois'             => $moisDate->format('Y-m-d'),
                 'prime'            => $validated['prime'] ?? 0,
                 'note_contexte'    => $validated['note_contexte'] ?? null,
+                'mission_id'       => $validated['mission_id'] ?? null,
                 'statut'           => 'actif',
             ]);
 
@@ -286,6 +294,7 @@ class IndividuelController extends Controller
             'resultats_cles.*.description' => 'required|string|max:500',
             'prime'            => 'nullable|numeric|min:0',
             'note_contexte'    => 'nullable|string|max:2000',
+            'mission_id'       => 'nullable|exists:missions,id',
         ]);
 
         $moisDate = Carbon::createFromFormat('Y-m', $validated['mois'])->startOfMonth();
@@ -305,6 +314,7 @@ class IndividuelController extends Controller
                 'mois'             => $moisDate->format('Y-m-d'),
                 'prime'            => $validated['prime'] ?? 0,
                 'note_contexte'    => $validated['note_contexte'] ?? null,
+                'mission_id'       => $validated['mission_id'] ?? null,
             ]);
 
             // Sync des résultats clés

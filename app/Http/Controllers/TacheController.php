@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tache;
+use App\Models\TacheFichier;
 use App\Models\Objectif;
 use App\Models\ResultatCle;
 use App\Models\Collaborateur;
+use App\Models\Mission;
 use App\Events\TacheStatutChange;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class TacheController extends Controller
@@ -20,7 +23,7 @@ class TacheController extends Controller
         $collaborateurActuel = $request->user()->collaborateurActuel();
 
         $taches = Tache::where('societe_id', $societeId)
-            ->with(['collaborateur:id,nom,prenom', 'objectif:id,titre,axe_objectif_id'])
+            ->with(['collaborateur:id,nom,prenom', 'objectif:id,titre,axe_objectif_id', 'fichiers.collaborateur:id,nom,prenom'])
             ->when($request->search, function ($query, $search) {
                 $query->where('titre', 'like', "%{$search}%");
             })
@@ -63,6 +66,14 @@ class TacheController extends Controller
                 'objectif_id'      => $t->objectif_id,
                 'resultat_cle_id'  => $t->resultat_cle_id,
                 'objectif_titre'   => $t->objectif?->titre,
+                'fichiers'         => $t->fichiers->map(fn ($f) => [
+                    'id'           => $f->id,
+                    'nom_original' => $f->nom_original,
+                    'mime_type'    => $f->mime_type,
+                    'taille'       => $f->tailleFormatee(),
+                    'uploader'     => $f->collaborateur?->nomComplet(),
+                    'created_at'   => $f->created_at->format('d/m/Y'),
+                ]),
             ]);
 
         $collaborateurs = Collaborateur::where('societe_id', $societeId)->actifs()->get(['id', 'nom', 'prenom']);
@@ -73,11 +84,16 @@ class TacheController extends Controller
             ->with('resultatsCles:id,objectif_id,description')
             ->get(['id', 'titre', 'axe_objectif_id']);
 
+        $missions = Mission::pourSociete($societeId)
+            ->whereNotIn('statut', ['completed', 'archived'])
+            ->get(['id', 'titre', 'client']);
+
         return Inertia::render('Taches/Index', [
             'taches'               => $taches,
             'filters'              => $request->only(['search', 'statut', 'priorite', 'eisenhower', 'collaborateur_id', 'objectif_id']),
             'collaborateurs'       => $collaborateurs,
             'objectifs'            => $objectifs,
+            'missions'             => $missions,
             'currentCollaborateurId' => $collaborateurActuel?->id,
         ]);
     }
@@ -99,17 +115,19 @@ class TacheController extends Controller
             'date'             => 'nullable|date',
             'objectif_id'      => 'nullable|exists:objectifs,id',
             'resultat_cle_id'  => 'nullable|exists:resultats_cles,id',
+            'mission_id'       => 'nullable|exists:missions,id',
         ]);
         $currentCollabId = $request->user()->collaborateurActuel()->id;
         if ((int)$validated['collaborateur_id'] !== $currentCollabId && !$request->user()->estResponsable()) {
             abort(403, 'Vous ne pouvez assigner une tâche qu\'à vous-même.');
         }
 
-        Tache::create([
+        $tache = Tache::create([
             'societe_id'       => session('societe_id'),
             'collaborateur_id' => $validated['collaborateur_id'],
             'objectif_id'      => $validated['objectif_id'] ?? null,
             'resultat_cle_id'  => $validated['resultat_cle_id'] ?? null,
+            'mission_id'       => $validated['mission_id'] ?? null,
             'titre'            => $validated['titre'],
             'description'      => $validated['description'] ?? null,
             'mode_operatoire'  => $validated['mode_operatoire'] ?? null,
@@ -120,6 +138,8 @@ class TacheController extends Controller
             'statut'           => 'a_faire',
             'date'             => $validated['date'] ?? null,
         ]);
+
+        $this->recalculerProgressionKr($tache->resultat_cle_id);
 
         return redirect()->back()->with('success', 'Tâche créée.');
     }
@@ -142,10 +162,18 @@ class TacheController extends Controller
             'date'             => 'nullable|date',
             'objectif_id'      => 'nullable|exists:objectifs,id',
             'resultat_cle_id'  => 'nullable|exists:resultats_cles,id',
+            'mission_id'       => 'nullable|exists:missions,id',
             'statut'           => 'nullable|in:a_faire,en_cours,termine,bloque',
         ]);
 
+        $ancienKrId = $tache->resultat_cle_id;
         $tache->update($validated);
+
+        // Recalculer l'ancien et le nouveau KR si changé
+        $this->recalculerProgressionKr($ancienKrId);
+        if ($tache->resultat_cle_id !== $ancienKrId) {
+            $this->recalculerProgressionKr($tache->resultat_cle_id);
+        }
 
         return redirect()->back()->with('success', 'Tâche mise à jour.');
     }
@@ -165,6 +193,8 @@ class TacheController extends Controller
             event(new TacheStatutChange($tache, $ancienStatut, $validated['statut'], $request->user()->collaborateurActuel()?->id));
         }
 
+        $this->recalculerProgressionKr($tache->resultat_cle_id);
+
         return redirect()->back();
     }
 
@@ -172,8 +202,66 @@ class TacheController extends Controller
     {
         Gate::authorize('delete', $tache);
 
+        $krId = $tache->resultat_cle_id;
         $tache->delete();
 
+        $this->recalculerProgressionKr($krId);
+
         return redirect()->back()->with('success', 'Tâche supprimée.');
+    }
+
+    public function uploadFichier(Request $request, Tache $tache)
+    {
+        Gate::authorize('update', $tache);
+        $request->validate([
+            'fichier' => 'required|file|max:20480',
+        ]);
+
+        $file = $request->file('fichier');
+        $nomStockage = $file->store("taches/{$tache->societe_id}/{$tache->id}");
+
+        TacheFichier::create([
+            'societe_id'       => $tache->societe_id,
+            'tache_id'         => $tache->id,
+            'collaborateur_id' => $request->user()->collaborateurActuel()->id,
+            'nom_original'     => $file->getClientOriginalName(),
+            'nom_stockage'     => $nomStockage,
+            'mime_type'        => $file->getMimeType(),
+            'taille'           => $file->getSize(),
+        ]);
+
+        return redirect()->back()->with('success', 'Fichier joint.');
+    }
+
+    public function downloadFichier(Tache $tache, TacheFichier $fichier)
+    {
+        Gate::authorize('view', $tache);
+        abort_unless($fichier->tache_id === $tache->id, 404);
+
+        return Storage::download($fichier->nom_stockage, $fichier->nom_original);
+    }
+
+    public function destroyFichier(Tache $tache, TacheFichier $fichier)
+    {
+        Gate::authorize('update', $tache);
+        abort_unless($fichier->tache_id === $tache->id, 404);
+
+        Storage::delete($fichier->nom_stockage);
+        $fichier->delete();
+
+        return redirect()->back()->with('success', 'Fichier supprimé.');
+    }
+
+    /**
+     * Recalcule la progression d'un KR à partir de ses tâches.
+     */
+    private function recalculerProgressionKr(?int $resultatCleId): void
+    {
+        if (!$resultatCleId) return;
+
+        $kr = ResultatCle::find($resultatCleId);
+        if ($kr) {
+            $kr->recalculerDepuisTaches();
+        }
     }
 }

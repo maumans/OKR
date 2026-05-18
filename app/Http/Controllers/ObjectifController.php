@@ -11,6 +11,7 @@ use App\Models\TypeObjectif;
 use App\Models\TypeResultatCle;
 use App\Models\StatutObjectif;
 use App\Models\ConfigurationOkr;
+use App\Models\Mission;
 use App\Events\ProgressionKrMiseAJour;
 use App\Services\OkrService;
 use App\Services\HistoriqueService;
@@ -39,7 +40,7 @@ class ObjectifController extends Controller
         }
 
         $objectifs = Objectif::where('societe_id', $societeId)
-            ->with(['collaborateur', 'resultatsCles.typeResultatCle', 'resultatsCles.taches.collaborateur', 'axeObjectif', 'periodeRelation', 'periodes', 'typeObjectif', 'taches.collaborateur'])
+            ->with(['collaborateur', 'resultatsCles.typeResultatCle', 'resultatsCles.taches.collaborateur', 'resultatsCles.taches.fichiers.collaborateur', 'axeObjectif', 'periodeRelation', 'periodes', 'typeObjectif', 'taches.collaborateur', 'taches.fichiers.collaborateur'])
             ->when($request->search, function ($query, $search) {
                 $query->where('titre', 'like', "%{$search}%");
             })
@@ -86,8 +87,8 @@ class ObjectifController extends Controller
                 'collaborateur' => $objectif->collaborateur->nomComplet(),
                 'collaborateur_id' => $objectif->collaborateur_id,
                 'resultats_count' => $objectif->resultatsCles->count(),
-                'taches_count' => $objectif->taches->count(),
-                'taches_terminees' => $objectif->taches->where('statut', 'termine')->count(),
+                'taches_count' => $objectif->resultatsCles->sum(fn ($r) => $r->taches->count()),
+                'taches_terminees' => $objectif->resultatsCles->sum(fn ($r) => $r->taches->where('statut', 'termine')->count()),
                 'resultats_cles' => $objectif->resultatsCles->map(fn ($r) => [
                     'id' => $r->id,
                     'description' => $r->description,
@@ -112,6 +113,14 @@ class ObjectifController extends Controller
                         'collaborateur' => $t->collaborateur->nomComplet(),
                         'collaborateur_id' => $t->collaborateur_id,
                         'resultat_cle_id' => $t->resultat_cle_id,
+                        'fichiers' => $t->fichiers->map(fn ($f) => [
+                            'id'           => $f->id,
+                            'nom_original' => $f->nom_original,
+                            'mime_type'    => $f->mime_type,
+                            'taille'       => $f->tailleFormatee(),
+                            'uploader'     => $f->collaborateur?->nomComplet(),
+                            'created_at'   => $f->created_at->format('d/m/Y'),
+                        ]),
                     ]),
                 ]),
                 'taches' => $objectif->taches->map(fn ($t) => [
@@ -128,6 +137,14 @@ class ObjectifController extends Controller
                     'collaborateur' => $t->collaborateur->nomComplet(),
                     'collaborateur_id' => $t->collaborateur_id,
                     'resultat_cle_id' => $t->resultat_cle_id,
+                    'fichiers' => $t->fichiers->map(fn ($f) => [
+                        'id'           => $f->id,
+                        'nom_original' => $f->nom_original,
+                        'mime_type'    => $f->mime_type,
+                        'taille'       => $f->tailleFormatee(),
+                        'uploader'     => $f->collaborateur?->nomComplet(),
+                        'created_at'   => $f->created_at->format('d/m/Y'),
+                    ]),
                 ]),
             ]);
 
@@ -138,6 +155,10 @@ class ObjectifController extends Controller
         $seuils = \App\Models\SeuilPerformance::pourSociete($societeId)->ordonne()->get();
 
         $config = ConfigurationOkr::where('societe_id', $societeId)->first();
+
+        $missions = Mission::pourSociete($societeId)
+            ->whereNotIn('statut', ['completed', 'archived'])
+            ->get(['id', 'titre', 'client']);
 
         $progressionGlobale = $okrService->calculerProgressionGlobale($societeId, $request->periode_id);
 
@@ -170,6 +191,7 @@ class ObjectifController extends Controller
             'progressionGlobale' => $progressionGlobale,
             'velocite' => $velocite,
             'defaultCollaborateurId' => $defaultCollaborateurId,
+            'missions' => $missions,
         ]);
     }
 
@@ -212,6 +234,7 @@ class ObjectifController extends Controller
             'resultats_cles.*.valeur_cible' => 'nullable|numeric|min:0',
             'resultats_cles.*.poids' => 'nullable|numeric|min:0',
             'resultats_cles.*.unite' => 'nullable|string|max:50',
+            'mission_id' => 'nullable|exists:missions,id',
         ]);
 
         DB::transaction(function () use ($validated, $request, $historiqueService) {
@@ -237,6 +260,7 @@ class ObjectifController extends Controller
                 'type_objectif_id' => $validated['type_objectif_id'] ?? null,
                 'visibilite' => $validated['visibilite'] ?? 'equipe',
                 'prime' => $validated['prime'] ?? 0,
+                'mission_id' => $validated['mission_id'] ?? null,
                 'statut' => 'actif',
             ]);
 
@@ -333,6 +357,7 @@ class ObjectifController extends Controller
             'resultats_cles.*.poids' => 'nullable|numeric|min:0',
             'resultats_cles.*.unite' => 'nullable|string|max:50',
             'resultats_cles.*.progression' => 'nullable|numeric|min:0|max:100',
+            'mission_id' => 'nullable|exists:missions,id',
         ]);
 
         DB::transaction(function () use ($validated, $objectif) {
@@ -351,6 +376,7 @@ class ObjectifController extends Controller
                 'type_objectif_id' => $validated['type_objectif_id'] ?? null,
                 'visibilite' => $validated['visibilite'] ?? 'equipe',
                 'prime' => $validated['prime'] ?? 0,
+                'mission_id' => $validated['mission_id'] ?? null,
             ]);
 
             // Sync des résultats clés
@@ -453,6 +479,24 @@ class ObjectifController extends Controller
         $objectif->delete();
 
         return redirect()->route('objectifs.index')->with('success', 'Objectif supprimé.');
+    }
+
+    public function updateKr(Request $request, ResultatCle $resultatCle)
+    {
+        Gate::authorize('update', $resultatCle->objectif);
+
+        $validated = $request->validate([
+            'description'           => 'required|string|max:255',
+            'description_detaillee' => 'nullable|string',
+            'type_resultat_cle_id'  => 'nullable|exists:types_resultats_cles,id',
+            'valeur_cible'          => 'nullable|numeric|min:0',
+            'poids'                 => 'nullable|numeric|min:0|max:100',
+            'unite'                 => 'nullable|string|max:50',
+        ]);
+
+        $resultatCle->update($validated);
+
+        return redirect()->back()->with('success', 'Résultat clé mis à jour.');
     }
 }
 

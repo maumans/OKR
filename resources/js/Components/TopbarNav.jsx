@@ -15,12 +15,13 @@ const navItems = [
     { name: 'Daily', href: 'daily.index', color: 'bg-violet-500', textColor: 'text-violet-500' },
     { name: 'Prospection', href: 'prospects.index', color: 'bg-green-500', textColor: 'text-green-500' },
     { name: 'LMS', href: 'formations.index', color: 'bg-orange-500', textColor: 'text-orange-500' },
-    { name: 'Missions', href: 'missions.index', color: 'bg-sky-500', textColor: 'text-sky-500' },
+    { name: 'Missions/Projets', href: 'missions.index', color: 'bg-sky-500', textColor: 'text-sky-500' },
     { name: 'Incentives', href: 'incentives.index', color: 'bg-pink-500', textColor: 'text-pink-500' },
     { name: 'Synthèse', href: 'syntheses.index', color: 'bg-indigo-500', textColor: 'text-indigo-500' },
     { name: 'Équipe', href: 'collaborateurs.index', color: 'bg-teal-500', textColor: 'text-teal-500' },
     { name: 'Offre', href: 'prospects.index', color: 'bg-amber-500', textColor: 'text-amber-500' },
     { name: 'Matrice', href: 'matrice.index', color: 'bg-fuchsia-500', textColor: 'text-fuchsia-500' },
+    { name: 'Import', href: 'import.index', color: 'bg-emerald-500', textColor: 'text-emerald-500' },
 ];
 
 export default function TopbarNav() {
@@ -61,14 +62,7 @@ export default function TopbarNav() {
                             <span className="text-[9px] font-bold bg-primary-500 text-white px-1.5 py-0.5 rounded">v6</span>
                         </div>
                     </Link>
-                    <div className="hidden lg:flex items-center text-[9px] text-white/40 gap-1.5">
-                        <span>OKR</span><span>·</span>
-                        <span>Daily</span><span>·</span>
-                        <span>Missions</span><span>·</span>
-                        <span>Incentives</span><span>·</span>
-                        <span>LMS</span><span>·</span>
-                        <span>Primes</span>
-                    </div>
+                    
                 </div>
 
                 {/* Navigation pills + actions */}

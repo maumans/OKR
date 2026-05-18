@@ -13,6 +13,7 @@ use App\Http\Controllers\ParametreOkrController;
 use App\Http\Controllers\EisenhowerController;
 use App\Http\Controllers\IndividuelController;
 use App\Http\Controllers\MissionController;
+use App\Http\Controllers\ImportController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -47,6 +48,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
 
     // ─── Routes placeholder pour les modules futurs ────────
     // OKR
+    Route::put('/objectifs/kr/{resultatCle}', [ObjectifController::class, 'updateKr'])->name('objectifs.kr.update');
     Route::resource('objectifs', ObjectifController::class)->except(['edit']);
     Route::put('/objectifs/{objectif}/progress', [ObjectifController::class, 'updateProgress'])->name('objectifs.progress');
     Route::put('/objectifs/{objectif}/status', [ObjectifController::class, 'updateStatus'])->name('objectifs.status');
@@ -62,6 +64,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     Route::put('/taches/{tache}', [TacheController::class, 'update'])->name('taches.update');
     Route::put('/taches/{tache}/status', [TacheController::class, 'updateStatus'])->name('taches.status');
     Route::delete('/taches/{tache}', [TacheController::class, 'destroy'])->name('taches.destroy');
+    // Fichiers joints aux tâches
+    Route::post('/taches/{tache}/fichiers', [TacheController::class, 'uploadFichier'])->name('taches.fichiers.store');
+    Route::get('/taches/{tache}/fichiers/{fichier}/download', [TacheController::class, 'downloadFichier'])->name('taches.fichiers.download');
+    Route::delete('/taches/{tache}/fichiers/{fichier}', [TacheController::class, 'destroyFichier'])->name('taches.fichiers.destroy');
     
     // Bilans & Daily Tasks
     Route::get('/daily', [BilanJournalierController::class, 'index'])->name('daily.index');
@@ -101,6 +107,13 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     Route::put('/missions/{mission}/livrables/{livrable}/advance', [MissionController::class, 'advanceLivrable'])->name('missions.livrables.advance');
     Route::delete('/missions/{mission}/livrables/{livrable}', [MissionController::class, 'destroyLivrable'])->name('missions.livrables.destroy');
     Route::post('/missions/{mission}/logs', [MissionController::class, 'storeLog'])->name('missions.logs.store');
+
+    // Import Excel
+    Route::get('/import', [ImportController::class, 'index'])->name('import.index');
+    Route::post('/import/parse', [ImportController::class, 'parse'])->name('import.parse');
+    Route::post('/import/commit', [ImportController::class, 'commit'])->name('import.commit');
+    Route::get('/import/historique', [ImportController::class, 'historique'])->name('import.historique');
+    Route::delete('/import/{import}', [ImportController::class, 'destroy'])->name('import.destroy');
 
     // Reporting
     Route::get('/syntheses', fn () => Inertia::render('Reporting/Index'))->name('syntheses.index');

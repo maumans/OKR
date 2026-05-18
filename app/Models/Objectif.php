@@ -18,6 +18,7 @@ class Objectif extends Model
         'axe_objectif_id',
         'periode_id',
         'type_objectif_id',
+        'mission_id',
         'statut_objectif_id',
         'titre',
         'axe',
@@ -42,6 +43,11 @@ class Objectif extends Model
     public function collaborateur(): BelongsTo
     {
         return $this->belongsTo(Collaborateur::class);
+    }
+
+    public function mission(): BelongsTo
+    {
+        return $this->belongsTo(Mission::class);
     }
 
     public function resultatsCles(): HasMany

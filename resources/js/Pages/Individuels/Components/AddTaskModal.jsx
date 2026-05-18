@@ -2,19 +2,18 @@ import { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
-import { X } from 'lucide-react';
 import { CustomSelect } from '@/Components/ui/CustomSelect';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 
-export default function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultResultatCleId, collaborateurs, defaultCollaborateurId, auth }) {
+export default function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultResultatCleId, collaborateurs, defaultCollaborateurId, auth, missions = [] }) {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const [data, setData] = useState({ titre: '', priorite: 'normale', eisenhower: '', collaborateur_id: '', resultat_cle_id: '', date: '' });
+    const [data, setData] = useState({ titre: '', description: '', priorite: 'normale', eisenhower: '', collaborateur_id: '', resultat_cle_id: '', date: '', mission_id: '' });
 
     useEffect(() => {
         if (open) {
             setData(p => ({
-                ...p, titre: '', date: '', eisenhower: '',
+                ...p, titre: '', description: '', date: '', eisenhower: '', mission_id: '',
                 resultat_cle_id: String(defaultResultatCleId || resultatsCles[0]?.id || ''),
                 collaborateur_id: String(defaultCollaborateurId || ''),
             }));
@@ -23,7 +22,6 @@ export default function AddTaskModal({ open, onClose, objectifId, resultatsCles 
     }, [open, defaultResultatCleId]);
 
     const setF = (k, v) => setData(p => ({ ...p, [k]: v }));
-    const selectCls = "px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer";
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -32,9 +30,11 @@ export default function AddTaskModal({ open, onClose, objectifId, resultatsCles 
         if (resultatsCles.length > 0 && !data.resultat_cle_id) { setError('Sélectionnez un résultat clé.'); return; }
         setSubmitting(true);
         router.post(route('taches.store'), {
-            titre: data.titre, priorite: data.priorite, eisenhower: data.eisenhower || null,
+            titre: data.titre, description: data.description || null,
+            priorite: data.priorite, eisenhower: data.eisenhower || null,
             collaborateur_id: data.collaborateur_id, date: data.date || null,
             objectif_id: objectifId, resultat_cle_id: data.resultat_cle_id || null,
+            mission_id: data.mission_id || null,
         }, {
             preserveScroll: true, preserveState: true,
             onSuccess: () => { toast.success('Tâche créée'); setSubmitting(false); onClose(); },
@@ -96,10 +96,25 @@ export default function AddTaskModal({ open, onClose, objectifId, resultatsCles 
                                 placeholder="Sélectionner une date"
                             />
                             {auth?.isResponsable && collaborateurs.length > 1 && (
-                                <CustomSelect 
-                                    value={data.collaborateur_id} 
-                                    onChange={v => setF('collaborateur_id', v)} 
+                                <CustomSelect
+                                    value={data.collaborateur_id}
+                                    onChange={v => setF('collaborateur_id', v)}
                                     options={collaborateurs.map(c => ({ value: c.id, label: `${c.prenom} ${c.nom}` }))}
+                                />
+                            )}
+                            <textarea
+                                value={data.description}
+                                onChange={e => setF('description', e.target.value)}
+                                placeholder="Description (optionnel)..."
+                                rows={2}
+                                className="w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-none"
+                            />
+                            {missions.length > 0 && (
+                                <CustomSelect
+                                    value={data.mission_id}
+                                    onChange={v => setF('mission_id', v)}
+                                    placeholder="Mission / Projet (optionnel)"
+                                    options={missions.map(m => ({ value: String(m.id), label: m.titre + (m.client ? ` — ${m.client}` : '') }))}
                                 />
                             )}
                         </div>

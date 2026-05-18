@@ -10,7 +10,8 @@ import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
  Search, Plus, Target, Eye, Trash2, Pencil, Copy,
- ChevronDown, ChevronRight, CheckSquare, X, Filter,
+ ChevronDown, ChevronRight, CheckSquare, CheckCircle2, X, Filter,
+ Paperclip, Download, FileText, FileImage, FileArchive, File,
 } from 'lucide-react';
 import {
  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -45,13 +46,19 @@ function formatPeriodDates(p) {
 }
 
 // ─── Modal de création rapide d'objectif ────────────────────
-function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, collaborateurs, auth }) {
+function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, collaborateurs, axes = [], typesObjectifs = [], configuration, auth, missions = [] }) {
+ const devise = auth?.societe?.devise;
  const [error, setError] = useState('');
  const [submitting, setSubmitting] = useState(false);
  const [formData, setFormData] = useState({
  titre: '',
  periode_ids: periodes[0]?.id ? [periodes[0].id] : [],
  collaborateur_id: String(defaultCollaborateurId || ''),
+ axe_objectif_id: '',
+ type_objectif_id: '',
+ visibilite: configuration?.visibilite_defaut || 'equipe',
+ prime: '',
+ mission_id: '',
  resultats_cles: [{ description: '' }],
  });
 
@@ -83,6 +90,11 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  titre: '',
  periode_ids: periodes[0]?.id ? [periodes[0].id] : [],
  collaborateur_id: String(defaultCollaborateurId || ''),
+ axe_objectif_id: '',
+ type_objectif_id: '',
+ visibilite: configuration?.visibilite_defaut || 'equipe',
+ prime: '',
+ mission_id: '',
  resultats_cles: [{ description: '' }],
  });
  setError('');
@@ -115,6 +127,11 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  periode_id: formData.periode_ids[0],
  periode_ids: formData.periode_ids,
  collaborateur_id: formData.collaborateur_id,
+ axe_objectif_id: formData.axe_objectif_id || null,
+ type_objectif_id: formData.type_objectif_id || null,
+ visibilite: formData.visibilite,
+ prime: formData.prime || 0,
+ mission_id: formData.mission_id || null,
  resultats_cles: filledKRs,
  }, {
  preserveScroll: true,
@@ -212,6 +229,58 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  </select>
  </div>
  )}
+
+ {/* Axe + Type */}
+ <div className="grid grid-cols-2 gap-2">
+ {axes.length > 0 && (
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe stratégique</label>
+ <select value={formData.axe_objectif_id} onChange={e => setField('axe_objectif_id', e.target.value)}
+ className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
+ <option value="">Aucun</option>
+ {axes.map(a => <option key={a.id} value={String(a.id)}>{a.nom}</option>)}
+ </select>
+ </div>
+ )}
+ {typesObjectifs.length > 0 && (
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</label>
+ <select value={formData.type_objectif_id} onChange={e => setField('type_objectif_id', e.target.value)}
+ className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
+ <option value="">Aucun</option>
+ {typesObjectifs.map(t => <option key={t.id} value={String(t.id)}>{t.nom}</option>)}
+ </select>
+ </div>
+ )}
+ </div>
+
+ {/* Visibilité + Prime */}
+ <div className="grid grid-cols-2 gap-2">
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visibilité</label>
+ <select value={formData.visibilite} onChange={e => setField('visibilite', e.target.value)}
+ className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
+ <option value="tous">Tous</option>
+ <option value="equipe">Équipe</option>
+ <option value="prive">Privé</option>
+ </select>
+ </div>
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prime ({devise?.code || 'GNF'})</label>
+ <input type="number" value={formData.prime} onChange={e => setField('prime', e.target.value)} placeholder="0"
+ className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs" />
+ </div>
+ </div>
+ {missions.length > 0 && (
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mission / Projet</label>
+ <select value={formData.mission_id} onChange={e => setField('mission_id', e.target.value)}
+ className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
+ <option value="">Aucune mission</option>
+ {missions.map(m => <option key={m.id} value={String(m.id)}>{m.titre}{m.client ? ` — ${m.client}` : ''}</option>)}
+ </select>
+ </div>
+ )}
  </div>
 
  {/* Key Results */}
@@ -261,26 +330,29 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
 }
 
 // ─── Modal d'ajout rapide de tâche ──────────────────────────
-function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultResultatCleId, collaborateurs, defaultCollaborateurId, auth }) {
+function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultResultatCleId, collaborateurs, defaultCollaborateurId, auth, missions = [] }) {
  const [taskError, setTaskError] = useState('');
  const [submitting, setSubmitting] = useState(false);
  const [taskData, setTaskData] = useState({
  titre: '',
+ description: '',
  priorite: 'normale',
  eisenhower: '',
  collaborateur_id: String(defaultCollaborateurId || ''),
  resultat_cle_id: String(defaultResultatCleId || resultatsCles[0]?.id || ''),
  date: '',
+ mission_id: '',
+ mode_operatoire: [],
+ outils: '',
+ definition_done: [],
  });
 
- // Sync le KR sélectionné quand le modal s'ouvre avec un KR différent
  useEffect(() => {
  if (open) {
  setTaskData(prev => ({
  ...prev,
- titre: '',
- date: '',
- eisenhower: '',
+ titre: '', description: '', date: '', eisenhower: '', mission_id: '',
+ mode_operatoire: [], outils: '', definition_done: [],
  resultat_cle_id: String(defaultResultatCleId || resultatsCles[0]?.id || ''),
  collaborateur_id: String(defaultCollaborateurId || ''),
  }));
@@ -306,12 +378,17 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
  setSubmitting(true);
  router.post(route('taches.store'), {
  titre: taskData.titre,
+ description: taskData.description || null,
  priorite: taskData.priorite,
  eisenhower: taskData.eisenhower || null,
  collaborateur_id: taskData.collaborateur_id,
  date: taskData.date || null,
  objectif_id: objectifId,
  resultat_cle_id: taskData.resultat_cle_id || null,
+ mission_id: taskData.mission_id || null,
+ mode_operatoire: taskData.mode_operatoire.filter(e => e.trim()),
+ outils: taskData.outils || null,
+ definition_done: taskData.definition_done.filter(e => e.trim()),
  }, {
  preserveScroll: true,
  preserveState: true,
@@ -330,9 +407,9 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
 
  return (
  <Dialog open={open} onOpenChange={(v) => { if (!v) setTaskError(''); onClose(); }}>
- <DialogContent aria-describedby={undefined} className="max-w-sm p-0 overflow-hidden">
- <form onSubmit={handleSubmit}>
- <div className="p-5 pb-4">
+ <DialogContent aria-describedby={undefined} className="max-w-lg p-0 overflow-hidden max-h-[90vh] flex flex-col">
+ <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+ <div className="p-5 pb-4 overflow-y-auto flex-1">
  <DialogHeader>
  <DialogTitle className="text-sm">Nouvelle tâche</DialogTitle>
  </DialogHeader>
@@ -400,9 +477,99 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
  {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
  </select>
  )}
+ <textarea
+ value={taskData.description}
+ onChange={e => updateField('description', e.target.value)}
+ placeholder="Description (optionnel)..."
+ rows={2}
+ className="w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-none"
+ />
+ {missions.length > 0 && (
+ <select
+ value={taskData.mission_id}
+ onChange={e => updateField('mission_id', e.target.value)}
+ className="w-full px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer"
+ >
+ <option value="">Mission / Projet (optionnel)</option>
+ {missions.map(m => <option key={m.id} value={String(m.id)}>{m.titre}{m.client ? ` — ${m.client}` : ''}</option>)}
+ </select>
+ )}
+
+ {/* Mode opératoire */}
+ <div>
+ <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">📋 Mode opératoire</p>
+ <div className="space-y-1.5">
+ {taskData.mode_operatoire.map((step, i) => (
+ <div key={i} className="flex items-center gap-2">
+ <span className="text-[10px] font-bold text-gray-400 w-4 shrink-0">{i + 1}.</span>
+ <input
+ type="text"
+ value={step}
+ onChange={e => {
+ const n = [...taskData.mode_operatoire];
+ n[i] = e.target.value;
+ updateField('mode_operatoire', n);
+ }}
+ placeholder={`Étape ${i + 1}...`}
+ className="flex-1 px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+ />
+ <button type="button" onClick={() => updateField('mode_operatoire', taskData.mode_operatoire.filter((_, j) => j !== i))}
+ className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+ <X className="h-3 w-3" />
+ </button>
+ </div>
+ ))}
+ </div>
+ <button type="button" onClick={() => updateField('mode_operatoire', [...taskData.mode_operatoire, ''])}
+ className="mt-1.5 text-[11px] text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1">
+ + Ajouter une étape
+ </button>
+ </div>
+
+ {/* Outils & Ressources */}
+ <div>
+ <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">🔧 Outils & Ressources</p>
+ <input
+ type="text"
+ value={taskData.outils}
+ onChange={e => updateField('outils', e.target.value)}
+ placeholder="Ex: LMS Addvalis, Notion, Standup hebdo (séparés par virgule)"
+ className="w-full px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+ />
+ </div>
+
+ {/* Définition de "Done" */}
+ <div>
+ <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">✅ Définition de "Done"</p>
+ <div className="space-y-1.5">
+ {taskData.definition_done.map((critere, i) => (
+ <div key={i} className="flex items-center gap-2">
+ <input
+ type="text"
+ value={critere}
+ onChange={e => {
+ const n = [...taskData.definition_done];
+ n[i] = e.target.value;
+ updateField('definition_done', n);
+ }}
+ placeholder={`Critère ${i + 1}...`}
+ className="flex-1 px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+ />
+ <button type="button" onClick={() => updateField('definition_done', taskData.definition_done.filter((_, j) => j !== i))}
+ className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+ <X className="h-3 w-3" />
+ </button>
+ </div>
+ ))}
+ </div>
+ <button type="button" onClick={() => updateField('definition_done', [...taskData.definition_done, ''])}
+ className="mt-1.5 text-[11px] text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1">
+ + Ajouter un critère
+ </button>
  </div>
  </div>
- <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+ </div>
+ <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 shrink-0">
  <button type="button" onClick={onClose} className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-700 transition-all">
  Annuler
  </button>
@@ -658,12 +825,21 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
 // ─── Panneau de détail d'une tâche (slide-over) ─────────────
 const stepColors = ['bg-orange-500', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-red-500', 'bg-cyan-500', 'bg-amber-500'];
 
+function getMimeIcon(mime) {
+ if (!mime) return File;
+ if (mime.startsWith('image/')) return FileImage;
+ if (mime === 'application/pdf' || mime.startsWith('text/')) return FileText;
+ if (mime.includes('zip') || mime.includes('rar') || mime.includes('7z') || mime.includes('tar')) return FileArchive;
+ return FileText;
+}
+
 function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], auth }) {
  const [activeTab, setActiveTab] = useState('fiche');
  const [noteText, setNoteText] = useState('');
  const [editing, setEditing] = useState(false);
  const [editData, setEditData] = useState({});
  const [saving, setSaving] = useState(false);
+ const [uploading, setUploading] = useState(false);
 
  const parseJsonArray = (val) => {
  if (Array.isArray(val)) return val;
@@ -713,6 +889,29 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  onError: () => setSaving(false),
  onFinish: () => setSaving(false),
  });
+ };
+
+ const handleUpload = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  setUploading(true);
+  const formData = new FormData();
+  formData.append('fichier', file);
+  router.post(route('taches.fichiers.store', tache.id), formData, {
+   forceFormData: true,
+   preserveScroll: true,
+   onSuccess: () => { toast.success('Fichier joint'); setUploading(false); },
+   onError: () => { toast.error('Erreur lors de l\'upload'); setUploading(false); },
+   onFinish: () => { setUploading(false); e.target.value = ''; },
+  });
+ };
+
+ const handleDeleteFichier = (fichierId) => {
+  if (!confirm('Supprimer ce fichier ?')) return;
+  router.delete(route('taches.fichiers.destroy', { tache: tache.id, fichier: fichierId }), {
+   preserveScroll: true,
+   onSuccess: () => toast.success('Fichier supprimé'),
+  });
  };
 
  if (!tache) return null;
@@ -790,6 +989,18 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  className={`pb-2 mr-6 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'fiche' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
  >
  Fiche
+ </button>
+ <button
+ onClick={() => setActiveTab('fichiers')}
+ className={`pb-2 mr-6 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1 ${activeTab === 'fichiers' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+ >
+ <Paperclip className="h-3 w-3" />
+ Fichiers
+ {(tache.fichiers?.length > 0) && (
+  <span className="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+  {tache.fichiers.length}
+  </span>
+ )}
  </button>
  <button
  onClick={() => setActiveTab('note')}
@@ -1007,6 +1218,66 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  )}
  </div>
  </div>
+ ) : activeTab === 'fichiers' ? (
+ /* ── Tab Fichiers ───────────────────── */
+ <div className="px-5 py-4 space-y-3">
+ {/* Zone d'upload */}
+ <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed rounded-lg cursor-pointer transition-all ${uploading ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/10 opacity-60 cursor-not-allowed' : 'border-gray-200 dark:border-dark-700 hover:border-primary-400 hover:bg-primary-50/50 dark:hover:bg-primary-900/10'}`}>
+ <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
+ {uploading ? (
+  <>
+  <div className="h-3.5 w-3.5 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
+  <span className="text-[11px] font-medium text-primary-500">Envoi en cours...</span>
+  </>
+ ) : (
+  <>
+  <Paperclip className="h-3.5 w-3.5 text-gray-400" />
+  <span className="text-[11px] font-medium text-gray-500">Cliquer pour joindre un fichier</span>
+  <span className="text-[10px] text-gray-400">(max 20 Mo)</span>
+  </>
+ )}
+ </label>
+
+ {/* Liste des fichiers */}
+ {(tache.fichiers?.length > 0) ? (
+ <div className="space-y-1.5">
+  {tache.fichiers.map((f) => {
+  const MimeIcon = getMimeIcon(f.mime_type);
+  return (
+   <div key={f.id} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-gray-50 dark:bg-dark-800 border border-gray-100 dark:border-dark-700 group">
+   <MimeIcon className="h-4 w-4 text-gray-400 shrink-0" />
+   <div className="flex-1 min-w-0">
+    <p className="text-[12px] font-medium text-gray-700 dark:text-gray-300 truncate">{f.nom_original}</p>
+    <p className="text-[10px] text-gray-400">{f.taille} · {f.created_at} · {f.uploader}</p>
+   </div>
+   <div className="flex items-center gap-1 shrink-0">
+    <a
+    href={route('taches.fichiers.download', { tache: tache.id, fichier: f.id })}
+    target="_blank"
+    rel="noreferrer"
+    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-dark-600 transition-colors"
+    title="Télécharger"
+    >
+    <Download className="h-3.5 w-3.5 text-gray-400" />
+    </a>
+    {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
+    <button
+     onClick={() => handleDeleteFichier(f.id)}
+     className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+     title="Supprimer"
+    >
+     <Trash2 className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+    </button>
+    )}
+   </div>
+   </div>
+  );
+  })}
+ </div>
+ ) : (
+ <p className="text-center text-[12px] text-gray-400 italic py-4">Aucun fichier joint.</p>
+ )}
+ </div>
  ) : (
  /* ── Tab Note ──────────────────────── */
  <div className="px-5 py-4">
@@ -1057,20 +1328,130 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  );
 }
 
+// ─── Modal d'édition directe d'un KR ────────────────────────
+function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
+ const [error, setError] = useState('');
+ const [submitting, setSubmitting] = useState(false);
+ const [form, setForm] = useState({});
+
+ useEffect(() => {
+ if (open && kr) {
+ setForm({
+ description: kr.description || '',
+ description_detaillee: kr.description_detaillee || '',
+ type_resultat_cle_id: String(kr.type_resultat_cle_id || ''),
+ valeur_cible: kr.valeur_cible ?? 100,
+ poids: kr.poids ?? 1,
+ unite: kr.unite || '',
+ });
+ setError('');
+ }
+ }, [open, kr]);
+
+ const setF = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+ const handleSubmit = (e) => {
+ e.preventDefault();
+ setError('');
+ if (!form.description.trim()) { setError('La description est obligatoire.'); return; }
+ setSubmitting(true);
+ router.put(route('objectifs.kr.update', kr.id), {
+ description: form.description,
+ description_detaillee: form.description_detaillee || null,
+ type_resultat_cle_id: form.type_resultat_cle_id || null,
+ valeur_cible: form.valeur_cible || 100,
+ poids: form.poids || 1,
+ unite: form.unite || null,
+ }, {
+ preserveScroll: true,
+ preserveState: true,
+ onSuccess: () => { toast.success('KR mis à jour'); setSubmitting(false); onClose(); },
+ onError: (errs) => { setError(Object.values(errs)[0] || 'Erreur.'); setSubmitting(false); },
+ });
+ };
+
+ const inputCls = "w-full px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500";
+
+ return (
+ <Dialog open={open} onOpenChange={(v) => { if (!v) { setError(''); onClose(); } }}>
+ <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden">
+ <form onSubmit={handleSubmit}>
+ <div className="p-5 pb-4">
+ <DialogHeader>
+ <DialogTitle className="text-sm flex items-center gap-2">
+ <Pencil className="h-3.5 w-3.5 text-primary-500" /> Modifier le résultat clé
+ </DialogTitle>
+ </DialogHeader>
+ {error && (
+ <div className="mt-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg">
+ <p className="text-[11px] text-red-600 dark:text-red-400">{error}</p>
+ </div>
+ )}
+ <div className="mt-3 space-y-3">
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description *</label>
+ <input type="text" value={form.description || ''} onChange={e => setF('description', e.target.value)}
+ autoFocus className={`mt-1 ${inputCls}`} placeholder="Description du résultat clé..." />
+ </div>
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description détaillée</label>
+ <textarea value={form.description_detaillee || ''} onChange={e => setF('description_detaillee', e.target.value)}
+ rows={2} className={`mt-1 ${inputCls} resize-none`} placeholder="Contexte, critères de succès..." />
+ </div>
+ {typesResultatsCles.length > 0 && (
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type de KR</label>
+ <select value={form.type_resultat_cle_id || ''} onChange={e => setF('type_resultat_cle_id', e.target.value)}
+ className={`mt-1 ${inputCls} appearance-none cursor-pointer`}>
+ <option value="">Aucun</option>
+ {typesResultatsCles.map(t => <option key={t.id} value={String(t.id)}>{t.nom}</option>)}
+ </select>
+ </div>
+ )}
+ <div className="grid grid-cols-3 gap-2">
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cible</label>
+ <input type="number" value={form.valeur_cible ?? ''} onChange={e => setF('valeur_cible', e.target.value)}
+ className={`mt-1 ${inputCls}`} placeholder="100" min="0" />
+ </div>
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Poids</label>
+ <input type="number" value={form.poids ?? ''} onChange={e => setF('poids', e.target.value)}
+ className={`mt-1 ${inputCls}`} placeholder="1" min="0" max="100" step="0.1" />
+ </div>
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unité</label>
+ <input type="text" value={form.unite || ''} onChange={e => setF('unite', e.target.value)}
+ className={`mt-1 ${inputCls}`} placeholder="%, GNF..." />
+ </div>
+ </div>
+ </div>
+ </div>
+ <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+ <button type="button" onClick={onClose} className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 transition-all">Annuler</button>
+ <button type="submit" disabled={submitting} className="px-4 py-1 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-all disabled:opacity-50">
+ {submitting ? 'Enregistrement...' : 'Enregistrer'}
+ </button>
+ </div>
+ </form>
+ </DialogContent>
+ </Dialog>
+ );
+}
+
 // ─── Composant KR expandable (niveau 2) ─────────────────────
-function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, objectifId, defaultExpanded = false, auth, objCollabId }) {
+function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, objectifId, defaultExpanded = false, auth, objCollabId }) {
  const [expanded, setExpanded] = useState(defaultExpanded);
  const krColor = getSeuilColor(kr.progression, seuils) || krBarColors[krIdx % krBarColors.length];
  const krTaches = kr.taches || [];
  const krTerminees = krTaches.filter(t => t.statut === 'termine').length;
+ const canEdit = objCollabId === auth?.collaborateur?.id || auth?.isResponsable;
 
  return (
  <div className="border-b border-gray-100/80 dark:border-dark-800/50 last:border-b-0">
  {/* ── Barre KR cliquable ── */}
- <button
- onClick={() => setExpanded(!expanded)}
- className="w-full px-5 pt-3 pb-2 text-left group/kr"
- >
+ <div className="flex items-center gap-1 px-5 pt-3 pb-2 group/kr">
+ <button onClick={() => setExpanded(!expanded)} className="flex-1 text-left min-w-0">
  <div className="flex items-center gap-2">
  <div className="shrink-0 transition-transform duration-200" style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
  <ChevronRight className="h-3.5 w-3.5 text-gray-400 group-hover/kr:text-gray-600 dark:group-hover/kr:text-gray-300" />
@@ -1096,6 +1477,16 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, objectifId, defa
  </div>
  </div>
  </button>
+ {canEdit && (
+ <button
+ onClick={(e) => { e.stopPropagation(); onEditKr?.(kr); }}
+ className="shrink-0 p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors opacity-0 group-hover/kr:opacity-100"
+ title="Modifier ce KR"
+ >
+ <Pencil className="h-3 w-3 text-gray-400" />
+ </button>
+ )}
+ </div>
 
  {/* ── Contenu KR expandable : tâches ── */}
  <AnimatePresence>
@@ -1172,8 +1563,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, objectifId, defa
  <span className="text-[11px] text-gray-500">{formatDeadline(tache.date)}</span>
  </td>
  <td className="py-2 px-4 text-right">
- {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
- <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+ <div className="flex items-center justify-end gap-0.5">
  <button
  onClick={(e) => { e.stopPropagation(); onViewTask?.(tache, kr.description); }}
  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors"
@@ -1181,6 +1571,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, objectifId, defa
  >
  <Eye className="h-3.5 w-3.5 text-gray-400" />
  </button>
+ {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
  <button
  onClick={(e) => { e.stopPropagation(); if (confirm('Supprimer cette tâche ?')) router.delete(route('taches.destroy', tache.id), { preserveScroll: true, onSuccess: () => toast.success('Tâche supprimée') }); }}
  className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 transition-colors"
@@ -1188,8 +1579,8 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, objectifId, defa
  >
  <Trash2 className="h-3.5 w-3.5 text-gray-400" />
  </button>
- </div>
  )}
+ </div>
  </td>
  </tr>
  ))}
@@ -1218,7 +1609,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, objectifId, defa
 }
 
 // ─── Composant carte objectif (expandable, niveau 1) ─────────
-function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAddTask, onViewTask, onAddTaskForKr, onEdit, auth }) {
+function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAddTask, onViewTask, onAddTaskForKr, onEdit, onEditKr, auth }) {
  const [expanded, setExpanded] = useState(defaultExpanded);
  const progColor = getSeuilColor(obj.progression_globale, seuils) || '#3b82f6';
  const tachesTerminees = obj.taches_terminees || 0;
@@ -1337,6 +1728,7 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
  objectifId={obj.id}
  onAddTaskForKr={onAddTaskForKr}
  onViewTask={onViewTask}
+ onEditKr={onEditKr}
  defaultExpanded={krIdx === 0}
  auth={auth}
  objCollabId={obj.collaborateur_id}
@@ -1356,7 +1748,7 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
 }
 
 // ─── Page principale ───────────────────────────────────────
-export default function OKRIndex({ objectifs, filters, collaborateurs, periodes = [], axes = [], seuils = [], typesObjectifs = [], typesResultatsCles = [], configuration, vueOkr = 'cards', progressionGlobale = 0, velocite = 0, defaultCollaborateurId, auth }) {
+export default function OKRIndex({ objectifs, filters, collaborateurs, periodes = [], axes = [], seuils = [], typesObjectifs = [], typesResultatsCles = [], configuration, vueOkr = 'cards', progressionGlobale = 0, velocite = 0, defaultCollaborateurId, auth, missions = [] }) {
  const devise = auth?.societe?.devise;
  const [search, setSearch] = useState(filters?.search || '');
  const [statutFilter, setStatutFilter] = useState(filters?.statut || '');
@@ -1368,6 +1760,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  const [editModal, setEditModal] = useState({ open: false, objectif: null });
  const [taskModal, setTaskModal] = useState({ open: false, objectifId: null, resultatsCles: [], defaultResultatCleId: null });
  const [taskPanel, setTaskPanel] = useState({ tache: null, objectifTitre: null });
+ const [editKrModal, setEditKrModal] = useState({ open: false, kr: null });
 
  const applyFilters = (key, value) => {
  const f = { search, statut: statutFilter, collaborateur_id: collabFilter, periode_id: periodeFilter, axe_objectif_id: axeFilter, type_objectif_id: typeFilter, [key]: value };
@@ -1517,6 +1910,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  handleDelete={handleDelete}
  defaultExpanded={i === 0}
  onEdit={(o) => setEditModal({ open: true, objectif: o })}
+ onEditKr={(kr) => setEditKrModal({ open: true, kr })}
  onAddTask={(objId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: null })}
  onAddTaskForKr={(objId, krId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: krId })}
  onViewTask={(tache, krDescription) => setTaskPanel({ tache, objectifTitre: krDescription })}
@@ -1550,7 +1944,11 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  periodes={periodes}
  collaborateurs={collaborateurs}
  defaultCollaborateurId={defaultCollaborateurId}
+ axes={axes}
+ typesObjectifs={typesObjectifs}
+ configuration={configuration}
  auth={auth}
+ missions={missions}
  />
 
  {/* ═══ Modal création tâche ═══ */}
@@ -1563,6 +1961,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  collaborateurs={collaborateurs}
  defaultCollaborateurId={defaultCollaborateurId}
  auth={auth}
+ missions={missions}
  />
 
  {/* ═══ Modal édition objectif ═══ */}
@@ -1590,6 +1989,14 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  />
  )}
  </AnimatePresence>
+
+ {/* === Modal edition directe KR === */}
+ <EditKRModal
+ open={editKrModal.open}
+ onClose={() => setEditKrModal({ open: false, kr: null })}
+ kr={editKrModal.kr}
+ typesResultatsCles={typesResultatsCles}
+ />
  </AppLayout>
  );
 }

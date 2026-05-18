@@ -135,7 +135,7 @@ export default function MissionsIndex({ missions, collaborateurs, filters = {} }
     }, {});
 
     return (
-        <AppLayout title="Missions & Delivery">
+        <AppLayout title="Missions / Projets">
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <motion.h1
@@ -143,7 +143,7 @@ export default function MissionsIndex({ missions, collaborateurs, filters = {} }
                         animate={{ opacity: 1, x: 0 }}
                         className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2"
                     >
-                        <Briefcase className="h-6 w-6 text-sky-500" /> War Room — Missions
+                        <Briefcase className="h-6 w-6 text-sky-500" /> War Room — Missions / Projets
                     </motion.h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
                         Suivi delivery client · Livrables · SLA · Pression

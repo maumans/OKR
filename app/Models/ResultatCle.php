@@ -60,4 +60,26 @@ class ResultatCle extends Model
     {
         return $this->hasMany(HistoriqueProgression::class, 'resultat_cle_id');
     }
+
+    /**
+     * Recalcule la progression du KR à partir du taux de complétion de ses tâches.
+     * Utilisé uniquement si le mode_calcul est 'pourcentage' (défaut) et que des tâches existent.
+     */
+    public function recalculerDepuisTaches(): void
+    {
+        // Ne pas écraser la progression manuelle si pas de tâches
+        $taches = $this->taches;
+        if ($taches->isEmpty()) {
+            return;
+        }
+
+        $total = $taches->count();
+        $terminees = $taches->where('statut', 'termine')->count();
+        $enCours = $taches->where('statut', 'en_cours')->count();
+
+        // Terminé = 100%, En cours = 50%, reste = 0%
+        $progression = round((($terminees * 100) + ($enCours * 50)) / $total, 2);
+
+        $this->update(['progression' => $progression]);
+    }
 }

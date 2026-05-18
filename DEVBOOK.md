@@ -302,6 +302,28 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - [x] **Navigation** : TopbarNav pill "Missions" → `missions.index` (sky-500) + Sidebar "Missions & Delivery" (Briefcase) sous BUSINESS.
 - [x] **Filtres** : recherche texte, filtre statut, filtre type de mission.
 
+### Phase 5a : Module d'import Excel ✅
+- [x] **Table `imports`** : traçabilité des imports avec payload JSON et IDs créés pour rollback.
+- [x] **Modèle `Import`** : trait `BelongsToSociete`, casts JSON, relation User.
+- [x] **Service `ExcelImportService`** : parsing intelligent via `phpoffice/phpspreadsheet`.
+  - Détection auto de la ligne d'entête (mots-clés ENTITE, THEME, PRIORITE...).
+  - Détection de hiérarchie : lignes macro-thème (Objectifs) vs lignes détail (KRs) vs puces (Tâches).
+  - Normalisation : coquilles entités (CONAKY → CONAKRY), priorités (p1 → P1), dates invalides (31/04, 01/01/12026), progression (0-1 → 0-100).
+  - Parsing responsables multi-valeurs (/, \n, ,), puces actions (*, -, •).
+- [x] **Controller `ImportController`** : 5 routes (index, parse, commit, historique, destroy/rollback).
+- [x] **FormRequest `StoreImportRequest`** : validation fichier (mimes xlsx/xls/csv, max 10Mo).
+- [x] **Commit transactionnel** : création en cascade Axes → Collaborateurs → Objectifs → KRs → Tâches avec sync pivot `objectif_periode`.
+- [x] **Rollback complet** : suppression inverse (tâches → KRs → objectifs → collaborateurs → axes) via IDs stockés.
+- [x] **Page React `Import/Index.jsx`** : flux 4 étapes (Upload → Mapping → Confirmation → Succès) avec animations Framer Motion.
+  - **UploadStep** : drag-and-drop + bouton parcourir, validation fichier.
+  - **MappingStep** : 2 colonnes (paramètres gauche + arborescence éditable droite), axes avec couleurs, collaborateurs avec statut, corrections ambre.
+  - **ObjectifEditableCard** : accordéon éditable avec KRs inline, tâches expandables, checkboxes import.
+  - **ConfirmModal** : résumé des éléments à créer.
+  - **SuccessSummary** : card verte avec checklist + liens navigation.
+- [x] **Page `Import/Historique.jsx`** : tableau des imports passés avec bouton rollback.
+- [x] **Sauvegarde brouillon** : persistance localStorage du mapping édité.
+- [x] **Navigation** : TopbarNav pill "Import" (emerald-500) + Sidebar section ADMINISTRATION (Import de données, Historique des imports).
+
 ### Phase 5 : LMS et Reporting ⏳
 - [ ] Module LMS : Formations et modules d'apprentissage (page placeholder, modèles et migration existants).
 - [ ] Module Reporting : Synthèses et graphiques avancés (page placeholder).
@@ -360,4 +382,4 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 
 ---
 
-*Dernière mise à jour : 15 Mai 2026*
+*Dernière mise à jour : 18 Mai 2026*

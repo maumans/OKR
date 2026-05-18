@@ -12,6 +12,8 @@ import {
     Grid3X3,
     GraduationCap,
     Briefcase,
+    Upload,
+    History,
 } from 'lucide-react';
 import { UserAvatar } from '@/Components/ui/Avatar';
 
@@ -36,7 +38,7 @@ const navigation = [
     {
         name: 'BUSINESS',
         items: [
-            { name: 'Missions & Delivery', href: 'missions.index', icon: Briefcase },
+            { name: 'Missions / Projets', href: 'missions.index', icon: Briefcase },
             { name: 'Prospection', href: 'prospects.index', icon: TrendingUp },
             { name: 'Incentives', href: 'incentives.index', icon: Award },
         ]
@@ -45,6 +47,13 @@ const navigation = [
         name: 'APPRENTISSAGE',
         items: [
             { name: 'Formations & LMS', href: 'formations.index', icon: GraduationCap },
+        ]
+    },
+    {
+        name: 'ADMINISTRATION',
+        items: [
+            { name: 'Import de données', href: 'import.index', icon: Upload },
+            { name: 'Historique des imports', href: 'import.historique', icon: History },
         ]
     },
     {

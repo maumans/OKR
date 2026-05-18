@@ -17,6 +17,7 @@ class Tache extends Model
         'collaborateur_id',
         'objectif_id',
         'resultat_cle_id',
+        'mission_id',
         'titre',
         'description',
         'mode_operatoire',
@@ -54,8 +55,18 @@ class Tache extends Model
         return $this->belongsTo(ResultatCle::class, 'resultat_cle_id');
     }
 
+    public function mission(): BelongsTo
+    {
+        return $this->belongsTo(Mission::class);
+    }
+
     public function tachesDaily(): HasMany
     {
         return $this->hasMany(TacheDaily::class, 'tache_id');
+    }
+
+    public function fichiers(): HasMany
+    {
+        return $this->hasMany(TacheFichier::class, 'tache_id');
     }
 }
