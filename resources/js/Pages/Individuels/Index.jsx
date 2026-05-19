@@ -260,7 +260,7 @@ export default function IndividuelsIndex({
  <div className="">
  {/* Onglets collaborateurs */}
  {(auth?.isResponsable || collaborateurs.length > 1) && (
- <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-thin">
+ <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-hide">
  {collaborateurs.map(c => {
  const active = selectedCollaborateur?.id === c.id;
  return (

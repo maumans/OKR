@@ -390,7 +390,7 @@ export default function TachesIndex({ taches, collaborateurs, objectifs = [], fi
                                 placeholder="Décrivez le contexte et l'objectif de la tâche..."
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Priorité</Label>
                                 <Select value={data.priorite} onChange={e => setData('priorite', e.target.value)} className="mt-1.5">
@@ -411,7 +411,7 @@ export default function TachesIndex({ taches, collaborateurs, objectifs = [], fi
                                 </Select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Date d'échéance</Label>
                                 <CustomDatePicker value={data.date} onChange={v => setData('date', v)} error={errors.date} className="mt-1.5" />
@@ -509,7 +509,7 @@ export default function TachesIndex({ taches, collaborateurs, objectifs = [], fi
                                 placeholder="Décrivez le contexte et l'objectif de la tâche..."
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Priorité</Label>
                                 <Select value={editForm.data.priorite} onChange={e => editForm.setData('priorite', e.target.value)} className="mt-1.5">
@@ -530,7 +530,7 @@ export default function TachesIndex({ taches, collaborateurs, objectifs = [], fi
                                 </Select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Date d'échéance</Label>
                                 <CustomDatePicker value={editForm.data.date} onChange={v => editForm.setData('date', v)} error={editForm.errors.date} className="mt-1.5" />

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export function useTheme() {
+export function useTheme(societeModeSombre) {
     const [theme, setThemeState] = useState(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('addvalis-theme') || 'dark';
+            const stored = localStorage.getItem('addvalis-theme');
+            if (stored) return stored;
+            if (societeModeSombre !== undefined) return societeModeSombre ? 'dark' : 'light';
         }
         return 'dark';
     });

@@ -1,9 +1,10 @@
 import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
+import { Label } from '@/Components/ui/Label';
+import { Input } from '@/Components/ui/Input';
+import { Button } from '@/Components/ui/Button';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm } from '@inertiajs/react';
+import { Lock, ShieldCheck } from 'lucide-react';
 
 export default function ConfirmPassword() {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -12,7 +13,6 @@ export default function ConfirmPassword() {
 
     const submit = (e) => {
         e.preventDefault();
-
         post(route('password.confirm'), {
             onFinish: () => reset('password'),
         });
@@ -22,16 +22,20 @@ export default function ConfirmPassword() {
         <GuestLayout>
             <Head title="Confirmer le mot de passe" />
 
-            <div className="mb-4 text-sm text-gray-600">
-                Ceci est une zone sécurisée de l'application. Veuillez confirmer
-                votre mot de passe avant de continuer.
+            <div className="mb-8 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 mb-4">
+                    <ShieldCheck className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Zone sécurisée</h2>
+                <p className="text-sm text-slate-500 mt-2">
+                    Veuillez confirmer votre mot de passe avant de continuer.
+                </p>
             </div>
 
-            <form onSubmit={submit}>
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Mot de passe" />
-
-                    <TextInput
+            <form onSubmit={submit} className="space-y-5">
+                <div>
+                    <Label htmlFor="password">Mot de passe</Label>
+                    <Input
                         id="password"
                         type="password"
                         name="password"
@@ -39,15 +43,16 @@ export default function ConfirmPassword() {
                         className="mt-1 block w-full"
                         isFocused={true}
                         onChange={(e) => setData('password', e.target.value)}
+                        icon={Lock}
+                        placeholder="••••••••"
                     />
-
                     <InputError message={errors.password} className="mt-2" />
                 </div>
 
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
+                <div className="pt-2">
+                    <Button className="w-full bg-primary-500 hover:bg-primary-600" disabled={processing}>
                         Confirmer
-                    </PrimaryButton>
+                    </Button>
                 </div>
             </form>
         </GuestLayout>

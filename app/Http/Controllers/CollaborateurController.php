@@ -34,9 +34,18 @@ class CollaborateurController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $stats = [
+            'total'         => Collaborateur::where('societe_id', $societeId)->count(),
+            'actifs'        => Collaborateur::where('societe_id', $societeId)->where('actif', true)->count(),
+            'admins'        => Collaborateur::where('societe_id', $societeId)->where('role', 'admin')->count(),
+            'managers'      => Collaborateur::where('societe_id', $societeId)->where('role', 'manager')->count(),
+            'collaborateurs'=> Collaborateur::where('societe_id', $societeId)->where('role', 'collaborateur')->count(),
+        ];
+
         return Inertia::render('Collaborateurs/Index', [
             'collaborateurs' => $collaborateurs,
-            'filters' => $request->only(['search', 'role', 'actif']),
+            'filters'        => $request->only(['search', 'role', 'actif']),
+            'stats'          => $stats,
         ]);
     }
 
@@ -137,6 +146,15 @@ class CollaborateurController extends Controller
         return redirect()
             ->route('collaborateurs.index')
             ->with('success', 'Collaborateur mis à jour.');
+    }
+
+    public function toggleActif(Collaborateur $collaborateur)
+    {
+        $collaborateur->update(['actif' => !$collaborateur->actif]);
+
+        $msg = $collaborateur->actif ? 'Collaborateur activé.' : 'Collaborateur désactivé.';
+
+        return redirect()->back()->with('success', $msg);
     }
 
     public function destroy(Collaborateur $collaborateur)

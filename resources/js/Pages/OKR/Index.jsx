@@ -232,7 +232,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  )}
 
  {/* Axe + Type */}
- <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  {axes.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe stratégique</label>
@@ -256,7 +256,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  </div>
 
  {/* Visibilité + Prime */}
- <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visibilité</label>
  <select value={formData.visibilite} onChange={e => setField('visibilite', e.target.value)}
@@ -440,7 +440,7 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
  </select>
  </div>
  )}
- <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  <select
  value={taskData.priorite}
  onChange={e => updateField('priorite', e.target.value)}
@@ -681,7 +681,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  </div>
 
  {/* Grid: Responsable + Période */}
- <div className="grid grid-cols-2 gap-3">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Responsable *</label>
  <select value={formData.collaborateur_id || ''} onChange={e => setField('collaborateur_id', e.target.value)}
@@ -712,7 +712,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  </div>
 
  {/* Grid: Axe + Type */}
- <div className="grid grid-cols-2 gap-3">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe stratégique</label>
  <select value={formData.axe_objectif_id || ''} onChange={e => setField('axe_objectif_id', e.target.value)}
@@ -734,7 +734,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  </div>
 
  {/* Grid: Visibilité + Prime */}
- <div className="grid grid-cols-2 gap-3">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visibilité</label>
  <select value={formData.visibilite || 'equipe'} onChange={e => setField('visibilite', e.target.value)}
@@ -1037,7 +1037,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  </p>
  {editing ? (
  <div className="space-y-2">
- <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  <div>
  <label className="text-[10px] text-gray-400">Statut</label>
  <select value={editData.statut} onChange={e => setEditData(prev => ({ ...prev, statut: e.target.value }))}
@@ -1059,7 +1059,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  </select>
  </div>
  </div>
- <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  <div>
  <label className="text-[10px] text-gray-400">Eisenhower</label>
  <select value={editData.eisenhower || ''} onChange={e => setEditData(prev => ({ ...prev, eisenhower: e.target.value }))}
@@ -1424,7 +1424,7 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  </select>
  </div>
  )}
- <div className="grid grid-cols-3 gap-2">
+ <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cible</label>
  <input type="number" value={form.valeur_cible ?? ''} onChange={e => setF('valeur_cible', e.target.value)}

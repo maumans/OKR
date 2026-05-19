@@ -2,8 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AxeObjectif;
+use App\Models\ConfigurationOkr;
+use App\Models\ConfigurationPrime;
 use App\Models\Devise;
+use App\Models\Periode;
+use App\Models\SeuilPerformance;
 use App\Models\Societe;
+use App\Models\StatutObjectif;
+use App\Models\TemplateObjectif;
+use App\Models\TypeObjectif;
+use App\Models\TypeResultatCle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -18,9 +27,21 @@ class SocieteController extends Controller
             abort(404, 'Aucune société trouvée.');
         }
 
+        $societeId = $societe->id;
+
         return Inertia::render('Parametres/Index', [
-            'societe' => $societe->load('devise'),
-            'devises' => Devise::where('actif', true)->orderBy('code')->get(),
+            'societe'            => $societe->load('devise'),
+            'devises'            => Devise::where('actif', true)->orderBy('code')->get(),
+            'axes'               => AxeObjectif::pourSociete($societeId)->ordonne()->get(),
+            'periodes'           => Periode::pourSociete($societeId)->latest()->get(),
+            'typesObjectifs'     => TypeObjectif::pourSociete($societeId)->get(),
+            'typesResultatsCles' => TypeResultatCle::pourSociete($societeId)->get(),
+            'statuts'            => StatutObjectif::pourSociete($societeId)->ordonne()->get(),
+            'seuils'             => SeuilPerformance::pourSociete($societeId)->ordonne()->get(),
+            'configuration'      => ConfigurationOkr::where('societe_id', $societeId)->first(),
+            'configurationPrime' => ConfigurationPrime::where('societe_id', $societeId)->with('paliers')->first(),
+            'templates'          => TemplateObjectif::pourSociete($societeId)->get(),
+            'tab'                => request('tab', 'societe'),
         ]);
     }
 

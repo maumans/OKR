@@ -576,7 +576,7 @@ function LivrablesTab({ mission, collaborateurs }) {
                         onChange={e => setData('nom', e.target.value)}
                         className="h-8 text-sm"
                     />
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <Input
                             placeholder="Type (rapport, démo…)"
                             value={data.type_livrable}
@@ -588,7 +588,7 @@ function LivrablesTab({ mission, collaborateurs }) {
                             {collaborateurs.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
                         </Select>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                             <Label className="text-[10px]">Deadline envoi</Label>
                             <Input type="date" value={data.deadline_envoi} onChange={e => setData('deadline_envoi', e.target.value)} className="h-8 text-sm" />
@@ -650,7 +650,7 @@ function InfosTab({ mission, collaborateurs }) {
 
     return (
         <form onSubmit={submit} className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                     <Label className="text-[10px] uppercase tracking-wider text-gray-400">Client *</Label>
                     <Input value={data.client} onChange={e => setData('client', e.target.value)} className="h-8 text-sm mt-1" />
@@ -666,7 +666,7 @@ function InfosTab({ mission, collaborateurs }) {
                 <Label className="text-[10px] uppercase tracking-wider text-gray-400">Titre de la mission *</Label>
                 <Input value={data.titre} onChange={e => setData('titre', e.target.value)} className="h-8 text-sm mt-1" />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                     <Label className="text-[10px] uppercase tracking-wider text-gray-400">Type</Label>
                     <Select value={data.type} onChange={e => setData('type', e.target.value)} className="h-8 text-sm mt-1">
@@ -678,7 +678,7 @@ function InfosTab({ mission, collaborateurs }) {
                     <Input value={data.practice} onChange={e => setData('practice', e.target.value)} placeholder="Ex: Data & IA" className="h-8 text-sm mt-1" />
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                     <Label className="text-[10px] uppercase tracking-wider text-gray-400">Responsable</Label>
                     <Select value={data.responsable_id} onChange={e => setData('responsable_id', e.target.value)} className="h-8 text-sm mt-1">
@@ -694,7 +694,7 @@ function InfosTab({ mission, collaborateurs }) {
 
             <div className="pt-1 border-t border-gray-100 dark:border-dark-800">
                 <Label className="text-[10px] uppercase tracking-wider text-gray-400 mb-1 block">Contact SLA</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Select value={data.last_channel} onChange={e => setData('last_channel', e.target.value)} className="h-8 text-sm">
                         <option value="">Canal —</option>
                         {CHANNELS.map(c => <option key={c.value} value={c.value}>{c.label} (SLA {c.sla})</option>)}
@@ -706,7 +706,7 @@ function InfosTab({ mission, collaborateurs }) {
                 <Label className="text-[10px] uppercase tracking-wider text-gray-400">Prochaine action</Label>
                 <Input value={data.next_action} onChange={e => setData('next_action', e.target.value)} placeholder="Ex: Envoyer rapport v2" className="h-8 text-sm mt-1" />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                     <Label className="text-[10px] uppercase tracking-wider text-gray-400">Date prochaine action</Label>
                     <Input type="date" value={data.next_action_date} onChange={e => setData('next_action_date', e.target.value)} className="h-8 text-sm mt-1" />
@@ -824,7 +824,7 @@ function CreateMissionModal({ open, onClose, collaborateurs }) {
                     </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={submit} className="space-y-4 mt-2">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <Label>Client *</Label>
                             <Input value={data.client} onChange={e => setData('client', e.target.value)} placeholder="Nom du client" className="mt-1" />
@@ -842,7 +842,7 @@ function CreateMissionModal({ open, onClose, collaborateurs }) {
                         <Input value={data.titre} onChange={e => setData('titre', e.target.value)} placeholder="Ex: Déploiement CRM Salesforce" className="mt-1" />
                         {errors.titre && <p className="text-xs text-red-500 mt-0.5">{errors.titre}</p>}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <Label>Practice</Label>
                             <Input value={data.practice} onChange={e => setData('practice', e.target.value)} placeholder="Ex: Data & IA" className="mt-1" />
@@ -855,7 +855,7 @@ function CreateMissionModal({ open, onClose, collaborateurs }) {
                             </Select>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <Label>Deadline</Label>
                             <Input type="date" value={data.deadline} onChange={e => setData('deadline', e.target.value)} className="mt-1" />

@@ -283,7 +283,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                             <Label>Nom du prospect / entreprise *</Label>
                             <Input value={data.nom} onChange={e => setData('nom', e.target.value)} error={errors.nom} placeholder="Ex: TechCorp Guinée" />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Contact (tél/email)</Label>
                                 <Input icon={Phone} value={data.contact} onChange={e => setData('contact', e.target.value)} error={errors.contact} placeholder="+224 6XX XXX XXX" />
@@ -293,7 +293,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                                 <Input icon={Briefcase} value={data.secteur} onChange={e => setData('secteur', e.target.value)} error={errors.secteur} placeholder="Technologie, Finance..." />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Valeur estimée ({devise?.code || 'GNF'})</Label>
                                 <Input type="number" icon={DollarSign} value={data.valeur} onChange={e => setData('valeur', e.target.value)} error={errors.valeur} placeholder="1000000" />
@@ -331,7 +331,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                     <DialogHeader><DialogTitle>Nouvelle Action Commerciale</DialogTitle></DialogHeader>
                     {actionProspect && <p className="text-sm text-slate-500 mb-4">Prospect: <strong className="text-slate-800 dark:text-white">{actionProspect.nom}</strong></p>}
                     <form onSubmit={submitAction} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Type d'action</Label>
                                 <Select value={actionData.type} onChange={e => setActionData('type', e.target.value)} className="mt-1">
@@ -353,7 +353,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                             <textarea className="flex min-h-[60px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-dark-700 dark:bg-dark-900 dark:placeholder:text-gray-400"
                                 value={actionData.description} onChange={e => setActionData('description', e.target.value)} placeholder="Compte-rendu de l'action..." />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Durée (min) - optionnel</Label>
                                 <Input type="number" value={actionData.duree} onChange={e => setActionData('duree', e.target.value)} error={actionErrors.duree} placeholder="ex: 15" />

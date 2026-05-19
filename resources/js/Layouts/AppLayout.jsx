@@ -6,6 +6,64 @@ import TopbarNav from '@/Components/TopbarNav';
 import { Bell, Menu, Search } from 'lucide-react';
 import { Button } from '@/Components/ui/Button';
 
+function hexToRgbComponents(hex) {
+    const clean = hex?.replace('#', '') || '';
+    if (clean.length !== 6) return null;
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+    return `${r} ${g} ${b}`;
+}
+
+function darkenHex(hex, factor = 0.18) {
+    const clean = hex?.replace('#', '') || '';
+    if (clean.length !== 6) return null;
+    const r = Math.max(0, Math.round(parseInt(clean.slice(0, 2), 16) * (1 - factor)));
+    const g = Math.max(0, Math.round(parseInt(clean.slice(2, 4), 16) * (1 - factor)));
+    const b = Math.max(0, Math.round(parseInt(clean.slice(4, 6), 16) * (1 - factor)));
+    return `${r} ${g} ${b}`;
+}
+
+function lightenHex(hex, factor = 0.18) {
+    const clean = hex?.replace('#', '') || '';
+    if (clean.length !== 6) return null;
+    const r = Math.min(255, Math.round(parseInt(clean.slice(0, 2), 16) + (255 - parseInt(clean.slice(0, 2), 16)) * factor));
+    const g = Math.min(255, Math.round(parseInt(clean.slice(2, 4), 16) + (255 - parseInt(clean.slice(2, 4), 16)) * factor));
+    const b = Math.min(255, Math.round(parseInt(clean.slice(4, 6), 16) + (255 - parseInt(clean.slice(4, 6), 16)) * factor));
+    return `${r} ${g} ${b}`;
+}
+
+function useApplySocieteTheme() {
+    const { auth } = usePage().props;
+    const societe = auth?.societe;
+
+    useEffect(() => {
+        const root = document.documentElement;
+        const primary = societe?.couleur_primaire;
+        const secondary = societe?.couleur_secondaire;
+
+        if (primary && /^#[0-9a-fA-F]{6}$/.test(primary)) {
+            root.style.setProperty('--color-primary-400', lightenHex(primary, 0.2) || '');
+            root.style.setProperty('--color-primary-500', hexToRgbComponents(primary) || '');
+            root.style.setProperty('--color-primary-600', darkenHex(primary, 0.18) || '');
+        }
+        if (secondary && /^#[0-9a-fA-F]{6}$/.test(secondary)) {
+            root.style.setProperty('--color-secondary-400', lightenHex(secondary, 0.15) || '');
+            root.style.setProperty('--color-secondary-500', hexToRgbComponents(secondary) || '');
+            root.style.setProperty('--color-secondary-600', darkenHex(secondary, 0.20) || '');
+        }
+
+        // Mode sombre : appliquer si aucune préférence locale n'est définie
+        const hasLocalPref = localStorage.getItem('addvalis-theme');
+        if (!hasLocalPref && societe?.mode_sombre !== undefined) {
+            const theme = societe.mode_sombre ? 'dark' : 'light';
+            root.classList.remove('dark', 'light');
+            root.classList.add(theme);
+        }
+    }, [societe?.couleur_primaire, societe?.couleur_secondaire, societe?.mode_sombre]);
+}
+
 function useFlashToast() {
     const { flash } = usePage().props;
     const shown = useRef({});
@@ -30,6 +88,7 @@ export default function AppLayout({ title, children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useFlashToast();
+    useApplySocieteTheme();
 
     // ─── Layout Topbar ──────────────────────────────────────
     if (layoutMode === 'topbar') {

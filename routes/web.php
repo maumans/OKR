@@ -35,6 +35,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
 
     // Collaborateurs
     Route::resource('collaborateurs', CollaborateurController::class);
+    Route::patch('collaborateurs/{collaborateur}/toggle-actif', [CollaborateurController::class, 'toggleActif'])->name('collaborateurs.toggle-actif');
 
     // Paramètres société
     Route::get('/parametres', [SocieteController::class, 'edit'])->name('parametres.index');

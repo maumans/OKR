@@ -282,7 +282,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                 ) : (
                                     <>
                                         {/* Stats mini */}
-                                        <div className="grid grid-cols-4 gap-2 mb-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                                             {Object.entries(tachesParStatut).map(([statut, count]) => {
                                                 const cfg = tacheStatutConfig[statut];
                                                 const Icon = cfg.icon;
@@ -405,7 +405,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                     onChange={e => setTaskData('description', e.target.value)}
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <Label>Priorité</Label>
                                     <Select value={taskData.priorite} onChange={e => setTaskData('priorite', e.target.value)} className="mt-1.5">

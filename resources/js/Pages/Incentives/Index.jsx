@@ -139,7 +139,7 @@ export default function IncentivesIndex({ objectifs, collaborateurs }) {
                             <Label>Titre de l'objectif *</Label>
                             <Input value={data.titre} onChange={e => setData('titre', e.target.value)} placeholder="Ex: Atteindre 100k€ de CA" error={errors.titre} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Indicateur (KPI)</Label>
                                 <Input value={data.indicateur} onChange={e => setData('indicateur', e.target.value)} placeholder="Ex: CA Généré" error={errors.indicateur} />
@@ -149,7 +149,7 @@ export default function IncentivesIndex({ objectifs, collaborateurs }) {
                                 <Input value={data.periode} onChange={e => setData('periode', e.target.value)} placeholder="Ex: Q3-2026" error={errors.periode} />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Type</Label>
                                 <Select value={data.type} onChange={e => setData('type', e.target.value)}>

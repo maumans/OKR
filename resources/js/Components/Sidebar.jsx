@@ -22,7 +22,7 @@ const navigation = [
         name: 'ANALYTIQUE',
         items: [
             { name: 'Tableau de bord', href: 'dashboard', icon: LayoutDashboard },
-            { name: 'Collaborateurs', href: 'collaborateurs.index', icon: Users },
+            { name: 'Équipe', href: 'collaborateurs.index', icon: Users },
         ]
     },
     {
@@ -59,8 +59,7 @@ const navigation = [
     {
         name: 'PARAMÈTRES',
         items: [
-            { name: 'Paramètres OKR', href: 'parametres.okr.index', icon: Settings2 },
-            { name: 'Société', href: 'parametres.index', icon: Settings },
+            { name: 'Paramètres', href: 'parametres.index', icon: Settings },
         ]
     }
 ];
@@ -68,6 +67,7 @@ const navigation = [
 export default function Sidebar() {
     const { auth } = usePage().props;
     const user = auth.collaborateur || auth.user;
+    const societe = auth?.societe;
 
     const toPath = (href) => {
         try { return new URL(route(href), window.location.origin).pathname; }
@@ -89,11 +89,21 @@ export default function Sidebar() {
             {/* Logo Area */}
             <div className="h-16 flex items-center px-5 border-b border-gray-100 dark:border-dark-800">
                 <div className="flex items-center gap-2.5">
-                    <div className="bg-primary-500 text-white p-1.5 rounded-lg">
-                        <Target className="h-4.5 w-4.5" />
-                    </div>
+                    {societe?.logo ? (
+                        <img
+                            src={`/storage/${societe.logo}`}
+                            alt={societe.nom}
+                            className="h-8 w-8 rounded-lg object-contain border border-gray-100 dark:border-dark-700 bg-white"
+                        />
+                    ) : (
+                        <div className="bg-primary-500 text-white p-1.5 rounded-lg">
+                            <Target className="h-4 w-4" />
+                        </div>
+                    )}
                     <div>
-                        <h1 className="font-bold text-sm leading-tight text-gray-900 dark:text-white">Addvalis SaaS</h1>
+                        <h1 className="font-bold text-sm leading-tight text-gray-900 dark:text-white truncate max-w-[160px]">
+                            {societe?.nom || 'Addvalis SaaS'}
+                        </h1>
                         <p className="text-[9px] tracking-widest text-gray-400 font-semibold uppercase">Performance</p>
                     </div>
                 </div>

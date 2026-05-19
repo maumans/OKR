@@ -29,19 +29,7 @@ class ParametreOkrController extends Controller
 
     public function index()
     {
-        $societeId = session('societe_id');
-
-        return Inertia::render('Parametres/OKR', [
-            'axes' => AxeObjectif::pourSociete($societeId)->ordonne()->get(),
-            'periodes' => Periode::pourSociete($societeId)->latest()->get(),
-            'typesObjectifs' => TypeObjectif::pourSociete($societeId)->get(),
-            'typesResultatsCles' => TypeResultatCle::pourSociete($societeId)->get(),
-            'statuts' => StatutObjectif::pourSociete($societeId)->ordonne()->get(),
-            'seuils' => SeuilPerformance::pourSociete($societeId)->ordonne()->get(),
-            'configuration' => ConfigurationOkr::where('societe_id', $societeId)->first(),
-            'configurationPrime' => ConfigurationPrime::where('societe_id', $societeId)->with('paliers')->first(),
-            'templates' => TemplateObjectif::pourSociete($societeId)->get(),
-        ]);
+        return redirect()->route('parametres.index', ['tab' => 'okr']);
     }
 
     // ─── Axes stratégiques ───────────────────────────────────

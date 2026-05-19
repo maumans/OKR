@@ -23,21 +23,21 @@ export default function CollaborateursCreate() {
     };
 
     return (
-        <AppLayout title="Nouveau collaborateur">
+        <AppLayout title="Nouveau membre">
             <div className="mb-8">
                 <Link
                     href={route('collaborateurs.index')}
                     className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-4 transition-colors"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Retour aux collaborateurs
+                    Retour à l'équipe
                 </Link>
                 <motion.h1
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     className="text-2xl font-bold text-gray-900 dark:text-white"
                 >
-                    Ajouter un collaborateur
+                    Ajouter un membre
                 </motion.h1>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">
                     Créez un nouveau membre de votre équipe
@@ -54,7 +54,7 @@ export default function CollaborateursCreate() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <UserPlus className="h-5 w-5 text-primary-500" />
-                            Informations du collaborateur
+                            Informations du membre
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -126,7 +126,7 @@ export default function CollaborateursCreate() {
 
                             <div className="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-dark-700">
                                 <Button type="submit" disabled={processing}>
-                                    {processing ? 'Création...' : 'Créer le collaborateur'}
+                                    {processing ? 'Création...' : 'Créer le membre'}
                                 </Button>
                                 <Link href={route('collaborateurs.index')}>
                                     <Button variant="outline" type="button">

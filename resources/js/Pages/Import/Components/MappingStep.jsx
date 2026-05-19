@@ -185,28 +185,6 @@ export default function MappingStep({ preview, onCommit, loading }) {
                             </CardContent>
                         </Card>
                     )}
-
-                    {/* Bouton CTA */}
-                    <Button
-                        onClick={handleCommit}
-                        disabled={loading || objImportes.length === 0}
-                        className="w-full py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-semibold text-[14px] shadow-md disabled:opacity-50"
-                    >
-                        {loading ? (
-                            <span className="flex items-center gap-2">
-                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                                </svg>
-                                Import en cours...
-                            </span>
-                        ) : (
-                            <span className="flex items-center gap-2">
-                                <Check className="h-4 w-4" />
-                                Valider et importer ({objImportes.length} obj. · {krsImportes.length} KR · {tachesImportees.length} tâches)
-                            </span>
-                        )}
-                    </Button>
                 </div>
 
                 {/* ─── Colonne droite (2/3) — Arborescence ─── */}
@@ -247,6 +225,40 @@ export default function MappingStep({ preview, onCommit, loading }) {
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* ─── Barre d'action sticky (bas de page) ─── */}
+            <div className="sticky bottom-0 mt-6 -mx-6 px-6 py-3 bg-white/95 dark:bg-dark-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-dark-700 flex items-center justify-between gap-4 z-20">
+                <div className="flex items-center gap-3 text-[12px] text-gray-500 dark:text-gray-400">
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">{objImportes.length} objectifs</span>
+                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                    <span>{krsImportes.length} KR</span>
+                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                    <span>{tachesImportees.length} tâches</span>
+                    {objImportes.length === 0 && (
+                        <span className="text-amber-500 font-medium">— Sélectionnez au moins un objectif</span>
+                    )}
+                </div>
+                <Button
+                    onClick={handleCommit}
+                    disabled={loading || objImportes.length === 0}
+                    className="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-semibold text-[13px] shadow-md disabled:opacity-50 shrink-0 flex items-center gap-2"
+                >
+                    {loading ? (
+                        <>
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            Import en cours...
+                        </>
+                    ) : (
+                        <>
+                            <Check className="h-4 w-4" />
+                            Valider et importer
+                        </>
+                    )}
+                </Button>
             </div>
         </motion.div>
     );

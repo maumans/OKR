@@ -45,6 +45,11 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $collaborateur = $request->user()->collaborateurActuel();
+        if (!$collaborateur || !$collaborateur->estAdmin()) {
+            abort(403, 'Action réservée aux administrateurs.');
+        }
+
         $request->validate([
             'password' => ['required', 'current_password'],
         ]);

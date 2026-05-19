@@ -1,35 +1,28 @@
-import DangerButton from '@/Components/DangerButton';
 import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import Modal from '@/Components/Modal';
-import SecondaryButton from '@/Components/SecondaryButton';
-import TextInput from '@/Components/TextInput';
+import { Label } from '@/Components/ui/Label';
+import { Input } from '@/Components/ui/Input';
+import { Button } from '@/Components/ui/Button';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from '@/Components/ui/Dialog';
 import { useForm } from '@inertiajs/react';
 import { useRef, useState } from 'react';
+import { Trash2, Lock, AlertTriangle } from 'lucide-react';
 
-export default function DeleteUserForm({ className = '' }) {
-    const [confirmingUserDeletion, setConfirmingUserDeletion] = useState(false);
+export default function DeleteUserForm() {
+    const [open, setOpen] = useState(false);
     const passwordInput = useRef();
 
-    const {
-        data,
-        setData,
-        delete: destroy,
-        processing,
-        reset,
-        errors,
-        clearErrors,
-    } = useForm({
+    const { data, setData, delete: destroy, processing, reset, errors, clearErrors } = useForm({
         password: '',
     });
 
-    const confirmUserDeletion = () => {
-        setConfirmingUserDeletion(true);
-    };
-
     const deleteUser = (e) => {
         e.preventDefault();
-
         destroy(route('profile.destroy'), {
             preserveScroll: true,
             onSuccess: () => closeModal(),
@@ -39,82 +32,77 @@ export default function DeleteUserForm({ className = '' }) {
     };
 
     const closeModal = () => {
-        setConfirmingUserDeletion(false);
-
+        setOpen(false);
         clearErrors();
         reset();
     };
 
     return (
-        <section className={`space-y-6 ${className}`}>
-            <header>
-                <h2 className="text-lg font-medium text-gray-900">
-                    Supprimer le compte
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-600">
-                    Une fois votre compte supprimé, toutes ses ressources et
-                    données seront définitivement supprimées. Avant de supprimer
-                    votre compte, veuillez télécharger toute donnée que vous
-                    souhaitez conserver.
+        <section>
+            <div className="mb-5">
+                <h2 className="text-base font-semibold text-red-600 dark:text-red-400">Supprimer le compte</h2>
+                <p className="text-sm text-slate-500 mt-0.5">
+                    Cette action est irréversible. Toutes vos données seront définitivement supprimées.
                 </p>
-            </header>
+            </div>
 
-            <DangerButton onClick={confirmUserDeletion}>
+            <Button
+                variant="outline"
+                className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20"
+                onClick={() => setOpen(true)}
+            >
+                <Trash2 className="h-4 w-4 mr-2" />
                 Supprimer le compte
-            </DangerButton>
+            </Button>
 
-            <Modal show={confirmingUserDeletion} onClose={closeModal}>
-                <form onSubmit={deleteUser} className="p-6">
-                    <h2 className="text-lg font-medium text-gray-900">
-                        Êtes-vous sûr de vouloir supprimer votre compte ?
-                    </h2>
+            <Dialog open={open} onOpenChange={closeModal}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center gap-3 mb-1">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <DialogTitle className="text-red-600 dark:text-red-400">Supprimer le compte ?</DialogTitle>
+                        </div>
+                        <DialogDescription>
+                            Cette action est irréversible. Toutes les données liées à votre compte seront définitivement effacées.
+                            Veuillez entrer votre mot de passe pour confirmer.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                    <p className="mt-1 text-sm text-gray-600">
-                        Une fois votre compte supprimé, toutes ses ressources et
-                        données seront définitivement supprimées. Veuillez entrer
-                        votre mot de passe pour confirmer la suppression
-                        définitive de votre compte.
-                    </p>
+                    <form onSubmit={deleteUser} className="space-y-4 mt-2">
+                        <div>
+                            <Label htmlFor="delete_password" className="sr-only">Mot de passe</Label>
+                            <Input
+                                id="delete_password"
+                                type="password"
+                                name="password"
+                                ref={passwordInput}
+                                value={data.password}
+                                onChange={(e) => setData('password', e.target.value)}
+                                isFocused
+                                icon={Lock}
+                                placeholder="Confirmez votre mot de passe"
+                            />
+                            <InputError message={errors.password} className="mt-2" />
+                        </div>
 
-                    <div className="mt-6">
-                        <InputLabel
-                            htmlFor="password"
-                            value="Mot de passe"
-                            className="sr-only"
-                        />
-
-                        <TextInput
-                            id="password"
-                            type="password"
-                            name="password"
-                            ref={passwordInput}
-                            value={data.password}
-                            onChange={(e) =>
-                                setData('password', e.target.value)
-                            }
-                            className="mt-1 block w-3/4"
-                            isFocused
-                            placeholder="Mot de passe"
-                        />
-
-                        <InputError
-                            message={errors.password}
-                            className="mt-2"
-                        />
-                    </div>
-
-                    <div className="mt-6 flex justify-end">
-                        <SecondaryButton onClick={closeModal}>
-                            Annuler
-                        </SecondaryButton>
-
-                        <DangerButton className="ms-3" disabled={processing}>
-                            Supprimer le compte
-                        </DangerButton>
-                    </div>
-                </form>
-            </Modal>
+                        <div className="flex justify-end gap-3 pt-1">
+                            <Button type="button" variant="outline" onClick={closeModal}>
+                                Annuler
+                            </Button>
+                            <Button
+                                type="submit"
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                                disabled={processing}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Supprimer définitivement
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </section>
     );
 }

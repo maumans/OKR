@@ -67,7 +67,7 @@ export default function AddTaskModal({ open, onClose, objectifId, resultatsCles 
                                     />
                                 </div>
                             )}
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <CustomSelect 
                                     value={data.priorite} 
                                     onChange={v => setF('priorite', v)} 

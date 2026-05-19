@@ -24,7 +24,7 @@ export default function CollaborateursEdit({ collaborateur }) {
     };
 
     return (
-        <AppLayout title="Modifier collaborateur">
+        <AppLayout title="Modifier le membre">
             <div className="mb-8">
                 <Link href={route('collaborateurs.index')} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-4 transition-colors">
                     <ArrowLeft className="h-4 w-4" /> Retour

@@ -436,7 +436,7 @@ export default function ParametresOKR({
                     <form onSubmit={submitAxe} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={axeForm.data.nom} onChange={e => axeForm.setData('nom', e.target.value)} error={axeForm.errors.nom} /></div>
                         <div><Label>Description</Label><Input value={axeForm.data.description} onChange={e => axeForm.setData('description', e.target.value)} /></div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><Label>Couleur</Label><Input type="color" value={axeForm.data.couleur} onChange={e => axeForm.setData('couleur', e.target.value)} className="mt-1.5 h-10" /></div>
                             <div><Label>Ordre</Label><NumberInput value={axeForm.data.ordre} onChange={v => axeForm.setData('ordre', v)} className="mt-1.5" decimals={0} /></div>
                         </div>
@@ -460,11 +460,11 @@ export default function ParametresOKR({
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} une période</DialogTitle></DialogHeader>
                     <form onSubmit={submitPeriode} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={periodeForm.data.nom} onChange={e => periodeForm.setData('nom', e.target.value)} error={periodeForm.errors.nom} placeholder="Ex: Q2 2026" /></div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><Label>Date début *</Label><CustomDatePicker value={periodeForm.data.date_debut} onChange={v => periodeForm.setData('date_debut', v)} className="mt-1.5" /></div>
                             <div><Label>Date fin *</Label><CustomDatePicker value={periodeForm.data.date_fin} onChange={v => periodeForm.setData('date_fin', v)} className="mt-1.5" /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><Label>Type *</Label>
                                 <Select value={periodeForm.data.type} onChange={e => periodeForm.setData('type', e.target.value)} className="mt-1.5">
                                     <option value="mensuel">Mensuel</option><option value="trimestriel">Trimestriel</option><option value="annuel">Annuel</option>
@@ -512,7 +512,7 @@ export default function ParametresOKR({
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un type de résultat clé</DialogTitle></DialogHeader>
                     <form onSubmit={submitTypeKR} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={typeKRForm.data.nom} onChange={e => typeKRForm.setData('nom', e.target.value)} error={typeKRForm.errors.nom} /></div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><Label>Type de valeur *</Label>
                                 <Select value={typeKRForm.data.type_valeur} onChange={e => typeKRForm.setData('type_valeur', e.target.value)} className="mt-1.5">
                                     <option value="number">Quantitatif</option><option value="percent">Pourcentage</option><option value="boolean">Booléen</option><option value="currency">Financier</option>
@@ -534,7 +534,7 @@ export default function ParametresOKR({
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un statut</DialogTitle></DialogHeader>
                     <form onSubmit={submitStatut} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={statutForm.data.nom} onChange={e => statutForm.setData('nom', e.target.value)} error={statutForm.errors.nom} /></div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><Label>Couleur</Label><Input type="color" value={statutForm.data.couleur} onChange={e => statutForm.setData('couleur', e.target.value)} className="mt-1.5 h-10" /></div>
                             <div><Label>Ordre</Label><NumberInput value={statutForm.data.ordre} onChange={v => statutForm.setData('ordre', v)} className="mt-1.5" decimals={0} /></div>
                         </div>
@@ -557,7 +557,7 @@ export default function ParametresOKR({
                     <form onSubmit={submitSeuil} className="space-y-4 mt-4">
                         <div><Label>Nom *</Label><Input value={seuilForm.data.nom} onChange={e => seuilForm.setData('nom', e.target.value)} error={seuilForm.errors.nom} placeholder="Ex: En retard" /></div>
                         <div><Label>Couleur</Label><Input type="color" value={seuilForm.data.couleur} onChange={e => seuilForm.setData('couleur', e.target.value)} className="mt-1.5 h-10" /></div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><Label>Seuil min (%)</Label><NumberInput value={seuilForm.data.seuil_min} onChange={v => seuilForm.setData('seuil_min', v)} className="mt-1.5" suffix="%" decimals={0} /></div>
                             <div><Label>Seuil max (%)</Label><NumberInput value={seuilForm.data.seuil_max} onChange={v => seuilForm.setData('seuil_max', v)} className="mt-1.5" suffix="%" decimals={0} /></div>
                         </div>
