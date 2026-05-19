@@ -27,7 +27,7 @@ class SocieteController extends Controller
         ]);
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
-            // 1. Créer la société (le seeder par défaut sera déclenché par l'event created)
+            // 1. Créer la société
             $societe = \App\Models\Societe::create([
                 'nom' => $validated['nom'],
                 'email' => $validated['email'],
@@ -45,14 +45,18 @@ class SocieteController extends Controller
                 ]
             );
 
-            // 3. Créer le Collaborateur (Admin)
+            // 3. Créer le Collaborateur (Admin) — splitter nom complet en prenom + nom
+            $parts  = preg_split('/\s+/', trim($validated['admin_nom']), 2);
+            $prenom = $parts[0];
+            $nom    = $parts[1] ?? $parts[0];
+
             \App\Models\Collaborateur::create([
-                'user_id' => $user->id,
-                'societe_id' => $societe->id,
-                'nom' => $validated['admin_nom'],
-                'email' => $validated['admin_email'],
-                'role' => 'admin',
-                'actif' => true,
+                'user_id'   => $user->id,
+                'societe_id'=> $societe->id,
+                'prenom'    => $prenom,
+                'nom'       => $nom,
+                'role'      => 'admin',
+                'actif'     => true,
             ]);
 
             // 4. Envoyer l'email d'invitation (seulement si le mot de passe vient d'être généré)

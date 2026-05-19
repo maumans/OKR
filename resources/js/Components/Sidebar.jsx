@@ -14,8 +14,12 @@ import {
     Briefcase,
     Upload,
     History,
+    LogOut,
+    Sun,
+    Moon,
 } from 'lucide-react';
 import { UserAvatar } from '@/Components/ui/Avatar';
+import { useTheme } from '@/hooks/useTheme';
 
 const navigation = [
     {
@@ -68,6 +72,7 @@ export default function Sidebar() {
     const { auth } = usePage().props;
     const user = auth.collaborateur || auth.user;
     const societe = auth?.societe;
+    const { isDark, toggleTheme } = useTheme(societe?.mode_sombre);
 
     const toPath = (href) => {
         try { return new URL(route(href), window.location.origin).pathname; }
@@ -170,18 +175,43 @@ export default function Sidebar() {
             </div>
 
             {/* User Profile Footer */}
-            <div className="p-3 border-t border-gray-100 dark:border-dark-800">
-                <Link href={route('profile.edit')} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors">
-                    <UserAvatar name={user.nom_complet || user.name} className="h-8 w-8 text-[10px] border border-gray-200" />
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
-                            {user.nom_complet || user.name}
-                        </p>
-                        <p className="text-[10px] text-gray-400 truncate">
-                            {auth.user.email}
-                        </p>
-                    </div>
-                </Link>
+            <div className="p-3 border-t border-gray-100 dark:border-dark-800 space-y-1">
+                {/* Toggle thème */}
+                <button
+                    onClick={toggleTheme}
+                    title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors"
+                >
+                    {isDark
+                        ? <Sun className="h-4 w-4 text-amber-400" />
+                        : <Moon className="h-4 w-4 text-slate-500" />
+                    }
+                    <span>{isDark ? 'Mode clair' : 'Mode sombre'}</span>
+                </button>
+
+                {/* User + logout */}
+                <div className="flex items-center gap-1">
+                    <Link href={route('profile.edit')} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors flex-1 min-w-0">
+                        <UserAvatar name={user.nom_complet || user.name} className="h-8 w-8 text-[10px] border border-gray-200 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                                {user.nom_complet || user.name}
+                            </p>
+                            <p className="text-[10px] text-gray-400 truncate">
+                                {auth.user.email}
+                            </p>
+                        </div>
+                    </Link>
+                    <Link
+                        href={route('logout')}
+                        method="post"
+                        as="button"
+                        title="Se déconnecter"
+                        className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
+                    >
+                        <LogOut className="h-4 w-4" />
+                    </Link>
+                </div>
             </div>
         </aside>
     );

@@ -1,10 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Toaster, toast } from 'sonner';
 import Sidebar from '@/Components/Sidebar';
 import TopbarNav from '@/Components/TopbarNav';
-import { Bell, Menu, Search } from 'lucide-react';
+import { Bell, Menu, Search, LogOut, User, Settings, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/Components/ui/Button';
+import { UserAvatar } from '@/Components/ui/Avatar';
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/Components/ui/DropdownMenu';
 
 function hexToRgbComponents(hex) {
     const clean = hex?.replace('#', '') || '';
@@ -106,11 +112,14 @@ export default function AppLayout({ title, children }) {
     }
 
     // ─── Layout Sidebar (défaut) ────────────────────────────
+    const sidebarUser = auth?.collaborateur || auth?.user;
+    const { isDark, toggleTheme } = useTheme(auth?.societe?.mode_sombre);
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-950 font-sans">
             <Toaster position="top-right" richColors closeButton duration={3000} />
             {sidebarOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 lg:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
@@ -123,9 +132,9 @@ export default function AppLayout({ title, children }) {
             <div className="lg:pl-[260px] flex flex-col min-h-screen">
                 <header className="h-16 bg-white/80 dark:bg-dark-950/80 backdrop-blur-md border-b border-gray-100 dark:border-dark-800 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-20">
                     <div className="flex items-center gap-4">
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             className="lg:hidden"
                             onClick={() => setSidebarOpen(true)}
                         >
@@ -136,21 +145,60 @@ export default function AppLayout({ title, children }) {
                         </h2>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <div className="relative hidden md:block">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <input 
-                                type="text" 
-                                placeholder="Rechercher..." 
+                            <input
+                                type="text"
+                                placeholder="Rechercher..."
                                 className="pl-10 pr-4 py-2 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-56 transition-all"
                             />
                         </div>
+                        <button
+                            onClick={toggleTheme}
+                            title={isDark ? 'Mode clair' : 'Mode sombre'}
+                            className="rounded-lg bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-100 dark:hover:bg-dark-800 h-9 w-9 flex items-center justify-center transition-colors"
+                        >
+                            {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-500" />}
+                        </button>
                         <Button variant="ghost" size="icon" className="relative rounded-lg bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-100 h-9 w-9">
                             <Bell className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                             <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-white dark:border-dark-900">
                                 2
                             </span>
                         </Button>
+
+                        {/* Menu utilisateur */}
+                        {sidebarUser && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-dark-800 rounded-lg px-2 py-1.5 transition-colors ml-1">
+                                        <UserAvatar name={sidebarUser.nom_complet || sidebarUser.name} className="h-7 w-7 text-[10px]" />
+                                        <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate">
+                                            {sidebarUser.nom_complet || sidebarUser.name}
+                                        </span>
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52">
+                                    <DropdownMenuItem asChild>
+                                        <Link href={route('profile.edit')} className="flex items-center gap-2">
+                                            <User className="h-4 w-4" />Profil
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href={route('parametres.index')} className="flex items-center gap-2">
+                                            <Settings className="h-4 w-4" />Paramètres
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem asChild>
+                                        <Link href={route('logout')} method="post" as="button" className="flex items-center gap-2 w-full text-red-600 focus:text-red-700">
+                                            <LogOut className="h-4 w-4" />Se déconnecter
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                     </div>
                 </header>
 

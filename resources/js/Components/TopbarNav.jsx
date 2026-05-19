@@ -3,8 +3,9 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Users, Target, CheckSquare, TrendingUp,
     Award, Settings, Settings2, PenTool, GraduationCap, BarChart3,
-    LogOut, User, Briefcase, Grid3X3, Gift,
+    LogOut, User, Briefcase, Grid3X3, Gift, Sun, Moon,
 } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 import { UserAvatar } from '@/Components/ui/Avatar';
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -30,6 +31,7 @@ export default function TopbarNav() {
     const user = auth.collaborateur || auth.user;
     const societe = auth.societe;
     const mobileNavRef = useRef(null);
+    const { isDark, toggleTheme } = useTheme(societe?.mode_sombre);
 
     const toPath = (href) => {
         try { return new URL(route(href), window.location.origin).pathname; }
@@ -103,6 +105,13 @@ export default function TopbarNav() {
 
                     {/* Action icons */}
                     <div className="flex items-center gap-0.5 ml-2 border-l border-white/10 pl-2">
+                        <button
+                            onClick={toggleTheme}
+                            title={isDark ? 'Mode clair' : 'Mode sombre'}
+                            className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded transition-colors"
+                        >
+                            {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                        </button>
                         <Link href={route('parametres.index')} className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded transition-colors">
                             <Settings className="h-3.5 w-3.5" />
                         </Link>
