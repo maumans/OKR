@@ -19,54 +19,72 @@ class SocieteController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'admin_nom' => 'required|string|max:255',
-            'admin_email' => 'required|email|max:255',
-            // d'autres champs de config société si nécessaire
+            'nom'            => 'required|string|max:255',
+            'email'          => 'required|email|max:255',
+            'admin_nom'      => 'required|string|max:255',
+            'admin_email'    => 'required|email|max:255',
+            'admin_password' => 'required|string|min:6',
         ]);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
+        $password        = null;
+        $newUserCreated  = false;
+        $societeCreated  = null;
+        $userCreated     = null;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($validated, &$password, &$newUserCreated, &$societeCreated, &$userCreated) {
             // 1. Créer la société
-            $societe = \App\Models\Societe::create([
-                'nom' => $validated['nom'],
-                'email' => $validated['email'],
+            $societeCreated = \App\Models\Societe::create([
+                'nom'         => $validated['nom'],
+                'email'       => $validated['email'],
                 'layout_mode' => 'sidebar',
                 'mode_sombre' => false,
             ]);
 
             // 2. Créer ou récupérer le User
-            $password = \Illuminate\Support\Str::random(10);
-            $user = \App\Models\User::firstOrCreate(
+            $password = $validated['admin_password'];
+            $userCreated = \App\Models\User::firstOrCreate(
                 ['email' => $validated['admin_email']],
                 [
-                    'name' => $validated['admin_nom'],
+                    'name'     => $validated['admin_nom'],
                     'password' => \Illuminate\Support\Facades\Hash::make($password),
                 ]
             );
+            $newUserCreated = $userCreated->wasRecentlyCreated;
 
-            // 3. Créer le Collaborateur (Admin) — splitter nom complet en prenom + nom
+            // 3. Créer le Collaborateur Admin
             $parts  = preg_split('/\s+/', trim($validated['admin_nom']), 2);
             $prenom = $parts[0];
             $nom    = $parts[1] ?? $parts[0];
 
             \App\Models\Collaborateur::create([
-                'user_id'   => $user->id,
-                'societe_id'=> $societe->id,
-                'prenom'    => $prenom,
-                'nom'       => $nom,
-                'role'      => 'admin',
-                'actif'     => true,
+                'user_id'    => $userCreated->id,
+                'societe_id' => $societeCreated->id,
+                'prenom'     => $prenom,
+                'nom'        => $nom,
+                'role'       => 'admin',
+                'actif'      => true,
             ]);
-
-            // 4. Envoyer l'email d'invitation (seulement si le mot de passe vient d'être généré)
-            // On peut envoyer systématiquement ou vérifier if ($user->wasRecentlyCreated)
-            \Illuminate\Support\Facades\Mail::to($user->email)->send(
-                new \App\Mail\AdminInvitation($societe, $user, $user->wasRecentlyCreated ? $password : 'Votre mot de passe existant')
-            );
         });
 
-        return redirect()->back()->with('success', 'Société et compte administrateur créés avec succès.');
+        // Envoi email hors transaction pour ne pas bloquer la création
+        $emailSent = false;
+        try {
+            \Illuminate\Support\Facades\Mail::to($userCreated->email)->send(
+                new \App\Mail\AdminInvitation($societeCreated, $userCreated, $newUserCreated ? $password : 'Votre mot de passe existant')
+            );
+            $emailSent = true;
+        } catch (\Exception $e) {
+            // Email non configuré — le mot de passe sera affiché dans le flash
+        }
+
+        $message = "Société « {$societeCreated->nom} » et compte admin créés.";
+        if ($newUserCreated && !$emailSent) {
+            $message .= " Email non envoyé — mot de passe temporaire : {$password}";
+        } elseif ($emailSent) {
+            $message .= ' Un email d\'invitation a été envoyé.';
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     public function show(\App\Models\Societe $societe)

@@ -19,6 +19,7 @@ export default function Index({ societes }) {
         email: '',
         admin_nom: '',
         admin_email: '',
+        admin_password: 'password',
     });
     const [errors, setErrors] = useState({});
 
@@ -42,7 +43,7 @@ export default function Index({ societes }) {
             preserveScroll: true,
             onSuccess: () => {
                 setIsCreateModalOpen(false);
-                setFormData({ nom: '', email: '', admin_nom: '', admin_email: '' });
+                setFormData({ nom: '', email: '', admin_nom: '', admin_email: '', admin_password: 'password' });
                 setErrors({});
             },
             onError: (errs) => {
@@ -267,13 +268,24 @@ export default function Index({ societes }) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1.5">Email de connexion <span className="text-red-500">*</span></label>
-                                    <Input 
+                                    <Input
                                         type="email"
                                         value={formData.admin_email}
                                         onChange={(e) => setFormData({...formData, admin_email: e.target.value})}
                                         placeholder="jean.dupont@acme.com"
                                         required
                                         error={errors.admin_email}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5">Mot de passe initial <span className="text-red-500">*</span></label>
+                                    <Input
+                                        type="text"
+                                        value={formData.admin_password}
+                                        onChange={(e) => setFormData({...formData, admin_password: e.target.value})}
+                                        placeholder="password"
+                                        required
+                                        error={errors.admin_password}
                                     />
                                 </div>
                             </div>
