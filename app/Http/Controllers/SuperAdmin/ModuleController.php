@@ -11,7 +11,7 @@ class ModuleController extends Controller
 {
     public function index()
     {
-        $modules = Module::withCount(['societes' => fn ($q) => $q->wherePivot('actif', true)])
+        $modules = Module::withCount(['societes' => fn ($q) => $q->where('societe_module.actif', true)])
             ->orderBy('ordre')
             ->get();
 

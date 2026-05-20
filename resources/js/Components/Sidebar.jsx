@@ -44,7 +44,7 @@ const navigation = [
         name: 'MANAGEMENT',
         items: [
             { name: 'Objectifs (OKR)', href: 'objectifs.index', icon: Target, moduleCode: 'okr' },
-            { name: 'Individuels', href: 'individuels.index', icon: User, moduleCode: 'individuels' },
+            { name: 'Objectifs individuels', href: 'individuels.index', icon: User, moduleCode: 'individuels' },
             { name: 'Tâches', href: 'taches.index', icon: CheckSquare, moduleCode: 'taches' },
             { name: 'Matrice Eisenhower', href: 'matrice.index', icon: Grid3X3, moduleCode: 'matrice' },
             { name: 'Daily (Bilan)', href: 'daily.index', icon: PenTool, moduleCode: 'daily' },

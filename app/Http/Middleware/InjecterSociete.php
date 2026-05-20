@@ -28,6 +28,18 @@ class InjecterSociete
             return $next($request);
         }
 
+        $societe = $collaborateur->societe;
+
+        // Bloquer l'accès si la société est suspendue
+        if ($societe && $societe->statut === 'suspendu') {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')
+                ->withErrors(['email' => 'Votre compte a été suspendu. Veuillez contacter l\'administrateur.']);
+        }
+
         // Stocker en session si pas encore fait
         if (!session()->has('societe_id')) {
             session(['societe_id' => $collaborateur->societe_id]);
@@ -35,7 +47,7 @@ class InjecterSociete
 
         // Injecter dans la request pour accès facile
         $request->merge([
-            'societe_courante' => $collaborateur->societe,
+            'societe_courante' => $societe,
             'collaborateur_courant' => $collaborateur,
         ]);
 

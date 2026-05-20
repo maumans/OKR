@@ -19,7 +19,15 @@ import {
     Settings2, Compass, CalendarRange, Target, BarChart3,
     CheckCircle2, Gauge, Award, Plus, Pencil, Trash2,
     Package, Search, Lock, CheckCircle, XCircle, Info,
+    LayoutDashboard, User, ListChecks, CalendarCheck, Grid3x3,
+    TrendingUp, Briefcase, Gift, GraduationCap, Users, Upload,
 } from 'lucide-react';
+
+const LUCIDE_ICONS = {
+    LayoutDashboard, Target, User, ListChecks, CalendarCheck,
+    Grid3x3, TrendingUp, Briefcase, Gift, GraduationCap,
+    BarChart3, Users, Settings, Upload, Package,
+};
 
 // ─── Composant CRUD Table réutilisable ───────────────────
 function CrudSection({ title, icon: Icon, items, columns, renderRow, onAdd, onEdit, onDelete, addLabel = 'Ajouter' }) {
@@ -194,9 +202,9 @@ function OngletModules({ modules = [], isAdmin }) {
                         <div className="flex items-start gap-3 pr-12">
                             <div
                                 className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0"
-                                style={{ backgroundColor: module.couleur + '20', color: module.couleur }}
+                                style={{ backgroundColor: (module.couleur || '#6366f1') + '20', color: module.couleur || '#6366f1' }}
                             >
-                                <Package className="h-4 w-4" />
+                                {(() => { const Icon = LUCIDE_ICONS[module.icone] || Package; return <Icon className="h-4 w-4" />; })()}
                             </div>
                             <div className="min-w-0">
                                 <div className="font-semibold text-[13px] text-gray-900 dark:text-white leading-tight">

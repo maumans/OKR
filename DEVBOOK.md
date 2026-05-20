@@ -330,6 +330,143 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 
 ---
 
+## 🚀 Déploiement Production (Hostinger)
+
+### Configuration serveur
+
+Hostinger utilise **LiteSpeed** (pas Apache). Les directives `php_value` dans `.htaccess` **ne fonctionnent pas** avec LiteSpeed.
+
+#### Fichier `public/.user.ini` (obligatoire pour les uploads)
+```ini
+upload_max_filesize = 20M
+post_max_size = 25M
+file_uploads = On
+max_execution_time = 120
+memory_limit = 256M
+```
+
+#### Permissions à appliquer via SSH
+```bash
+chmod -R 775 storage/
+chmod -R 775 bootstrap/cache/
+php artisan storage:link
+```
+
+#### Paramètres PHP à configurer dans hPanel
+- `file_uploads` → On
+- `upload_max_filesize` → 20M
+- `post_max_size` → 25M
+
+### Upload de fichiers (Module Import) — Erreur 403
+
+**Cause** : Le WAF LiteSpeed/ModSecurity bloque les uploads multipart, notamment les fichiers `.xlsx` (qui sont des archives ZIP).
+
+**Symptôme** : `403 Forbidden — Access to this resource on the server is denied!` → erreur **serveur**, pas Laravel (pas de page d'erreur Laravel).
+
+**Solutions** :
+1. Vérifier que `public/.user.ini` est en place avec les bonnes limites.
+2. Ajouter `<IfModule mod_security2.c>SecRuleEngine Off</IfModule>` dans `public/.htaccess` pour désactiver ModSecurity.
+3. Si le problème persiste, contacter le support Hostinger pour exclure l'URL `/import/parse` des règles WAF.
+
+---
+
+## 🔐 Phase 5b — Gestion Modulaire des Accès (Mai 2026)
+
+### Principe
+Chaque société dispose d'un ensemble de modules activables à la carte. Les modules *core* (dashboard, equipe, parametres) sont toujours actifs. Les autres peuvent être activés/désactivés par le SuperAdmin ou l'admin société.
+
+### Tables
+- `modules` — Catalogue global de la plateforme (14 modules définis dans `ModuleSeeder`)
+- `societe_module` — Table pivot avec `actif`, `active_le`, `desactive_le`, `active_par_user_id`, `parametres`
+
+### Gating côté serveur
+- **Middleware** `VerifierModuleActif` (alias `module`) : `Route::middleware('module:okr')`
+- Retourne HTTP 403 si le module n'est pas actif pour la société
+
+### Gating côté client
+- `modulesActifs` partagé globalement via `HandleInertiaRequests`
+- **Sidebar/Topbar** : filtrent les items par `moduleCode`
+- **Composant** `<RequireModule code="okr">` : n'affiche les children que si le module est actif
+
+### Modules disponibles
+| Code | Nom | Core | Premium |
+|------|-----|------|---------|
+| dashboard | Tableau de bord | ✅ | — |
+| okr | OKR | — | — |
+| individuels | Objectifs Individuels | — | — |
+| taches | Tâches & Projets | — | — |
+| daily | Daily / Standups | — | — |
+| matrice | Matrice Eisenhower | — | — |
+| prospection | Prospection | — | — |
+| missions | Missions | — | — |
+| incentives | Incentives | — | ✅ |
+| lms | Formation (LMS) | — | ✅ |
+| reporting | Reporting | — | — |
+| equipe | Équipe | ✅ | — |
+| parametres | Paramètres | ✅ | — |
+| import | Import | — | — |
+
+---
+
+## 🛡️ Phase 5c — Console SuperAdmin (Mai 2026)
+
+### Architecture
+URL : `/superadmin/*`, middleware `superadmin` → `IsSuperAdmin`
+Layout dédié (`SuperAdmin/Layout.jsx`) : sidebar `slate-900`, accents `indigo-600`, badge ADMIN.
+
+### Pages SuperAdmin
+| Route | Composant | Description |
+|-------|-----------|-------------|
+| `/superadmin` | `SuperAdmin/Dashboard` | KPIs, graphiques, dernières sociétés, logs récents |
+| `/superadmin/societes` | `SuperAdmin/Societes/Index` | Liste paginée avec filtres et modules chips |
+| `/superadmin/societes/create` | `SuperAdmin/Societes/Create` | Wizard 4 étapes |
+| `/superadmin/societes/{id}` | `SuperAdmin/Societes/Show` | Détail + toggle modules + impersonation |
+| `/superadmin/societes/{id}/edit` | `SuperAdmin/Societes/Edit` | Modifier infos société |
+| `/superadmin/utilisateurs` | `SuperAdmin/Utilisateurs/Index` | Liste avec promo/révocation |
+| `/superadmin/modules` | `SuperAdmin/Modules/Index` | Catalogue + CRUD inline |
+| `/superadmin/abonnements` | `SuperAdmin/Abonnements/Index` | Vue et édition des plans |
+| `/superadmin/audit-logs` | `SuperAdmin/AuditLogs/Index` | Logs filtrables (societe, action, date) |
+| `/superadmin/parametres` | `SuperAdmin/Parametres/Index` | Paramètres plateforme (à venir) |
+
+### Impersonation
+- Démarrer : `POST /superadmin/impersonation/{user}` — stocke `impersonator_id` en session, Auth::login(user)
+- Arrêter : `POST /superadmin/impersonation/stop` — restaure le superadmin, audit log
+- **BandeauImpersonation** : bandeau amber sticky affiché dans `AppLayout` quand impersonation active
+
+### Audit automatique
+- **SocieteObserver** : log les changements de statut et suppressions
+- **UserObserver** : log les promotions/révocations superadmin
+- Les actions explicites (toggleModule, create, etc.) logguent via `audit()` helper dans les controllers
+
+### Seeders
+- `ModuleSeeder` : crée/met à jour les 14 modules du catalogue
+- `SuperAdminSeeder` : crée `superadmin@addvalis.com` / `Addvalis2026!`
+
+**Diagnostic rapide** : tester avec un CSV (< 1 Mo) — si le CSV passe mais pas le XLSX, c'est le WAF qui bloque les archives ZIP.
+
+---
+
+## 🐛 Bugs connus et correctifs
+
+### Filtre "Toutes les périodes" — OKR Index (corrigé 20 Mai 2026)
+
+**Fichier** : `resources/js/Pages/OKR/Index.jsx` — fonction `applyFilters`.
+
+**Problème** : Sélectionner "Toutes les périodes" ne montrait pas tous les objectifs. Le frontend supprimait `periode_id` des paramètres URL quand il était vide (`''`). Le backend voyait alors une URL sans `periode_id` et **redirigeait automatiquement** vers la période en cours.
+
+**Correctif** : `periode_id` n'est plus supprimé de l'URL même quand vide. La valeur `periode_id=` (chaîne vide) signale au backend "pas de filtre" sans déclencher la redirection automatique.
+
+```js
+// Avant
+Object.keys(f).forEach(k => f[k] === '' && delete f[k]);
+// Après — periode_id vide = "toutes", on le garde dans l'URL
+Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
+```
+
+**Règle** : La redirection automatique vers la période courante dans `ObjectifController::index()` ne se déclenche que si `periode_id` est **totalement absent** de la requête (première visite). Une chaîne vide `periode_id=` suffit à la désactiver.
+
+---
+
 ## 💡 Conventions de Codage
 
 ### Backend (Laravel)
@@ -379,7 +516,11 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 | `configurations_primes` | Configuration des primes par société |
 | `paliers_primes` | Paliers de calcul des primes |
 | `templates_objectifs` | Templates d'objectifs réutilisables |
+| `modules` | Catalogue global des modules de la plateforme (code, nom, icone, couleur, categorie, est_core, est_premium, ordre) |
+| `societe_module` | Pivot modules × sociétés (actif, active_le, desactive_le, active_par_user_id, parametres) |
+| `audit_logs` | Journal d'audit (user_id, societe_id, action, description, donnees JSON, ip, user_agent) |
+| `abonnements` | Abonnements SaaS par société (plan starter/pro/enterprise, prix_mensuel, limite_utilisateurs, statut) |
 
 ---
 
-*Dernière mise à jour : 18 Mai 2026*
+*Dernière mise à jour : 20 Mai 2026 — Phase 5b (Gestion modulaire) + Phase 5c (Console SuperAdmin)*

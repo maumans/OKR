@@ -92,7 +92,7 @@ class Societe extends Model
 
     public function modules(): BelongsToMany
     {
-        return $this->belongsToMany(Module::class)
+        return $this->belongsToMany(Module::class, 'societe_module')
             ->withPivot(['actif', 'active_le', 'desactive_le', 'active_par_user_id', 'parametres'])
             ->withTimestamps();
     }

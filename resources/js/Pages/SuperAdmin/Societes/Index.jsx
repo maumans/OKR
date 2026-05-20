@@ -1,311 +1,279 @@
-import { useState, useMemo } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
-import AppLayout from '@/Layouts/AppLayout';
-import { Building2, Plus, ArrowRight, Settings2, Users, Search, Activity, CalendarDays, ExternalLink, ShieldCheck } from 'lucide-react';
-import { Button } from '@/Components/ui/Button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/Table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/Components/ui/Dialog';
-import { Input } from '@/Components/ui/Input';
-import { Badge } from '@/Components/ui/Badge';
-import { Card, CardContent } from '@/Components/ui/Card';
-import EmptyState from '@/Components/EmptyState';
+import { useState } from 'react';
+import { Link, router } from '@inertiajs/react';
+import SuperAdminLayout from '../Layout';
+import {
+    Building2, Search, Plus, Eye, Pencil, MoreHorizontal,
+    PauseCircle, PlayCircle, Trash2, ChevronLeft, ChevronRight,
+    Users, Package,
+} from 'lucide-react';
 
-export default function Index({ societes }) {
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [formData, setFormData] = useState({
-        nom: '',
-        email: '',
-        admin_nom: '',
-        admin_email: '',
-        admin_password: 'password',
-    });
-    const [errors, setErrors] = useState({});
+const PLAN_STYLES = {
+    starter:    'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    pro:        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    enterprise: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+};
+const STATUS_STYLES = {
+    actif:     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    suspendu:  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    annule:    'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+};
+const STATUS_LABELS = { actif: 'Actif', suspendu: 'Suspendu', annule: 'Annulé' };
 
-    // Calcul des KPI
-    const totalUsers = societes.reduce((acc, s) => acc + (s.collaborateurs_count || 0), 0);
-    const recentSocietes = societes.filter(s => new Date(s.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length;
+function ModuleChips({ modules }) {
+    const visible = modules.slice(0, 4);
+    const hidden = modules.length - 4;
+    return (
+        <div className="flex flex-wrap gap-1">
+            {visible.map(m => (
+                <span
+                    key={m.code}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-white"
+                    style={{ backgroundColor: m.couleur || '#6366f1' }}
+                    title={m.nom}
+                >
+                    {m.code}
+                </span>
+            ))}
+            {hidden > 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                    +{hidden}
+                </span>
+            )}
+            {modules.length === 0 && <span className="text-[11px] text-slate-400 italic">Aucun</span>}
+        </div>
+    );
+}
 
-    // Filtrage
-    const filteredSocietes = useMemo(() => {
-        return societes.filter(s => 
-            s.nom.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            (s.email && s.email.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-    }, [societes, searchQuery]);
+function ActionsDropdown({ societe }) {
+    const [open, setOpen] = useState(false);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        
-        router.post(route('superadmin.societes.store'), formData, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setIsCreateModalOpen(false);
-                setFormData({ nom: '', email: '', admin_nom: '', admin_email: '', admin_password: 'password' });
-                setErrors({});
-            },
-            onError: (errs) => {
-                setErrors(errs);
-            },
-            onFinish: () => setIsSubmitting(false),
-        });
+    const handleSuspendre = () => {
+        if (!confirm(`Suspendre « ${societe.nom} » ?`)) return;
+        router.post(route('superadmin.societes.suspendre', societe.id), {}, { preserveScroll: true });
+        setOpen(false);
+    };
+    const handleReactiver = () => {
+        router.post(route('superadmin.societes.reactiver', societe.id), {}, { preserveScroll: true });
+        setOpen(false);
+    };
+    const handleSupprimer = () => {
+        if (!confirm(`Supprimer définitivement « ${societe.nom} » ? Cette action est irréversible.`)) return;
+        router.delete(route('superadmin.societes.destroy', societe.id));
+        setOpen(false);
     };
 
     return (
-        <AppLayout header="SaaS Dashboard">
-            <Head title="SuperAdmin - Dashboard SaaS" />
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mb-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-semibold uppercase tracking-wider">
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        Zone d'Administration Globale
+        <div className="relative">
+            <button
+                onClick={() => setOpen(o => !o)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+                <MoreHorizontal className="h-4 w-4" />
+            </button>
+            {open && (
+                <>
+                    <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+                    <div className="absolute right-0 top-8 z-20 w-44 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg py-1">
+                        <Link
+                            href={route('superadmin.societes.edit', societe.id)}
+                            className="flex items-center gap-2 px-3 py-2 text-[13px] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        >
+                            <Pencil className="h-3.5 w-3.5 text-slate-400" /> Modifier
+                        </Link>
+                        {societe.statut === 'actif' ? (
+                            <button onClick={handleSuspendre} className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                                <PauseCircle className="h-3.5 w-3.5" /> Suspendre
+                            </button>
+                        ) : (
+                            <button onClick={handleReactiver} className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
+                                <PlayCircle className="h-3.5 w-3.5" /> Réactiver
+                            </button>
+                        )}
+                        <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
+                        <button onClick={handleSupprimer} className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20">
+                            <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                        </button>
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        SuperAdmin Dashboard
-                    </h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Vue d'ensemble et gestion des locataires (tenants) de la plateforme SaaS Addvalis.
-                    </p>
-                </div>
-                
-                <Button onClick={() => setIsCreateModalOpen(true)} className="bg-red-600 hover:bg-red-700 text-white shrink-0">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nouvelle Société
-                </Button>
-            </div>
+                </>
+            )}
+        </div>
+    );
+}
 
-            {/* KPIs Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <Card className="bg-white dark:bg-dark-900 border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
-                    <CardContent className="p-5 flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-                            <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Sociétés</p>
-                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{societes.length}</h3>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-white dark:bg-dark-900 border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-shadow">
-                    <CardContent className="p-5 flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center shrink-0">
-                            <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Utilisateurs SaaS</p>
-                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{totalUsers}</h3>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-white dark:bg-dark-900 border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
-                    <CardContent className="p-5 flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
-                            <Activity className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Croissance (30j)</p>
-                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">+{recentSocietes} <span className="text-sm font-normal text-slate-500">sociétés</span></h3>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+export default function SocietesIndex({ societes, filters }) {
+    const [search, setSearch] = useState(filters?.search || '');
+    const [statut, setStatut] = useState(filters?.statut || '');
 
-            {/* Liste des Sociétés */}
-            <div className="bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-dark-800 shadow-sm overflow-hidden flex flex-col">
-                <div className="p-4 border-b border-slate-200 dark:border-dark-800 bg-slate-50/50 dark:bg-dark-950/50 flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Annuaire des clients</h2>
-                    <div className="relative w-full sm:w-72">
+    const applyFilters = (newFilters) => {
+        router.get(route('superadmin.societes.index'), { ...filters, ...newFilters }, {
+            preserveState: true, preserveScroll: true, replace: true,
+        });
+    };
+
+    const handleSearch = (e) => {
+        const val = e.target.value;
+        setSearch(val);
+        clearTimeout(window._searchTimer);
+        window._searchTimer = setTimeout(() => applyFilters({ search: val, statut }), 400);
+    };
+
+    const handleStatut = (val) => {
+        setStatut(val);
+        applyFilters({ search, statut: val });
+    };
+
+    const items = societes.data || [];
+    const meta = societes.meta || {};
+
+    return (
+        <SuperAdminLayout
+            title="Sociétés"
+            breadcrumb={[{ label: 'Sociétés' }]}
+        >
+            {/* Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                <div className="flex items-center gap-2 flex-1">
+                    <div className="relative flex-1 max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input 
-                            placeholder="Rechercher une société..." 
-                            className="pl-9 bg-white dark:bg-dark-950"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                        <input
+                            value={search}
+                            onChange={handleSearch}
+                            placeholder="Rechercher une société..."
+                            className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                         />
                     </div>
+                    <select
+                        value={statut}
+                        onChange={e => handleStatut(e.target.value)}
+                        className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
+                    >
+                        <option value="">Tous les statuts</option>
+                        <option value="actif">Actif</option>
+                        <option value="suspendu">Suspendu</option>
+                        <option value="annule">Annulé</option>
+                    </select>
                 </div>
-
-                <div className="overflow-x-auto">
-                    {societes.length === 0 ? (
-                        <EmptyState
-                            icon={Building2}
-                            title="Aucune société"
-                            description="Créez le premier locataire du SaaS pour démarrer."
-                            actionLabel="Nouvelle Société"
-                            onAction={() => setIsCreateModalOpen(true)}
-                        />
-                    ) : filteredSocietes.length === 0 ? (
-                        <div className="p-12 text-center text-slate-500">
-                            Aucune société ne correspond à votre recherche "{searchQuery}"
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-slate-50/50 dark:bg-dark-900">
-                                    <TableHead className="w-12"></TableHead>
-                                    <TableHead>Client</TableHead>
-                                    <TableHead className="hidden md:table-cell">Contact</TableHead>
-                                    <TableHead className="text-center">Taille</TableHead>
-                                    <TableHead className="hidden lg:table-cell">Inscription</TableHead>
-                                    <TableHead className="text-right">Administration</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredSocietes.map((societe) => (
-                                    <TableRow key={societe.id} className="hover:bg-slate-50 dark:hover:bg-dark-800/50 transition-colors group">
-                                        <TableCell>
-                                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center text-white text-sm font-bold shadow-sm uppercase">
-                                                {societe.nom.substring(0, 2)}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="font-semibold text-slate-900 dark:text-white">{societe.nom}</div>
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 lg:hidden mt-0.5">{societe.email || 'Aucun email'}</div>
-                                        </TableCell>
-                                        <TableCell className="hidden md:table-cell text-slate-600 dark:text-slate-300">
-                                            {societe.email || <span className="text-slate-400 italic">Non renseigné</span>}
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Badge variant="secondary" className="bg-slate-100 text-slate-700 dark:bg-dark-800 dark:text-slate-300">
-                                                <Users className="h-3.5 w-3.5 mr-1.5" />
-                                                {societe.collaborateurs_count} <span className="hidden sm:inline ml-1 text-slate-400">licences</span>
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="hidden lg:table-cell text-slate-500 text-sm">
-                                            <div className="flex items-center gap-1.5">
-                                                <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-                                                {new Date(societe.created_at).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric', day: 'numeric' })}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                <Button variant="ghost" size="sm" asChild className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20">
-                                                    <Link href={route('superadmin.societes.show', societe.id)}>
-                                                        Détails <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
-                                                    </Link>
-                                                </Button>
-                                                <Button variant="outline" size="sm" className="h-8 bg-white dark:bg-dark-900" asChild>
-                                                    <Link href={route('superadmin.societes.parametres.index', societe.id)}>
-                                                        <Settings2 className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
-                                                        Config.
-                                                    </Link>
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </div>
+                <Link
+                    href={route('superadmin.societes.create')}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors shrink-0"
+                >
+                    <Plus className="h-4 w-4" /> Nouvelle société
+                </Link>
             </div>
 
-            {/* Modal Création Société */}
-            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-                <DialogContent className="sm:max-w-[550px]">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-xl">
-                            <Building2 className="h-5 w-5 text-red-500" />
-                            Provisionner un nouveau client
-                        </DialogTitle>
-                        <DialogDescription>
-                            Cette action créera un environnement de travail isolé pour la nouvelle entreprise et enverra une invitation à son administrateur principal.
-                        </DialogDescription>
-                    </DialogHeader>
-                    
-                    <form onSubmit={handleSubmit} className="space-y-6 pt-2">
-                        <div className="space-y-4 bg-slate-50 dark:bg-dark-900 p-4 rounded-lg border border-slate-200 dark:border-dark-800">
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 dark:bg-dark-800 text-[10px]">1</span> 
-                                L'entreprise
-                            </h3>
-                            
-                            <div className="grid sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5">Nom de la société <span className="text-red-500">*</span></label>
-                                    <Input 
-                                        value={formData.nom}
-                                        onChange={(e) => setFormData({...formData, nom: e.target.value})}
-                                        placeholder="Ex: Acme Corp"
-                                        required
-                                        error={errors.nom}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5">Email générique de contact <span className="text-red-500">*</span></label>
-                                    <Input 
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                                        placeholder="contact@acme.com"
-                                        required
-                                        error={errors.email}
-                                    />
-                                </div>
-                            </div>
-                        </div>
+            {/* Table */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-slate-100 dark:border-slate-800">
+                                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Société</th>
+                                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Modules</th>
+                                <th className="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400 hidden md:table-cell">Utilisateurs</th>
+                                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Statut</th>
+                                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Inscription</th>
+                                <th className="px-5 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                            {items.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-5 py-12 text-center">
+                                        <Building2 className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                                        <p className="text-sm text-slate-400">Aucune société trouvée</p>
+                                        <Link href={route('superadmin.societes.create')} className="text-indigo-500 text-sm hover:underline mt-1 inline-block">
+                                            Créer la première société
+                                        </Link>
+                                    </td>
+                                </tr>
+                            ) : items.map(s => (
+                                <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                    <td className="px-5 py-3.5">
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="h-9 w-9 rounded-lg flex items-center justify-center text-white text-[13px] font-bold shrink-0"
+                                                style={{ backgroundColor: s.couleur_primaire || '#6366f1' }}
+                                            >
+                                                {s.nom.slice(0, 2).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">{s.nom}</p>
+                                                <p className="text-[11px] text-slate-400">{s.email || '—'}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-3.5 hidden lg:table-cell">
+                                        <ModuleChips modules={s.modulesActifs || []} />
+                                    </td>
+                                    <td className="px-5 py-3.5 hidden md:table-cell text-center">
+                                        <div className="inline-flex items-center gap-1 text-[12px] text-slate-600 dark:text-slate-400">
+                                            <Users className="h-3.5 w-3.5 text-slate-400" />
+                                            {s.collaborateurs_count}
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-3.5">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${STATUS_STYLES[s.statut] || STATUS_STYLES.actif}`}>
+                                            {STATUS_LABELS[s.statut] || s.statut}
+                                        </span>
+                                        {s.abonnementActif && (
+                                            <span className={`ml-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${PLAN_STYLES[s.abonnementActif.plan] || PLAN_STYLES.starter}`}>
+                                                {s.abonnementActif.plan}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-5 py-3.5 hidden lg:table-cell text-[12px] text-slate-400">
+                                        {new Date(s.created_at).toLocaleDateString('fr-FR')}
+                                    </td>
+                                    <td className="px-5 py-3.5">
+                                        <div className="flex items-center gap-1 justify-end">
+                                            <Link
+                                                href={route('superadmin.societes.show', s.id)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
+                                                title="Voir"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </Link>
+                                            <ActionsDropdown societe={s} />
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
-                        <div className="space-y-4 bg-slate-50 dark:bg-dark-900 p-4 rounded-lg border border-slate-200 dark:border-dark-800">
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 dark:bg-dark-800 text-[10px]">2</span> 
-                                Compte Administrateur Client
-                            </h3>
-                            
-                            <div className="grid sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5">Nom complet <span className="text-red-500">*</span></label>
-                                    <Input 
-                                        value={formData.admin_nom}
-                                        onChange={(e) => setFormData({...formData, admin_nom: e.target.value})}
-                                        placeholder="Jean Dupont"
-                                        required
-                                        error={errors.admin_nom}
+                {/* Pagination */}
+                {meta.last_page > 1 && (
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 dark:border-slate-800">
+                        <p className="text-[12px] text-slate-400">
+                            {meta.from}–{meta.to} sur {meta.total} sociétés
+                        </p>
+                        <div className="flex items-center gap-1">
+                            {(societes.links || []).map((link, i) => {
+                                if (link.label === '&laquo; Previous') return (
+                                    <button key={i} disabled={!link.url} onClick={() => link.url && router.get(link.url)} className="p-1.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed">
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </button>
+                                );
+                                if (link.label === 'Next &raquo;') return (
+                                    <button key={i} disabled={!link.url} onClick={() => link.url && router.get(link.url)} className="p-1.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed">
+                                        <ChevronRight className="h-4 w-4" />
+                                    </button>
+                                );
+                                return (
+                                    <button
+                                        key={i}
+                                        onClick={() => link.url && router.get(link.url)}
+                                        disabled={!link.url || link.active}
+                                        className={`min-w-[28px] h-7 px-1.5 rounded text-[12px] font-medium transition-colors ${link.active ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                        dangerouslySetInnerHTML={{ __html: link.label }}
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5">Email de connexion <span className="text-red-500">*</span></label>
-                                    <Input
-                                        type="email"
-                                        value={formData.admin_email}
-                                        onChange={(e) => setFormData({...formData, admin_email: e.target.value})}
-                                        placeholder="jean.dupont@acme.com"
-                                        required
-                                        error={errors.admin_email}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1.5">Mot de passe initial <span className="text-red-500">*</span></label>
-                                    <Input
-                                        type="text"
-                                        value={formData.admin_password}
-                                        onChange={(e) => setFormData({...formData, admin_password: e.target.value})}
-                                        placeholder="password"
-                                        required
-                                        error={errors.admin_password}
-                                    />
-                                </div>
-                            </div>
+                                );
+                            })}
                         </div>
-
-                        <DialogFooter className="pt-2">
-                            <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
-                                Annuler
-                            </Button>
-                            <Button type="submit" disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 text-white gap-2">
-                                {isSubmitting ? (
-                                    <>Provisionnement...</>
-                                ) : (
-                                    <>Créer et Inviter <ArrowRight className="h-4 w-4" /></>
-                                )}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        </AppLayout>
+                    </div>
+                )}
+            </div>
+        </SuperAdminLayout>
     );
 }

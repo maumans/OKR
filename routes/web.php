@@ -223,9 +223,9 @@ Route::middleware(['auth', 'verified', 'superadmin'])->prefix('superadmin')->nam
     // Audit logs
     Route::get('/audit-logs', [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'index'])->name('audit-logs.index');
 
-    // Impersonation
-    Route::post('/impersonation/{user}', [\App\Http\Controllers\SuperAdmin\ImpersonationController::class, 'start'])->name('impersonation.start');
+    // Impersonation (stop doit être avant {user} pour éviter le conflit de route model binding)
     Route::post('/impersonation/stop', [\App\Http\Controllers\SuperAdmin\ImpersonationController::class, 'stop'])->name('impersonation.stop');
+    Route::post('/impersonation/{user}', [\App\Http\Controllers\SuperAdmin\ImpersonationController::class, 'start'])->name('impersonation.start');
 
     // Paramètres plateforme
     Route::get('/parametres', [\App\Http\Controllers\SuperAdmin\ParametresPlateformeController::class, 'index'])->name('parametres.index');

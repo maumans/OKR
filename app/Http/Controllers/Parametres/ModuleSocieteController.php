@@ -4,46 +4,13 @@ namespace App\Http\Controllers\Parametres;
 
 use App\Http\Controllers\Controller;
 use App\Models\Module;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
 
 class ModuleSocieteController extends Controller
 {
     public function index()
     {
-        $societe = Auth::user()->collaborateurActuel()->societe;
-
-        $modules = Module::where('actif', true)
-            ->orderBy('ordre')
-            ->get();
-
-        // Charger l'état d'activation pour cette société
-        $activations = $societe->modules()
-            ->get(['module_id', 'actif', 'active_le', 'desactive_le'])
-            ->keyBy('pivot.module_id');
-
-        $modulesAvecEtat = $modules->map(function (Module $module) use ($activations, $societe) {
-            $pivot = $activations->get($module->id)?->pivot;
-            return [
-                'id'          => $module->id,
-                'code'        => $module->code,
-                'nom'         => $module->nom,
-                'description' => $module->description,
-                'icone'       => $module->icone,
-                'couleur'     => $module->couleur,
-                'categorie'   => $module->categorie,
-                'est_core'    => $module->est_core,
-                'est_premium' => $module->est_premium,
-                'dependances' => $module->dependances ?? [],
-                'actif'       => $module->est_core ? true : (bool) ($pivot?->actif ?? false),
-                'active_le'   => $pivot?->active_le,
-            ];
-        });
-
-        return Inertia::render('Parametres/Index', [
-            'modulesDisponibles' => $modulesAvecEtat,
-        ]);
+        return redirect()->route('parametres.index', ['tab' => 'modules']);
     }
 
     public function toggle(Module $module)

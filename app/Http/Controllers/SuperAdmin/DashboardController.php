@@ -31,7 +31,7 @@ class DashboardController extends Controller
             ->get();
 
         // Modules les plus adoptés
-        $topModules = Module::withCount(['societes' => fn ($q) => $q->wherePivot('actif', true)])
+        $topModules = Module::withCount(['societes' => fn ($q) => $q->where('societe_module.actif', true)])
             ->orderByDesc('societes_count')
             ->limit(5)
             ->get(['id', 'code', 'nom', 'icone', 'couleur']);

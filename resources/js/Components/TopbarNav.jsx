@@ -13,7 +13,7 @@ import {
 
 const ALL_NAV_ITEMS = [
     { name: 'OKR',           href: 'objectifs.index',   color: 'bg-blue-500',    textColor: 'text-blue-500',    moduleCode: 'okr' },
-    { name: 'Individuels',   href: 'individuels.index',  color: 'bg-rose-500',    textColor: 'text-rose-500',    moduleCode: 'individuels' },
+    { name: 'Objectifs individuels',   href: 'individuels.index',  color: 'bg-rose-500',    textColor: 'text-rose-500',    moduleCode: 'individuels' },
     { name: 'Daily',         href: 'daily.index',        color: 'bg-violet-500',  textColor: 'text-violet-500',  moduleCode: 'daily' },
     { name: 'Prospection',   href: 'prospects.index',    color: 'bg-green-500',   textColor: 'text-green-500',   moduleCode: 'prospection' },
     { name: 'LMS',           href: 'formations.index',   color: 'bg-orange-500',  textColor: 'text-orange-500',  moduleCode: 'lms' },

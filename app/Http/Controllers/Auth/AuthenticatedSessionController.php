@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Models\Collaborateur;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -31,9 +32,32 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        $user = Auth::user();
+
+        // Bloquer la connexion si la société de l'utilisateur est suspendue
+        if (!$user->is_superadmin) {
+            $collaborateur = Collaborateur::where('user_id', $user->id)
+                ->whereHas('societe', fn ($q) => $q->where('statut', 'suspendu'))
+                ->first();
+
+            if ($collaborateur) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => 'Votre compte a été suspendu. Veuillez contacter l\'administrateur.',
+                ]);
+            }
+        }
+
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        if ($user->is_superadmin) {
+            return redirect(route('superadmin.dashboard'));
+        }
+
+        return redirect(route('dashboard'));
     }
 
     /**

@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Module extends Model
 {
+    public function getRouteKeyName(): string
+    {
+        return 'code';
+    }
+
     protected $fillable = [
         'code', 'nom', 'description', 'icone', 'couleur',
         'categorie', 'routes', 'dependances',
@@ -26,7 +31,7 @@ class Module extends Model
 
     public function societes(): BelongsToMany
     {
-        return $this->belongsToMany(Societe::class)
+        return $this->belongsToMany(Societe::class, 'societe_module')
             ->withPivot(['actif', 'active_le', 'desactive_le', 'active_par_user_id', 'parametres'])
             ->withTimestamps();
     }
