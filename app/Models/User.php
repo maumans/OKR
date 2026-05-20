@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -32,14 +33,23 @@ class User extends Authenticatable
         ];
     }
 
+    // ─── Scopes ────────────────────────────────────────────
+
+    public function scopeSuperadmins(Builder $query): Builder
+    {
+        return $query->where('is_superadmin', true);
+    }
+
     // ─── Relations ─────────────────────────────────────────
 
-    /**
-     * Un utilisateur peut être collaborateur dans plusieurs sociétés.
-     */
     public function collaborateurs(): HasMany
     {
         return $this->hasMany(Collaborateur::class);
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class);
     }
 
     // ─── Helpers ───────────────────────────────────────────
