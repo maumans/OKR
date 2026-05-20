@@ -1780,7 +1780,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
 
  const applyFilters = (key, value) => {
  const f = { search, statut: statutFilter, collaborateur_id: collabFilter, periode_id: periodeFilter, axe_objectif_id: axeFilter, type_objectif_id: typeFilter, [key]: value };
- Object.keys(f).forEach(k => f[k] === '' && delete f[k]);
+ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
  router.get(route('objectifs.index'), f, { preserveState: true, replace: true });
  };
 

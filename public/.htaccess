@@ -1,3 +1,8 @@
+# Désactiver ModSecurity pour les uploads de fichiers
+<IfModule mod_security2.c>
+    SecRuleEngine Off
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

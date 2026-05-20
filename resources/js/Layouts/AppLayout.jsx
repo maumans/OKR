@@ -95,6 +95,7 @@ export default function AppLayout({ title, children }) {
 
     useFlashToast();
     useApplySocieteTheme();
+    const { isDark, toggleTheme } = useTheme(auth?.societe?.mode_sombre);
 
     // ─── Layout Topbar ──────────────────────────────────────
     if (layoutMode === 'topbar') {
@@ -113,7 +114,6 @@ export default function AppLayout({ title, children }) {
 
     // ─── Layout Sidebar (défaut) ────────────────────────────
     const sidebarUser = auth?.collaborateur || auth?.user;
-    const { isDark, toggleTheme } = useTheme(auth?.societe?.mode_sombre);
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-950 font-sans">
