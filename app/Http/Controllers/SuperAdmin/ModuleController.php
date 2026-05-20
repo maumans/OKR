@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\SuperAdmin;
 
@@ -34,7 +34,7 @@ class ModuleController extends Controller
         ]);
 
         $module = Module::create($validated);
-        audit('module.creer', "Module « {$module->nom} » créé dans le catalogue.", ['module_code' => $module->code]);
+        \audit('module.creer', "Module « {$module->nom} » créé dans le catalogue.", ['module_code' => $module->code]);
 
         return redirect()->back()->with('success', "Module « {$module->nom} » créé.");
     }
@@ -53,7 +53,7 @@ class ModuleController extends Controller
         ]);
 
         $module->update($validated);
-        audit('module.modifier', "Module « {$module->nom} » modifié.", ['module_code' => $module->code]);
+        \audit('module.modifier', "Module « {$module->nom} » modifié.", ['module_code' => $module->code]);
 
         return redirect()->back()->with('success', "Module « {$module->nom} » mis à jour.");
     }

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\SuperAdmin;
 
@@ -144,7 +144,7 @@ class SocieteController extends Controller
             } catch (\Throwable) {}
         }
 
-        audit('societe.creer', "Société « {$societe->nom} » créée.", ['societe_id' => $societe->id], $societe->id);
+        \audit('societe.creer', "Société « {$societe->nom} » créée.", ['societe_id' => $societe->id], $societe->id);
 
         $message = "Société « {$societe->nom} » créée avec succès.";
         if ($newUserCreated && !$emailSent) {
@@ -194,7 +194,7 @@ class SocieteController extends Controller
         ]);
 
         $societe->update($validated);
-        audit('societe.modifier', "Société « {$societe->nom} » modifiée.", ['societe_id' => $societe->id], $societe->id);
+        \audit('societe.modifier', "Société « {$societe->nom} » modifiée.", ['societe_id' => $societe->id], $societe->id);
 
         return redirect()->back()->with('success', "Société « {$societe->nom} » mise à jour.");
     }
@@ -202,7 +202,7 @@ class SocieteController extends Controller
     public function destroy(Societe $societe)
     {
         $nom = $societe->nom;
-        audit('societe.supprimer', "Société « {$nom} » supprimée.", ['societe_id' => $societe->id]);
+        \audit('societe.supprimer', "Société « {$nom} » supprimée.", ['societe_id' => $societe->id]);
         $societe->delete();
 
         return redirect()->route('superadmin.societes.index')->with('success', "Société « {$nom} » supprimée.");
@@ -222,7 +222,7 @@ class SocieteController extends Controller
                 'actif'        => false,
                 'desactive_le' => now(),
             ]);
-            audit('module.desactive', "Module « {$module->nom} » désactivé pour « {$societe->nom} ».", ['module_code' => $module->code], $societe->id);
+            \audit('module.desactive', "Module « {$module->nom} » désactivé pour « {$societe->nom} ».", ['module_code' => $module->code], $societe->id);
             return redirect()->back()->with('success', "Module « {$module->nom} » désactivé.");
         } else {
             if ($pivot) {
@@ -239,7 +239,7 @@ class SocieteController extends Controller
                     'active_par_user_id' => auth()->id(),
                 ]);
             }
-            audit('module.active', "Module « {$module->nom} » activé pour « {$societe->nom} ».", ['module_code' => $module->code], $societe->id);
+            \audit('module.active', "Module « {$module->nom} » activé pour « {$societe->nom} ».", ['module_code' => $module->code], $societe->id);
             return redirect()->back()->with('success', "Module « {$module->nom} » activé.");
         }
     }
@@ -247,14 +247,14 @@ class SocieteController extends Controller
     public function suspendre(Societe $societe)
     {
         $societe->update(['statut' => 'suspendu']);
-        audit('societe.suspendre', "Société « {$societe->nom} » suspendue.", ['societe_id' => $societe->id], $societe->id);
+        \audit('societe.suspendre', "Société « {$societe->nom} » suspendue.", ['societe_id' => $societe->id], $societe->id);
         return redirect()->back()->with('success', "Société « {$societe->nom} » suspendue.");
     }
 
     public function reactiver(Societe $societe)
     {
         $societe->update(['statut' => 'actif']);
-        audit('societe.reactiver', "Société « {$societe->nom} » réactivée.", ['societe_id' => $societe->id], $societe->id);
+        \audit('societe.reactiver', "Société « {$societe->nom} » réactivée.", ['societe_id' => $societe->id], $societe->id);
         return redirect()->back()->with('success', "Société « {$societe->nom} » réactivée.");
     }
 }

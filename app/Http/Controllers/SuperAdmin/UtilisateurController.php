@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\SuperAdmin;
 
@@ -31,7 +31,7 @@ class UtilisateurController extends Controller
     public function promouvoir(User $user)
     {
         $user->update(['is_superadmin' => true]);
-        audit('user.promouvoir_superadmin', "Utilisateur « {$user->name} » promu super-administrateur.", ['user_id' => $user->id]);
+        \audit('user.promouvoir_superadmin', "Utilisateur « {$user->name} » promu super-administrateur.", ['user_id' => $user->id]);
         return redirect()->back()->with('success', "« {$user->name} » est maintenant super-administrateur.");
     }
 
@@ -41,7 +41,7 @@ class UtilisateurController extends Controller
             return redirect()->back()->withErrors(['user' => 'Vous ne pouvez pas révoquer vos propres droits superadmin.']);
         }
         $user->update(['is_superadmin' => false]);
-        audit('user.revoquer_superadmin', "Droits super-administrateur révoqués pour « {$user->name} ».", ['user_id' => $user->id]);
+        \audit('user.revoquer_superadmin', "Droits super-administrateur révoqués pour « {$user->name} ».", ['user_id' => $user->id]);
         return redirect()->back()->with('success', "Droits superadmin révoqués pour « {$user->name} ».");
     }
 }

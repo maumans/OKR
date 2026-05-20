@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers\SuperAdmin;
 
@@ -37,7 +37,7 @@ class AbonnementController extends Controller
 
         $abonnement = Abonnement::create($validated);
         $societe = Societe::find($validated['societe_id']);
-        audit('abonnement.creer', "Abonnement {$abonnement->planLabel()} créé pour « {$societe->nom} ».", ['abonnement_id' => $abonnement->id], $societe->id);
+        \audit('abonnement.creer', "Abonnement {$abonnement->planLabel()} créé pour « {$societe->nom} ».", ['abonnement_id' => $abonnement->id], $societe->id);
 
         return redirect()->back()->with('success', "Abonnement créé pour « {$societe->nom} ».");
     }
@@ -57,7 +57,7 @@ class AbonnementController extends Controller
         ]);
 
         $abonnement->update($validated);
-        audit('abonnement.modifier', "Abonnement #{$abonnement->id} mis à jour.", ['abonnement_id' => $abonnement->id], $abonnement->societe_id);
+        \audit('abonnement.modifier', "Abonnement #{$abonnement->id} mis à jour.", ['abonnement_id' => $abonnement->id], $abonnement->societe_id);
 
         return redirect()->back()->with('success', 'Abonnement mis à jour.');
     }
