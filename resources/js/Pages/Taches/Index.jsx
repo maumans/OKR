@@ -49,30 +49,12 @@ function OkrSelector({ objectifs, objectifId, resultatCleId, onObjectifChange, o
             </div>
             <div>
                 <Label className="text-xs text-gray-500">Objectif</Label>
-                <Select
-                    value={objectifId || ''}
-                    onChange={e => onObjectifChange(e.target.value || null)}
-                    className="mt-1"
-                >
-                    <option value="">Aucun OKR lié</option>
-                    {objectifs.map(o => (
-                        <option key={o.id} value={o.id}>{o.titre}</option>
-                    ))}
-                </Select>
+                <SearchableSelect value={objectifId || ''} onChange={v => onObjectifChange(v || null)} options={objectifs.map(o => ({ value: o.id, label: o.titre }))} nullable nullLabel="Aucun OKR lié" className="mt-1" />
             </div>
             {selectedObjectif && resultats.length > 0 && (
                 <div>
                     <Label className="text-xs text-gray-500">Résultat Clé (optionnel)</Label>
-                    <Select
-                        value={resultatCleId || ''}
-                        onChange={e => onResultatChange(e.target.value || null)}
-                        className="mt-1"
-                    >
-                        <option value="">— KR général —</option>
-                        {resultats.map(r => (
-                            <option key={r.id} value={r.id}>{r.description}</option>
-                        ))}
-                    </Select>
+                    <SearchableSelect value={resultatCleId || ''} onChange={v => onResultatChange(v || null)} options={resultats.map(r => ({ value: r.id, label: r.description }))} nullable nullLabel="— KR général —" className="mt-1" />
                 </div>
             )}
         </div>

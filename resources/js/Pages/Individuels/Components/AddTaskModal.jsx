@@ -95,12 +95,16 @@ export default function AddTaskModal({ open, onClose, objectifId, resultatsCles 
                                 onChange={v => setF('date', v)} 
                                 placeholder="Sélectionner une date"
                             />
-                            {auth?.isResponsable && collaborateurs.length > 1 && (
-                                <CustomSelect
-                                    value={data.collaborateur_id}
-                                    onChange={v => setF('collaborateur_id', v)}
-                                    options={collaborateurs.map(c => ({ value: c.id, label: `${c.prenom} ${c.nom}` }))}
-                                />
+                            {auth?.collaborateur?.isResponsable && (
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assigner à</label>
+                                    <CustomSelect
+                                        value={data.collaborateur_id}
+                                        onChange={v => setF('collaborateur_id', v)}
+                                        options={collaborateurs.map(c => ({ value: c.id, label: `${c.prenom} ${c.nom}` }))}
+                                        className="mt-1"
+                                    />
+                                </div>
                             )}
                             <textarea
                                 value={data.description}

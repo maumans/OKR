@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 
 const statutLabels = { a_faire: 'À faire', en_cours: 'En cours', termine: 'Terminé', bloque: 'Bloqué' };
 const stepColors = ['bg-orange-500', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-red-500', 'bg-cyan-500'];
@@ -146,9 +147,7 @@ export default function TaskDetailPanel({ tache, onClose, krDescription, collabo
                                         {collaborateurs.length > 0 && (
                                             <div>
                                                 <label className="text-[10px] text-gray-400">Responsable</label>
-                                                <select value={editData.collaborateur_id || ''} onChange={e => setED('collaborateur_id', e.target.value)} className={selectCls}>
-                                                    {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
-                                                </select>
+                                                <SearchableSelect value={editData.collaborateur_id || ''} onChange={v => setED('collaborateur_id', v)} options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} size="sm" className="mt-0.5" />
                                             </div>
                                         )}
                                     </div>

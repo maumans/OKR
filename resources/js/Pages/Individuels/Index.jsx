@@ -131,7 +131,7 @@ function KrProgressRow({ kr, krIdx, seuils, objectifId, onAddTask, onViewTask, a
  </td>
  <td className="py-2 px-2"><span className="text-[11px] text-gray-500">{formatDeadline(tache.date)}</span></td>
  <td className="py-2 px-3 text-right">
- {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
+ {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
  <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
  <button onClick={() => onViewTask?.(tache, kr.description)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-700"><Eye className="h-3.5 w-3.5 text-gray-400" /></button>
  <button onClick={() => { if(confirm('Supprimer ?')) router.delete(route('taches.destroy',tache.id),{preserveScroll:true,onSuccess:()=>toast.success('Supprimée')}); }}
@@ -145,7 +145,7 @@ function KrProgressRow({ kr, krIdx, seuils, objectifId, onAddTask, onViewTask, a
  </table>
  </div>
  )}
- {(objCollabId === auth?.collaborateur?.id || auth?.isResponsable) && (
+ {(objCollabId === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
  <div className="ml-14 border-l-2 border-gray-100 dark:border-dark-700 pl-4 py-1.5 pb-2">
  <button onClick={() => onAddTask?.(objectifId, kr.id)}
  className="text-[11px] text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1 hover:bg-primary-50 dark:hover:bg-primary-900/10 px-2 py-1 rounded transition-colors">
@@ -207,7 +207,7 @@ function ObjectifCard({ obj, seuils, seuilPrime, onEdit, onDelete, onAddTask, on
  </div>
  </div>
  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
- {(obj.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
+ {(obj.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
  <>
  <button onClick={() => onEdit(obj)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors">
  <Pencil className="h-3.5 w-3.5 text-gray-400" />
@@ -259,7 +259,7 @@ export default function IndividuelsIndex({
  <AppLayout title="Individuels">
  <div className="">
  {/* Onglets collaborateurs */}
- {(auth?.isResponsable || collaborateurs.length > 1) && (
+ {(auth?.collaborateur?.isResponsable || collaborateurs.length > 1) && (
  <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-hide">
  {collaborateurs.map(c => {
  const active = selectedCollaborateur?.id === c.id;

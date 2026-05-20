@@ -1,6 +1,6 @@
 import { useState, Fragment } from 'react';
 import { Combobox, Transition } from '@headlessui/react';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function SearchableSelect({
@@ -8,47 +8,67 @@ export function SearchableSelect({
     onChange,
     options = [],
     placeholder = "Sélectionner...",
-    searchPlaceholder = "Rechercher...",
     error,
     className,
-    disabled = false
+    disabled = false,
+    nullable = false,
+    nullLabel = "— Aucun —",
+    size = 'md',
 }) {
     const [query, setQuery] = useState('');
 
+    const allOptions = nullable
+        ? [{ value: '', label: nullLabel }, ...options]
+        : options;
+
     const filteredOptions = query === ''
-        ? options
-        : options.filter((option) =>
-            option.label
-                .toLowerCase()
-                .replace(/\s+/g, '')
-                .includes(query.toLowerCase().replace(/\s+/g, ''))
+        ? allOptions
+        : allOptions.filter((opt) =>
+            opt.label.toLowerCase().replace(/\s+/g, '').includes(query.toLowerCase().replace(/\s+/g, ''))
         );
 
-    const selectedOption = options.find((opt) => String(opt.value) === String(value));
+    const selectedOption = allOptions.find((opt) => String(opt.value) === String(value ?? ''));
+
+    const inputCls = size === 'sm'
+        ? 'w-full border-none py-1.5 pl-3 pr-8 text-xs leading-5 text-gray-900 dark:text-gray-100 bg-transparent focus:ring-0'
+        : 'w-full border-none py-2 pl-4 pr-10 text-sm leading-5 text-gray-900 dark:text-gray-100 bg-transparent focus:ring-0';
+
+    const wrapCls = size === 'sm'
+        ? 'relative w-full cursor-default overflow-hidden rounded-lg bg-white dark:bg-dark-800 text-left border transition-all duration-200'
+        : 'relative w-full cursor-default overflow-hidden rounded-xl bg-white dark:bg-dark-800 text-left border transition-all duration-200';
 
     return (
         <div className={cn("relative", className)}>
-            <Combobox value={value} onChange={onChange} disabled={disabled}>
+            <Combobox value={value ?? ''} onChange={onChange} disabled={disabled}>
                 <div className="relative mt-1">
                     <div className={cn(
-                        "relative w-full cursor-default overflow-hidden rounded-xl bg-white dark:bg-dark-800 text-left border transition-all duration-200",
+                        wrapCls,
                         error
                             ? "border-red-500 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500/30"
                             : "border-gray-200 dark:border-dark-600 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/30",
                         disabled && "opacity-50 cursor-not-allowed"
                     )}>
                         <Combobox.Input
-                            className={cn(
-                                "w-full border-none py-2 pl-4 pr-10 text-sm leading-5 text-gray-900 dark:text-gray-100 bg-transparent focus:ring-0",
-                                disabled && "cursor-not-allowed"
-                            )}
-                            displayValue={() => selectedOption ? selectedOption.label : ''}
-                            onChange={(event) => setQuery(event.target.value)}
+                            className={cn(inputCls, disabled && "cursor-not-allowed")}
+                            displayValue={() => selectedOption ? (selectedOption.value === '' ? '' : selectedOption.label) : ''}
+                            onChange={(e) => setQuery(e.target.value)}
                             placeholder={placeholder}
                         />
-                        <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-3">
-                            <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                        </Combobox.Button>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-0.5">
+                            {nullable && value && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); onChange(''); }}
+                                    className="p-0.5 text-gray-300 hover:text-gray-500 transition-colors"
+                                    tabIndex={-1}
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
+                            <Combobox.Button className="flex items-center">
+                                <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                            </Combobox.Button>
+                        </div>
                     </div>
 
                     <Transition
@@ -70,7 +90,8 @@ export function SearchableSelect({
                                         className={({ active }) =>
                                             cn(
                                                 "relative cursor-default select-none py-2 pl-10 pr-4 transition-colors",
-                                                active ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400" : "text-gray-900 dark:text-gray-100"
+                                                active ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400" : "text-gray-900 dark:text-gray-100",
+                                                option.value === '' && "italic text-gray-400 dark:text-gray-500"
                                             )
                                         }
                                         value={option.value}
@@ -80,11 +101,8 @@ export function SearchableSelect({
                                                 <span className={cn("block truncate", selected ? "font-medium" : "font-normal")}>
                                                     {option.label}
                                                 </span>
-                                                {selected ? (
-                                                    <span className={cn(
-                                                        "absolute inset-y-0 left-0 flex items-center pl-3",
-                                                        active ? "text-primary-600 dark:text-primary-400" : "text-primary-600 dark:text-primary-400"
-                                                    )}>
+                                                {selected && option.value !== '' ? (
+                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary-600 dark:text-primary-400">
                                                         <Check className="h-4 w-4" aria-hidden="true" />
                                                     </span>
                                                 ) : null}
@@ -97,9 +115,7 @@ export function SearchableSelect({
                     </Transition>
                 </div>
             </Combobox>
-            {error && (
-                <p className="mt-1.5 text-xs text-red-500">{error}</p>
-            )}
+            {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
         </div>
     );
 }

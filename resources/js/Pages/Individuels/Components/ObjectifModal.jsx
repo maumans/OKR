@@ -3,6 +3,7 @@ import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
 import { NumberInput } from '@/Components/ui/NumberInput';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { Target, X } from 'lucide-react';
 
 export default function ObjectifModal({ open, onClose, collaborateurs, selectedCollaborateur, moisActuel, moisOptions, axes, editData = null, auth, missions = [] }) {
@@ -78,9 +79,7 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
                         <div className="mt-4 space-y-3 overflow-y-auto max-h-[55vh] pr-1">
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Collaborateur</label>
-                                <select value={form.collaborateur_id || ''} onChange={e => setField('collaborateur_id', e.target.value)} disabled={!auth?.isResponsable} className={inputCls + " disabled:opacity-50 disabled:cursor-not-allowed"}>
-                                    {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
-                                </select>
+                                <SearchableSelect value={form.collaborateur_id || ''} onChange={v => setField('collaborateur_id', v)} disabled={!auth?.collaborateur?.isResponsable} options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} className="mt-1" />
                             </div>
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mois / Période</label>
@@ -90,10 +89,7 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
                             </div>
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe</label>
-                                <select value={form.axe_objectif_id || ''} onChange={e => setField('axe_objectif_id', e.target.value)} className={inputCls}>
-                                    <option value="">Sélectionner un axe...</option>
-                                    {axes.map(a => <option key={a.id} value={String(a.id)}>● {a.nom}</option>)}
-                                </select>
+                                <SearchableSelect value={form.axe_objectif_id || ''} onChange={v => setField('axe_objectif_id', v)} options={axes.map(a => ({ value: String(a.id), label: a.nom }))} nullable nullLabel="— Sélectionner un axe —" className="mt-1" />
                                 {selectedAxe && (
                                     <div className="mt-1.5 flex items-center gap-1.5">
                                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedAxe.couleur }} />
@@ -137,10 +133,7 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
                             {missions.length > 0 && (
                                 <div>
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mission / Projet</label>
-                                    <select value={form.mission_id || ''} onChange={e => setField('mission_id', e.target.value)} className={inputCls}>
-                                        <option value="">Aucune mission</option>
-                                        {missions.map(m => <option key={m.id} value={String(m.id)}>{m.titre}{m.client ? ` — ${m.client}` : ''}</option>)}
-                                    </select>
+                                    <SearchableSelect value={form.mission_id || ''} onChange={v => setField('mission_id', v)} options={missions.map(m => ({ value: String(m.id), label: m.titre + (m.client ? ' — ' + m.client : '') }))} nullable nullLabel="— Aucune mission —" className="mt-1" />
                                 </div>
                             )}
                             <div>

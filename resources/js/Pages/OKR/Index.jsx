@@ -8,6 +8,7 @@ import { Badge } from '@/Components/ui/Badge';
 import EmptyState from '@/Components/EmptyState';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
  Search, Plus, Target, Eye, Trash2, Pencil, Copy,
@@ -218,16 +219,10 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  </div>
 
  {/* Responsable (compact) */}
- {auth?.isResponsable && collaborateurs.length > 1 && (
+ {auth?.collaborateur?.isResponsable && collaborateurs.length > 1 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Responsable</label>
- <select
- value={formData.collaborateur_id}
- onChange={e => setField('collaborateur_id', e.target.value)}
- className="w-full mt-1 px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all appearance-none cursor-pointer"
- >
- {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
- </select>
+ <SearchableSelect value={formData.collaborateur_id} onChange={v => setField('collaborateur_id', v)} options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} />
  </div>
  )}
 
@@ -236,21 +231,13 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  {axes.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe stratégique</label>
- <select value={formData.axe_objectif_id} onChange={e => setField('axe_objectif_id', e.target.value)}
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
- <option value="">Aucun</option>
- {axes.map(a => <option key={a.id} value={String(a.id)}>{a.nom}</option>)}
- </select>
+ <SearchableSelect value={formData.axe_objectif_id} onChange={v => setField('axe_objectif_id', v)} options={axes.map(a => ({ value: String(a.id), label: a.nom }))} nullable nullLabel="— Aucun axe —" className="mt-1" />
  </div>
  )}
  {typesObjectifs.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</label>
- <select value={formData.type_objectif_id} onChange={e => setField('type_objectif_id', e.target.value)}
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
- <option value="">Aucun</option>
- {typesObjectifs.map(t => <option key={t.id} value={String(t.id)}>{t.nom}</option>)}
- </select>
+ <SearchableSelect value={formData.type_objectif_id} onChange={v => setField('type_objectif_id', v)} options={typesObjectifs.map(t => ({ value: String(t.id), label: t.nom }))} nullable nullLabel="— Aucun type —" className="mt-1" />
  </div>
  )}
  </div>
@@ -275,11 +262,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  {missions.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mission / Projet</label>
- <select value={formData.mission_id} onChange={e => setField('mission_id', e.target.value)}
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
- <option value="">Aucune mission</option>
- {missions.map(m => <option key={m.id} value={String(m.id)}>{m.titre}{m.client ? ` — ${m.client}` : ''}</option>)}
- </select>
+ <SearchableSelect value={formData.mission_id} onChange={v => setField('mission_id', v)} options={missions.map(m => ({ value: String(m.id), label: m.titre + (m.client ? ' — ' + m.client : '') }))} nullable nullLabel="— Aucune mission —" className="mt-1" />
  </div>
  )}
  </div>
@@ -469,14 +452,17 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
  placeholder="Date d'échéance"
  size="sm"
  />
- {auth?.isResponsable && collaborateurs.length > 1 && (
+ {auth?.collaborateur?.isResponsable && (
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assigner à</label>
  <select
  value={taskData.collaborateur_id}
  onChange={e => updateField('collaborateur_id', e.target.value)}
- className="w-full px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer"
+ className="w-full mt-1 px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer"
  >
  {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
  </select>
+ </div>
  )}
  <textarea
  value={taskData.description}
@@ -684,11 +670,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Responsable *</label>
- <select value={formData.collaborateur_id || ''} onChange={e => setField('collaborateur_id', e.target.value)}
- disabled={!auth?.isResponsable}
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
- {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
- </select>
+ <SearchableSelect value={formData.collaborateur_id || ''} onChange={v => setField('collaborateur_id', v)} disabled={!auth?.collaborateur?.isResponsable} options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} className="mt-1" />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Périodes</label>
@@ -715,20 +697,12 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe stratégique</label>
- <select value={formData.axe_objectif_id || ''} onChange={e => setField('axe_objectif_id', e.target.value)}
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
- <option value="">Aucun</option>
- {axes.map(a => <option key={a.id} value={String(a.id)}>{a.nom}</option>)}
- </select>
+ <SearchableSelect value={formData.axe_objectif_id || ''} onChange={v => setField('axe_objectif_id', v)} options={axes.map(a => ({ value: String(a.id), label: a.nom }))} nullable nullLabel="— Aucun axe —" className="mt-1" />
  </div>
  {typesObjectifs.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</label>
- <select value={formData.type_objectif_id || ''} onChange={e => setField('type_objectif_id', e.target.value)}
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
- <option value="">Aucun</option>
- {typesObjectifs.map(t => <option key={t.id} value={String(t.id)}>{t.nom} ({t.niveau})</option>)}
- </select>
+ <SearchableSelect value={formData.type_objectif_id || ''} onChange={v => setField('type_objectif_id', v)} options={typesObjectifs.map(t => ({ value: String(t.id), label: t.nom + ' (' + t.niveau + ')' }))} nullable nullLabel="— Aucun type —" className="mt-1" />
  </div>
  )}
  </div>
@@ -1085,11 +1059,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  {collaborateurs.length > 0 && (
  <div>
  <label className="text-[10px] text-gray-400">Responsable</label>
- <select value={editData.collaborateur_id || ''} onChange={e => setEditData(prev => ({ ...prev, collaborateur_id: e.target.value }))}
- disabled={!auth?.isResponsable}
- className="w-full mt-0.5 px-2 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-[11px] appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
- {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
- </select>
+ <SearchableSelect value={editData.collaborateur_id || ''} onChange={v => setEditData(prev => ({ ...prev, collaborateur_id: v }))} disabled={!auth?.collaborateur?.isResponsable} options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} size="sm" className="mt-0.5" />
  </div>
  )}
  </div>
@@ -1276,7 +1246,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
     >
     <Download className="h-3.5 w-3.5 text-gray-400" />
     </a>
-    {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
+    {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
     <button
      onClick={() => handleDeleteFichier(f.id)}
      className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
@@ -1322,7 +1292,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  </>
  ) : (
  <>
- {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
+ {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
  <>
  <button onClick={() => setEditing(true)}
  className="flex-1 px-4 py-2.5 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-all">
@@ -1461,7 +1431,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
  const krColor = getSeuilColor(kr.progression, seuils) || krBarColors[krIdx % krBarColors.length];
  const krTaches = kr.taches || [];
  const krTerminees = krTaches.filter(t => t.statut === 'termine').length;
- const canEdit = objCollabId === auth?.collaborateur?.id || auth?.isResponsable;
+ const canEdit = objCollabId === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable;
 
  return (
  <div className="border-b border-gray-100/80 dark:border-dark-800/50 last:border-b-0">
@@ -1587,7 +1557,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
  >
  <Eye className="h-3.5 w-3.5 text-gray-400" />
  </button>
- {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
+ {(tache.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
  <button
  onClick={(e) => { e.stopPropagation(); if (confirm('Supprimer cette tâche ?')) router.delete(route('taches.destroy', tache.id), { preserveScroll: true, onSuccess: () => toast.success('Tâche supprimée') }); }}
  className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 transition-colors"
@@ -1610,7 +1580,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
  )}
 
  {/* Bouton ajouter tâche */}
- {(objCollabId === auth?.collaborateur?.id || auth?.isResponsable) && (
+ {(objCollabId === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
  <div className="ml-7 border-l-2 border-gray-100 dark:border-dark-700 pl-4 py-1.5 pb-2.5">
  <button onClick={() => onAddTaskForKr?.(objectifId, kr.id)} className="text-[11px] text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1 hover:bg-primary-50 dark:hover:bg-primary-900/10 px-2 py-1 rounded transition-colors">
  <Plus className="h-3 w-3" /> Ajouter une tâche
@@ -1697,7 +1667,7 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
 
  {/* Actions */}
  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
- {(obj.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
+ {(obj.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
  <button onClick={() => onEdit?.(obj)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors">
  <Pencil className="h-3.5 w-3.5 text-gray-400" />
  </button>
@@ -1712,7 +1682,7 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
  <DropdownMenuItem asChild>
  <Link href={route('objectifs.show', obj.id)} className="flex items-center gap-2"><Eye className="h-4 w-4" />Détails</Link>
  </DropdownMenuItem>
- {(obj.collaborateur_id === auth?.collaborateur?.id || auth?.isResponsable) && (
+ {(obj.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
  <DropdownMenuItem onClick={() => handleDelete(obj.id)} className="text-red-600">
  <Trash2 className="h-4 w-4 mr-2" />Supprimer
  </DropdownMenuItem>

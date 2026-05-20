@@ -1,1 +1,0 @@
-import{t as e}from"./ObjectifEditableCard-BL8AIEXZ.js";export{e as default};
