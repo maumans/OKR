@@ -36,26 +36,28 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $user,
+                'user' => $user ? array_merge($user->toArray(), [
+                    'is_superadmin' => $user->is_superadmin,
+                ]) : null,
                 'collaborateur' => $collaborateur ? [
-                    'id' => $collaborateur->id,
-                    'nom' => $collaborateur->nom,
-                    'prenom' => $collaborateur->prenom,
-                    'poste' => $collaborateur->poste,
-                    'role' => $collaborateur->role,
-                    'actif' => $collaborateur->actif,
-                    'nom_complet' => $collaborateur->nomComplet(),
+                    'id'           => $collaborateur->id,
+                    'nom'          => $collaborateur->nom,
+                    'prenom'       => $collaborateur->prenom,
+                    'poste'        => $collaborateur->poste,
+                    'role'         => $collaborateur->role,
+                    'actif'        => $collaborateur->actif,
+                    'nom_complet'  => $collaborateur->nomComplet(),
                     'isResponsable' => $collaborateur->estAdmin() || $collaborateur->estManager(),
-                    'isAdmin' => $collaborateur->estAdmin(),
+                    'isAdmin'      => $collaborateur->estAdmin(),
                 ] : null,
                 'societe' => $societe ? [
-                    'id' => $societe->id,
-                    'nom' => $societe->nom,
-                    'logo' => $societe->logo,
-                    'couleur_primaire' => $societe->couleur_primaire,
+                    'id'                 => $societe->id,
+                    'nom'                => $societe->nom,
+                    'logo'               => $societe->logo,
+                    'couleur_primaire'   => $societe->couleur_primaire,
                     'couleur_secondaire' => $societe->couleur_secondaire,
-                    'mode_sombre' => $societe->mode_sombre,
-                    'layout_mode' => $societe->layout_mode ?? 'sidebar',
+                    'mode_sombre'        => $societe->mode_sombre,
+                    'layout_mode'        => $societe->layout_mode ?? 'sidebar',
                     'devise' => $societe->devise ? [
                         'id'        => $societe->devise->id,
                         'code'      => $societe->devise->code,
@@ -65,9 +67,17 @@ class HandleInertiaRequests extends Middleware
                     ] : ['id' => null, 'code' => 'GNF', 'nom' => 'Franc Guinéen', 'symbole' => 'GF', 'decimales' => 0],
                 ] : null,
             ],
+            'modulesActifs' => fn () => $societe
+                ? $societe->modulesActifs()->orderBy('ordre')->get(['code', 'nom', 'icone', 'couleur', 'categorie'])->toArray()
+                : [],
+            'impersonation' => fn () => $request->session()->has('impersonator_id') ? [
+                'actif'   => true,
+                'user'    => $user?->only(['id', 'name', 'email']),
+                'societe' => $societe ? $societe->only(['id', 'nom']) : null,
+            ] : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
+                'error'   => fn () => $request->session()->get('error'),
             ],
         ];
     }

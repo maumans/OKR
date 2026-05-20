@@ -17,9 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'role' => \App\Http\Middleware\VerifierRole::class,
-            'societe' => \App\Http\Middleware\InjecterSociete::class,
+            'role'       => \App\Http\Middleware\VerifierRole::class,
+            'societe'    => \App\Http\Middleware\InjecterSociete::class,
             'superadmin' => \App\Http\Middleware\IsSuperAdmin::class,
+            'module'     => \App\Http\Middleware\VerifierModuleActif::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
