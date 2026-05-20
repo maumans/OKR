@@ -3,7 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Users, Target, CheckSquare, TrendingUp,
     Award, Settings, Settings2, PenTool, GraduationCap, BarChart3,
-    LogOut, User, Briefcase, Grid3X3, Gift, Sun, Moon,
+    LogOut, User, Briefcase, Grid3X3, Gift, Sun, Moon, Upload,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { UserAvatar } from '@/Components/ui/Avatar';
@@ -11,27 +11,29 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/Components/ui/DropdownMenu';
 
-const navItems = [
-    { name: 'OKR', href: 'objectifs.index', color: 'bg-blue-500', textColor: 'text-blue-500' },
-    { name: 'Individuels', href: 'individuels.index', color: 'bg-rose-500', textColor: 'text-rose-500' },
-    { name: 'Daily', href: 'daily.index', color: 'bg-violet-500', textColor: 'text-violet-500' },
-    { name: 'Prospection', href: 'prospects.index', color: 'bg-green-500', textColor: 'text-green-500' },
-    { name: 'LMS', href: 'formations.index', color: 'bg-orange-500', textColor: 'text-orange-500' },
-    { name: 'Missions/Projets', href: 'missions.index', color: 'bg-sky-500', textColor: 'text-sky-500' },
-    { name: 'Incentives', href: 'incentives.index', color: 'bg-pink-500', textColor: 'text-pink-500' },
-    { name: 'Synthèse', href: 'syntheses.index', color: 'bg-indigo-500', textColor: 'text-indigo-500' },
-    { name: 'Équipe', href: 'collaborateurs.index', color: 'bg-teal-500', textColor: 'text-teal-500' },
-    { name: 'Offre', href: 'prospects.index', color: 'bg-amber-500', textColor: 'text-amber-500' },
-    { name: 'Matrice', href: 'matrice.index', color: 'bg-fuchsia-500', textColor: 'text-fuchsia-500' },
-    { name: 'Import', href: 'import.index', color: 'bg-emerald-500', textColor: 'text-emerald-500' },
+const ALL_NAV_ITEMS = [
+    { name: 'OKR',           href: 'objectifs.index',   color: 'bg-blue-500',    textColor: 'text-blue-500',    moduleCode: 'okr' },
+    { name: 'Individuels',   href: 'individuels.index',  color: 'bg-rose-500',    textColor: 'text-rose-500',    moduleCode: 'individuels' },
+    { name: 'Daily',         href: 'daily.index',        color: 'bg-violet-500',  textColor: 'text-violet-500',  moduleCode: 'daily' },
+    { name: 'Prospection',   href: 'prospects.index',    color: 'bg-green-500',   textColor: 'text-green-500',   moduleCode: 'prospection' },
+    { name: 'LMS',           href: 'formations.index',   color: 'bg-orange-500',  textColor: 'text-orange-500',  moduleCode: 'lms' },
+    { name: 'Missions',      href: 'missions.index',     color: 'bg-sky-500',     textColor: 'text-sky-500',     moduleCode: 'missions' },
+    { name: 'Incentives',    href: 'incentives.index',   color: 'bg-pink-500',    textColor: 'text-pink-500',    moduleCode: 'incentives' },
+    { name: 'Synthèse',      href: 'syntheses.index',    color: 'bg-indigo-500',  textColor: 'text-indigo-500',  moduleCode: 'reporting' },
+    { name: 'Équipe',        href: 'collaborateurs.index',color: 'bg-teal-500',   textColor: 'text-teal-500',    moduleCode: 'equipe' },
+    { name: 'Matrice',       href: 'matrice.index',      color: 'bg-fuchsia-500', textColor: 'text-fuchsia-500', moduleCode: 'matrice' },
+    { name: 'Import',        href: 'import.index',       color: 'bg-emerald-500', textColor: 'text-emerald-500', moduleCode: 'import' },
 ];
 
 export default function TopbarNav() {
-    const { auth } = usePage().props;
+    const { auth, modulesActifs = [] } = usePage().props;
     const user = auth.collaborateur || auth.user;
     const societe = auth.societe;
     const mobileNavRef = useRef(null);
     const { isDark, toggleTheme } = useTheme(societe?.mode_sombre);
+
+    const codesActifs = new Set(modulesActifs.map(m => m.code));
+    const navItems = ALL_NAV_ITEMS.filter(item => !item.moduleCode || codesActifs.has(item.moduleCode));
 
     const toPath = (href) => {
         try { return new URL(route(href), window.location.origin).pathname; }
@@ -60,7 +62,6 @@ export default function TopbarNav() {
         <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 dark:from-dark-950 dark:via-dark-900 dark:to-dark-950 sticky top-0 z-50 shadow-lg">
             {/* Ligne 1 : Logo + Nav pills + Actions */}
             <div className="flex items-center justify-between px-4 sm:px-6 h-12 border-b border-white/[0.06]">
-                {/* Logo + title */}
                 <div className="flex items-center gap-4 shrink-0">
                     <Link href={route('dashboard')} className="flex items-center gap-2 group">
                         {societe?.logo ? (
@@ -84,9 +85,8 @@ export default function TopbarNav() {
                     </Link>
                 </div>
 
-                {/* Navigation pills + actions */}
                 <div className="flex items-center gap-2">
-                    {/* Nav pills */}
+                    {/* Nav pills — filtrées selon modulesActifs */}
                     <nav className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-hide">
                         {auth.collaborateur && navItems.map((item) => {
                             const active = isActive(item.href);
@@ -103,7 +103,6 @@ export default function TopbarNav() {
                         })}
                     </nav>
 
-                    {/* Action icons */}
                     <div className="flex items-center gap-0.5 ml-2 border-l border-white/10 pl-2">
                         <button
                             onClick={toggleTheme}
@@ -116,7 +115,6 @@ export default function TopbarNav() {
                             <Settings className="h-3.5 w-3.5" />
                         </Link>
 
-                        {/* User menu */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button className="flex items-center gap-1.5 hover:bg-white/10 rounded-md px-1.5 py-1 transition-colors ml-1">
@@ -132,7 +130,9 @@ export default function TopbarNav() {
                                 </DropdownMenuItem>
                                 {auth.user?.is_superadmin && (
                                     <DropdownMenuItem asChild>
-                                        <Link href={route('superadmin.societes.index')} className="flex items-center gap-2 text-red-500"><Settings2 className="h-4 w-4" />Admin SaaS</Link>
+                                        <Link href={route('superadmin.dashboard')} className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                                            <Settings2 className="h-4 w-4" />Console Admin
+                                        </Link>
                                     </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem asChild>

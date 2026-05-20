@@ -17,7 +17,8 @@ import { motion } from 'framer-motion';
 import {
     Settings, Building2, Palette, Layout, Coins, Save,
     Settings2, Compass, CalendarRange, Target, BarChart3,
-    CheckCircle2, Gauge, Award, Plus, Pencil, Trash2
+    CheckCircle2, Gauge, Award, Plus, Pencil, Trash2,
+    Package, Search, Lock, CheckCircle, XCircle, Info,
 } from 'lucide-react';
 
 // ─── Composant CRUD Table réutilisable ───────────────────
@@ -66,10 +67,232 @@ function CrudSection({ title, icon: Icon, items, columns, renderRow, onAdd, onEd
 }
 
 // ─── Page principale ─────────────────────────────────────
+// ─── Onglet Modules ──────────────────────────────────────────────────────────
+function OngletModules({ modules = [], isAdmin }) {
+    const [search, setSearch] = useState('');
+    const [filtreCategorie, setFiltreCategorie] = useState('');
+    const [moduleAConfirmer, setModuleAConfirmer] = useState(null);
+
+    const categories = [...new Set(modules.map(m => m.categorie))];
+    const modulesAffiches = modules.filter(m => {
+        const matchSearch = !search || m.nom.toLowerCase().includes(search.toLowerCase());
+        const matchCat = !filtreCategorie || m.categorie === filtreCategorie;
+        return matchSearch && matchCat;
+    });
+
+    const nbActifs = modules.filter(m => m.actif).length;
+
+    const handleToggle = (module) => {
+        if (!isAdmin || module.est_core) return;
+
+        // Vérifier si désactivation d'un module qui a des dépendants actifs
+        if (module.actif) {
+            const dependants = modules.filter(m => m.actif && (m.dependances || []).includes(module.code));
+            if (dependants.length > 0) {
+                setModuleAConfirmer({ module, dependants });
+                return;
+            }
+        }
+        router.put(route('parametres.modules.toggle', module.code), {}, {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    };
+
+    const confirmerDesactivation = () => {
+        if (!moduleAConfirmer) return;
+        router.put(route('parametres.modules.toggle', moduleAConfirmer.module.code), {}, {
+            preserveScroll: true,
+            preserveState: true,
+        });
+        setModuleAConfirmer(null);
+    };
+
+    const COULEURS_CATEGORIE = {
+        CORE: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+        MANAGEMENT: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+        BUSINESS: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+        ANALYTIQUE: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+        ADMINISTRATION: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div>
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Package className="h-4 w-4 text-primary-500" />
+                        Modules activés
+                    </h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                        {nbActifs} / {modules.length} modules activés
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Filtre catégorie */}
+                    {categories.map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setFiltreCategorie(filtreCategorie === cat ? '' : cat)}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                                filtreCategorie === cat
+                                    ? COULEURS_CATEGORIE[cat] || 'bg-gray-100 text-gray-700'
+                                    : 'bg-gray-100 text-gray-500 dark:bg-dark-800 dark:text-gray-400 hover:bg-gray-200'
+                            }`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                    {/* Recherche */}
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Rechercher..."
+                            className="pl-8 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 w-44"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {!isAdmin && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+                    <Lock className="h-4 w-4 shrink-0" />
+                    Seul un administrateur de la société peut activer ou désactiver des modules.
+                </div>
+            )}
+
+            {/* Grille de cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {modulesAffiches.map(module => (
+                    <div
+                        key={module.code}
+                        className={`relative rounded-xl border p-4 flex flex-col gap-3 transition-all ${
+                            module.actif
+                                ? 'bg-white dark:bg-dark-900 border-gray-200 dark:border-dark-700 shadow-sm'
+                                : 'bg-gray-50 dark:bg-dark-950 border-gray-100 dark:border-dark-800 opacity-70'
+                        }`}
+                    >
+                        {/* Badges */}
+                        <div className="absolute top-3 right-3 flex items-center gap-1">
+                            {module.est_premium && (
+                                <span className="text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                    Premium
+                                </span>
+                            )}
+                            {module.est_core && (
+                                <span className="text-[9px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                    Cœur
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Icône + Nom */}
+                        <div className="flex items-start gap-3 pr-12">
+                            <div
+                                className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ backgroundColor: module.couleur + '20', color: module.couleur }}
+                            >
+                                <Package className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="font-semibold text-[13px] text-gray-900 dark:text-white leading-tight">
+                                    {module.nom}
+                                </div>
+                                <div className={`text-[10px] uppercase tracking-wider font-semibold mt-0.5 ${COULEURS_CATEGORIE[module.categorie]?.split(' ').slice(1).join(' ') || 'text-gray-400'}`}>
+                                    {module.categorie}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        {module.description && (
+                            <p className="text-[12px] text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">
+                                {module.description}
+                            </p>
+                        )}
+
+                        {/* Dépendances */}
+                        {(module.dependances || []).length > 0 && (
+                            <div className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500">
+                                <Info className="h-3 w-3 shrink-0" />
+                                Nécessite : {module.dependances.join(', ')}
+                            </div>
+                        )}
+
+                        {/* Toggle */}
+                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100 dark:border-dark-800">
+                            <span className={`text-[11px] ${module.actif ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>
+                                {module.actif
+                                    ? module.active_le ? `Activé le ${new Date(module.active_le).toLocaleDateString('fr-FR')}` : 'Activé'
+                                    : 'Non activé'
+                                }
+                            </span>
+                            {module.est_core ? (
+                                <span title="Module cœur — toujours actif">
+                                    <Lock className="h-4 w-4 text-gray-300 dark:text-gray-600" />
+                                </span>
+                            ) : (
+                                <button
+                                    onClick={() => handleToggle(module)}
+                                    disabled={!isAdmin}
+                                    title={!isAdmin ? 'Réservé à l\'administrateur' : module.actif ? 'Désactiver' : 'Activer'}
+                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                                        module.actif ? 'bg-primary-500' : 'bg-gray-200 dark:bg-dark-700'
+                                    }`}
+                                >
+                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                                        module.actif ? 'translate-x-4.5' : 'translate-x-0.5'
+                                    }`} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Modal de confirmation désactivation */}
+            {moduleAConfirmer && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-200 dark:border-dark-700 shadow-xl p-6 max-w-md w-full mx-4">
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-base mb-2">
+                            Désactiver « {moduleAConfirmer.module.nom} » ?
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                            Les modules suivants sont actifs et en dépendent :{' '}
+                            <strong>{moduleAConfirmer.dependants.map(d => d.nom).join(', ')}</strong>.
+                            Ils seront également désactivés.
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setModuleAConfirmer(null)}
+                                className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-dark-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-800"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={confirmerDesactivation}
+                                className="px-4 py-2 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600"
+                            >
+                                Désactiver quand même
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Page principale ─────────────────────────────────────
 export default function ParametresIndex({
     societe, devises = [], tab = 'societe',
     axes = [], periodes = [], typesObjectifs = [], typesResultatsCles = [],
-    statuts = [], seuils = [], configuration, configurationPrime, templates = []
+    statuts = [], seuils = [], configuration, configurationPrime, templates = [],
+    modulesDisponibles = [],
 }) {
     const { flash } = usePage().props;
     const devise = usePage().props.auth?.societe?.devise;
@@ -201,6 +424,9 @@ export default function ParametresIndex({
                     </TabsTrigger>
                     <TabsTrigger value="okr">
                         <Settings2 className="h-4 w-4 mr-1.5" />Configuration OKR
+                    </TabsTrigger>
+                    <TabsTrigger value="modules">
+                        <Package className="h-4 w-4 mr-1.5" />Modules
                     </TabsTrigger>
                 </TabsList>
 
@@ -557,6 +783,15 @@ export default function ParametresIndex({
                         </TabsContent>
                     </Tabs>
                 </TabsContent>
+
+                {/* ══════════════ ONGLET MODULES ══════════════ */}
+                <TabsContent value="modules">
+                    <OngletModules
+                        modules={modulesDisponibles}
+                        isAdmin={usePage().props.auth?.collaborateur?.isAdmin ?? false}
+                    />
+                </TabsContent>
+
             </Tabs>
 
             {/* ═══════════ DIALOGS OKR ═══════════ */}
@@ -677,6 +912,7 @@ export default function ParametresIndex({
                 </DialogContent>
             </Dialog>
 
+                {/* ══════════════ ONGLET MODULES ══════════════ */}
             <Dialog open={activeDialog === 'seuil'} onOpenChange={(o) => !o && setActiveDialog(null)}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un seuil de performance</DialogTitle></DialogHeader>

@@ -17,47 +17,64 @@ import {
     LogOut,
     Sun,
     Moon,
+    BarChart3,
+    Gift,
+    CalendarCheck,
+    ListChecks,
+    User,
 } from 'lucide-react';
 import { UserAvatar } from '@/Components/ui/Avatar';
 import { useTheme } from '@/hooks/useTheme';
+
+const ICON_MAP = {
+    LayoutDashboard, Users, Target, CheckSquare, TrendingUp, Award,
+    Settings, PenTool, Grid3X3, GraduationCap, Briefcase, Upload,
+    History, BarChart3, Gift, CalendarCheck, ListChecks, User,
+};
 
 const navigation = [
     {
         name: 'ANALYTIQUE',
         items: [
             { name: 'Tableau de bord', href: 'dashboard', icon: LayoutDashboard },
-            { name: 'Équipe', href: 'collaborateurs.index', icon: Users },
+            { name: 'Équipe', href: 'collaborateurs.index', icon: Users, moduleCode: 'equipe' },
         ]
     },
     {
         name: 'MANAGEMENT',
         items: [
-            { name: 'Objectifs (OKR)', href: 'objectifs.index', icon: Target },
-            { name: 'Individuels', href: 'individuels.index', icon: Users },
-            { name: 'Tâches', href: 'taches.index', icon: CheckSquare },
-            { name: 'Matrice Eisenhower', href: 'matrice.index', icon: Grid3X3 },
-            { name: 'Daily (Bilan)', href: 'daily.index', icon: PenTool },
+            { name: 'Objectifs (OKR)', href: 'objectifs.index', icon: Target, moduleCode: 'okr' },
+            { name: 'Individuels', href: 'individuels.index', icon: User, moduleCode: 'individuels' },
+            { name: 'Tâches', href: 'taches.index', icon: CheckSquare, moduleCode: 'taches' },
+            { name: 'Matrice Eisenhower', href: 'matrice.index', icon: Grid3X3, moduleCode: 'matrice' },
+            { name: 'Daily (Bilan)', href: 'daily.index', icon: PenTool, moduleCode: 'daily' },
         ]
     },
     {
         name: 'BUSINESS',
         items: [
-            { name: 'Missions / Projets', href: 'missions.index', icon: Briefcase },
-            { name: 'Prospection', href: 'prospects.index', icon: TrendingUp },
-            { name: 'Incentives', href: 'incentives.index', icon: Award },
+            { name: 'Missions / Projets', href: 'missions.index', icon: Briefcase, moduleCode: 'missions' },
+            { name: 'Prospection', href: 'prospects.index', icon: TrendingUp, moduleCode: 'prospection' },
+            { name: 'Incentives', href: 'incentives.index', icon: Award, moduleCode: 'incentives' },
         ]
     },
     {
         name: 'APPRENTISSAGE',
         items: [
-            { name: 'Formations & LMS', href: 'formations.index', icon: GraduationCap },
+            { name: 'Formations & LMS', href: 'formations.index', icon: GraduationCap, moduleCode: 'lms' },
+        ]
+    },
+    {
+        name: 'ANALYTIQUE',
+        items: [
+            { name: 'Synthèse', href: 'syntheses.index', icon: BarChart3, moduleCode: 'reporting' },
         ]
     },
     {
         name: 'ADMINISTRATION',
         items: [
-            { name: 'Import de données', href: 'import.index', icon: Upload },
-            { name: 'Historique des imports', href: 'import.historique', icon: History },
+            { name: 'Import de données', href: 'import.index', icon: Upload, moduleCode: 'import' },
+            { name: 'Historique des imports', href: 'import.historique', icon: History, moduleCode: 'import' },
         ]
     },
     {
@@ -69,10 +86,12 @@ const navigation = [
 ];
 
 export default function Sidebar() {
-    const { auth } = usePage().props;
+    const { auth, modulesActifs = [] } = usePage().props;
     const user = auth.collaborateur || auth.user;
     const societe = auth?.societe;
     const { isDark, toggleTheme } = useTheme(societe?.mode_sombre);
+
+    const codesActifs = new Set(modulesActifs.map(m => m.code));
 
     const toPath = (href) => {
         try { return new URL(route(href), window.location.origin).pathname; }
@@ -88,6 +107,23 @@ export default function Sidebar() {
         const currentMatch = allPaths.find(p => currentPath === p || currentPath.startsWith(p + '/'));
         return currentMatch === path;
     };
+
+    // Filtrer les groupes selon les modules actifs — les items sans moduleCode sont toujours visibles
+    const groupsVisibles = navigation.map(group => ({
+        ...group,
+        items: group.items.filter(item => !item.moduleCode || codesActifs.has(item.moduleCode)),
+    })).filter(group => group.items.length > 0);
+
+    // Dédupliquer les groupes qui auraient le même nom (ANALYTIQUE apparaît 2 fois)
+    const groupsDedupliques = groupsVisibles.reduce((acc, group) => {
+        const existing = acc.find(g => g.name === group.name);
+        if (existing) {
+            existing.items = [...existing.items, ...group.items];
+        } else {
+            acc.push({ ...group });
+        }
+        return acc;
+    }, []);
 
     return (
         <aside className="w-[260px] bg-white dark:bg-dark-900 border-r border-gray-100 dark:border-dark-800 flex flex-col h-screen fixed left-0 top-0 z-40">
@@ -116,7 +152,7 @@ export default function Sidebar() {
 
             {/* Navigation */}
             <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-                {auth.collaborateur && navigation.map((group, index) => (
+                {auth.collaborateur && groupsDedupliques.map((group, index) => (
                     <div key={index}>
                         <h3 className="px-3 text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
                             {group.name}
@@ -129,8 +165,8 @@ export default function Sidebar() {
                                         key={item.name}
                                         href={route(item.href)}
                                         className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors group text-[13px] ${
-                                            active 
-                                            ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium' 
+                                            active
+                                            ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium'
                                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-800/50 dark:hover:text-white'
                                         }`}
                                     >
@@ -152,22 +188,21 @@ export default function Sidebar() {
 
                 {auth.user?.is_superadmin && (
                     <div>
-                        <h3 className="px-3 text-[10px] font-semibold text-red-400 mb-1.5 uppercase tracking-wider">
-                            SUPER ADMIN
+                        <h3 className="px-3 text-[10px] font-semibold text-indigo-400 mb-1.5 uppercase tracking-wider">
+                            CONSOLE PLATEFORME
                         </h3>
                         <div className="space-y-0.5">
                             <Link
-                                href={route('superadmin.societes.index')}
-                                className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors group text-[13px] ${
-                                    isActive('superadmin.societes.index') 
-                                    ? 'bg-red-500/10 text-red-600 dark:text-red-400 font-medium' 
+                                href={route('superadmin.dashboard')}
+                                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors group text-[13px] ${
+                                    window.location.pathname.startsWith('/superadmin')
+                                    ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium'
                                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-800/50 dark:hover:text-white'
                                 }`}
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <Settings2 className={`h-4 w-4 ${isActive('superadmin.societes.index') ? 'text-red-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('superadmin.societes.index') ? 2.5 : 2} />
-                                    <span>Administration SaaS</span>
-                                </div>
+                                <Settings2 className={`h-4 w-4 ${window.location.pathname.startsWith('/superadmin') ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={2} />
+                                <span>Console Admin</span>
+                                <span className="ml-auto text-[9px] font-bold bg-indigo-600 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">ADMIN</span>
                             </Link>
                         </div>
                     </div>
@@ -176,7 +211,6 @@ export default function Sidebar() {
 
             {/* User Profile Footer */}
             <div className="p-3 border-t border-gray-100 dark:border-dark-800 space-y-1">
-                {/* Toggle thème */}
                 <button
                     onClick={toggleTheme}
                     title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
@@ -189,7 +223,6 @@ export default function Sidebar() {
                     <span>{isDark ? 'Mode clair' : 'Mode sombre'}</span>
                 </button>
 
-                {/* User + logout */}
                 <div className="flex items-center gap-1">
                     <Link href={route('profile.edit')} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors flex-1 min-w-0">
                         <UserAvatar name={user.nom_complet || user.name} className="h-8 w-8 text-[10px] border border-gray-200 shrink-0" />
