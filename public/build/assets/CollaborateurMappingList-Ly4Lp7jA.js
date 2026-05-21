@@ -1,0 +1,1 @@
+import{t as e}from"./CollaborateurMappingList-D5nag4og.js";export{e as default};

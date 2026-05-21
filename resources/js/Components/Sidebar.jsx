@@ -143,7 +143,7 @@ export default function Sidebar() {
                     )}
                     <div>
                         <h1 className="font-bold text-sm leading-tight text-gray-900 dark:text-white truncate max-w-[160px]">
-                            {societe?.nom || 'Addvalis SaaS'}
+                            {societe?.nom || 'Addvalis OKR'}
                         </h1>
                         <p className="text-[9px] tracking-widest text-gray-400 font-semibold uppercase">Performance</p>
                     </div>

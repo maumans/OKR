@@ -1,8 +1,8 @@
-# 🎯 Prompt — Gestion modulaire des accès & refonte console SuperAdmin (Addvalis SaaS Performance)
+# 🎯 Prompt — Gestion modulaire des accès & refonte console SuperAdmin (Addvalis OKR Performance)
 
 ## 📌 Contexte du projet (rappel)
 
-Je travaille sur **Addvalis SaaS Performance**, plateforme SaaS multi-tenant de pilotage de performance (OKR) :
+Je travaille sur **Addvalis OKR Performance**, plateforme SaaS multi-tenant de pilotage de performance (OKR) :
 - **Backend** : Laravel 13 (PHP), architecture multi-société via trait `BelongsToSociete` + middleware `InjecterSociete`
 - **Frontend** : React 18 + Inertia.js, Tailwind CSS v3, shadcn/ui (Radix), Framer Motion, Recharts
 - **DB** : MySQL, modèles en français (`Societe`, `Collaborateur`, `Objectif`, `ResultatCle`, `Tache`, etc.)

@@ -1,8 +1,8 @@
-# 🎯 Prompt — Module d'import intelligent de plans d'action Excel dans Addvalis SaaS Performance
+# 🎯 Prompt — Module d'import intelligent de plans d'action Excel dans Addvalis OKR Performance
 
 ## 📌 Contexte du projet (rappel)
 
-Je travaille sur **Addvalis SaaS Performance**, une plateforme SaaS multi-tenant de pilotage de performance (OKR) construite en :
+Je travaille sur **Addvalis OKR Performance**, une plateforme SaaS multi-tenant de pilotage de performance (OKR) construite en :
 - **Backend** : Laravel 13 (PHP) avec architecture multi-société via trait `BelongsToSociete` + middleware `InjecterSociete`
 - **Frontend** : React 18 + Inertia.js, Tailwind CSS v3, shadcn/ui (Radix), Framer Motion
 - **DB** : MySQL, modèles en français (`Societe`, `Collaborateur`, `Objectif`, `ResultatCle`, `Tache`, `AxeObjectif`, `Periode`, etc.)

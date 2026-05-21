@@ -1,11 +1,8 @@
 import { useEffect } from 'react';
 import GuestLayout from '@/Layouts/GuestLayout';
-import InputError from '@/Components/InputError';
-import { Label } from '@/Components/ui/Label';
 import { Input } from '@/Components/ui/Input';
-import { Button } from '@/Components/ui/Button';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, LogIn, Loader2 } from 'lucide-react';
 
 export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -15,9 +12,7 @@ export default function Login({ status, canResetPassword }) {
     });
 
     useEffect(() => {
-        return () => {
-            reset('password');
-        };
+        return () => reset('password');
     }, []);
 
     const submit = (e) => {
@@ -29,74 +24,92 @@ export default function Login({ status, canResetPassword }) {
         <GuestLayout>
             <Head title="Connexion" />
 
-            <div className="mb-8 text-center">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Bon retour</h2>
-                <p className="text-sm text-slate-500 mt-2">Veuillez saisir vos identifiants pour vous connecter.</p>
+            <div className="mb-8">
+                <h1 className="text-[1.6rem] font-bold text-slate-900 dark:text-white tracking-tight leading-tight">
+                    Bon retour
+                </h1>
+                <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+                    Connectez-vous à votre espace de performance.
+                </p>
             </div>
 
-            {status && <div className="mb-4 font-medium text-sm text-green-600">{status}</div>}
+            {status && (
+                <div className="mb-5 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-400">
+                    {status}
+                </div>
+            )}
 
-            <form onSubmit={submit} className="space-y-5">
-                <div>
-                    <Label htmlFor="email">Adresse e-mail</Label>
+            <form onSubmit={submit} className="space-y-4">
+                <div className="space-y-1.5">
+                    <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Adresse e-mail
+                    </label>
                     <Input
                         id="email"
                         type="email"
                         name="email"
                         value={data.email}
-                        className="mt-1 block w-full"
                         autoComplete="username"
-                        isFocused={true}
+                        autoFocus
                         onChange={(e) => setData('email', e.target.value)}
                         icon={Mail}
-                        placeholder="Entrez votre e-mail"
+                        placeholder="vous@exemple.com"
                     />
-                    <InputError message={errors.email} className="mt-2" />
+                    {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </div>
 
-                <div>
-                    <Label htmlFor="password">Mot de passe</Label>
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <label htmlFor="password" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Mot de passe
+                        </label>
+                        {canResetPassword && (
+                            <Link
+                                href={route('password.request')}
+                                className="text-xs font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+                            >
+                                Oublié ?
+                            </Link>
+                        )}
+                    </div>
                     <Input
                         id="password"
                         type="password"
                         name="password"
                         value={data.password}
-                        className="mt-1 block w-full"
                         autoComplete="current-password"
                         onChange={(e) => setData('password', e.target.value)}
                         icon={Lock}
-                        placeholder="Entrez votre mot de passe"
+                        placeholder="••••••••"
                     />
-                    <InputError message={errors.password} className="mt-2" />
+                    {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
                 </div>
 
-                <div className="flex items-center justify-between">
-                    <label className="flex items-center">
-                        <input
-                            type="checkbox"
-                            name="remember"
-                            checked={data.remember}
-                            onChange={(e) => setData('remember', e.target.checked)}
-                            className="rounded border-slate-300 text-primary-600 shadow-sm focus:ring-primary-500"
-                        />
-                        <span className="ms-2 text-sm text-slate-600 dark:text-slate-400">Se souvenir de moi</span>
+                <div className="flex items-center gap-2 pt-0.5">
+                    <input
+                        id="remember"
+                        type="checkbox"
+                        name="remember"
+                        checked={data.remember}
+                        onChange={(e) => setData('remember', e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                    />
+                    <label htmlFor="remember" className="text-sm text-slate-600 dark:text-slate-400 select-none cursor-pointer">
+                        Se souvenir de moi
                     </label>
-
-                    {canResetPassword && (
-                        <Link
-                            href={route('password.request')}
-                            className="text-sm font-medium text-primary-600 hover:text-primary-500 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                        >
-                            Mot de passe oublié ?
-                        </Link>
-                    )}
                 </div>
 
-                <div className="pt-2">
-                    <Button className="w-full bg-primary-500 hover:bg-primary-600" disabled={processing}>
-                        Se connecter
-                    </Button>
-                </div>
+                <button
+                    type="submit"
+                    disabled={processing}
+                    className="mt-2 w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white text-sm font-semibold shadow-md shadow-primary-500/20 hover:shadow-lg hover:shadow-primary-500/30 hover:from-primary-600 hover:to-primary-700 active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2"
+                >
+                    {processing
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <LogIn className="h-4 w-4" />
+                    }
+                    {processing ? 'Connexion…' : 'Se connecter'}
+                </button>
             </form>
         </GuestLayout>
     );

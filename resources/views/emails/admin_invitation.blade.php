@@ -7,7 +7,7 @@
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     
     <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #3b82f6;">Addvalis SaaS Performance</h1>
+        <h1 style="color: #3b82f6;">Addvalis OKR Performance</h1>
     </div>
 
     <p>Bonjour <strong>{{ $user->name }}</strong>,</p>

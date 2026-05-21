@@ -1,6 +1,6 @@
-# 📘 DEVBOOK — Addvalis SaaS Performance
+# 📘 DEVBOOK — Addvalis OKR Performance
 
-Ce document sert de référence technique et de guide architectural pour le développement de la plateforme Addvalis SaaS Performance. Il documente les choix techniques, les normes de codage et l'état d'avancement du projet.
+Ce document sert de référence technique et de guide architectural pour le développement de la plateforme Addvalis OKR Performance. Il documente les choix techniques, les normes de codage et l'état d'avancement du projet.
 
 ---
 
