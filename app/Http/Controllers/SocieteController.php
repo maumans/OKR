@@ -51,7 +51,7 @@ class SocieteController extends Controller
     {
         $modules = Module::where('actif', true)->orderBy('ordre')->get();
         $activations = $societe->modules()
-            ->get(['module_id', 'actif', 'active_le', 'desactive_le'])
+            ->get(['modules.id', 'societe_module.actif', 'societe_module.active_le', 'societe_module.desactive_le'])
             ->keyBy('pivot.module_id');
 
         return $modules->map(function (Module $module) use ($activations, $societe) {

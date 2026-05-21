@@ -4,7 +4,7 @@ import SuperAdminLayout from '../Layout';
 import {
     Building2, Search, Plus, Eye, Pencil, MoreHorizontal,
     PauseCircle, PlayCircle, Trash2, ChevronLeft, ChevronRight,
-    Users, Package,
+    Users,
 } from 'lucide-react';
 
 const PLAN_STYLES = {
@@ -203,7 +203,7 @@ export default function SocietesIndex({ societes, filters }) {
                                         </div>
                                     </td>
                                     <td className="px-5 py-3.5 hidden lg:table-cell">
-                                        <ModuleChips modules={s.modulesActifs || []} />
+                                        <ModuleChips modules={s.modules_actifs || []} />
                                     </td>
                                     <td className="px-5 py-3.5 hidden md:table-cell text-center">
                                         <div className="inline-flex items-center gap-1 text-[12px] text-slate-600 dark:text-slate-400">
