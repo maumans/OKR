@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CollaborateurController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartementController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SocieteController;
 use App\Http\Controllers\ObjectifController;
@@ -37,6 +38,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     // Collaborateurs
     Route::resource('collaborateurs', CollaborateurController::class);
     Route::patch('collaborateurs/{collaborateur}/toggle-actif', [CollaborateurController::class, 'toggleActif'])->name('collaborateurs.toggle-actif');
+
+    // Départements
+    Route::post('/departements', [DepartementController::class, 'store'])->name('departements.store');
+    Route::put('/departements/{departement}', [DepartementController::class, 'update'])->name('departements.update');
+    Route::delete('/departements/{departement}', [DepartementController::class, 'destroy'])->name('departements.destroy');
 
     // Paramètres société
     Route::get('/parametres', [SocieteController::class, 'edit'])->name('parametres.index');

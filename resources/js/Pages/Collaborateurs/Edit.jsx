@@ -1,4 +1,4 @@
-import { useForm, Link } from '@inertiajs/react';
+import { useForm, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/Card';
 import { Button } from '@/Components/ui/Button';
@@ -8,13 +8,18 @@ import { NativeSelect as Select } from '@/Components/ui/Select';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Save } from 'lucide-react';
 
-export default function CollaborateursEdit({ collaborateur }) {
+export default function CollaborateursEdit({ collaborateur, departements = [] }) {
+    const { auth } = usePage().props;
+    const isManager = auth?.collaborateur?.isManager;
+    const aAccesGlobal = auth?.collaborateur?.aAccesGlobal;
+
     const { data, setData, put, processing, errors } = useForm({
         nom: collaborateur.nom,
         prenom: collaborateur.prenom,
         email: collaborateur.user?.email || '',
         poste: collaborateur.poste || '',
         role: collaborateur.role,
+        departement_id: collaborateur.departement_id || '',
         actif: collaborateur.actif,
     });
 
@@ -57,13 +62,15 @@ export default function CollaborateursEdit({ collaborateur }) {
                                 <Label htmlFor="poste">Poste</Label>
                                 <Input id="poste" value={data.poste} onChange={(e) => setData('poste', e.target.value)} error={errors.poste} className="mt-1.5" />
                             </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <Label htmlFor="role">Rôle *</Label>
-                                    <Select id="role" value={data.role} onChange={(e) => setData('role', e.target.value)} className="mt-1.5">
+                                    <Select id="role" value={data.role} onChange={(e) => setData('role', e.target.value)} className="mt-1.5" disabled={isManager}>
                                         <option value="collaborateur">Collaborateur</option>
-                                        <option value="manager">Manager</option>
-                                        <option value="admin">Administrateur</option>
+                                        {!isManager && <option value="manager">Manager</option>}
+                                        {aAccesGlobal && <option value="directeur">Directeur Général</option>}
+                                        {aAccesGlobal && <option value="admin">Administrateur</option>}
                                     </Select>
                                 </div>
                                 <div>
@@ -74,6 +81,18 @@ export default function CollaborateursEdit({ collaborateur }) {
                                     </Select>
                                 </div>
                             </div>
+
+                            <div>
+                                <Label htmlFor="departement_id">Département</Label>
+                                <Select id="departement_id" value={data.departement_id || ''} onChange={(e) => setData('departement_id', e.target.value || null)}
+                                    error={errors.departement_id} className="mt-1.5" disabled={isManager}>
+                                    <option value="">— Aucun département —</option>
+                                    {departements.map(d => (
+                                        <option key={d.id} value={d.id}>{d.nom}</option>
+                                    ))}
+                                </Select>
+                            </div>
+
                             <div className="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-dark-700">
                                 <Button type="submit" disabled={processing}><Save className="h-4 w-4 mr-2" />{processing ? 'Enregistrement...' : 'Enregistrer'}</Button>
                                 <Link href={route('collaborateurs.index')}><Button variant="outline" type="button">Annuler</Button></Link>

@@ -26,6 +26,9 @@ class ObjectifController extends Controller
     {
         Gate::authorize('viewAny', Objectif::class);
         $societeId = session('societe_id');
+        $collab = $request->user()->collaborateurActuel();
+        $isManager = $collab?->estManager();
+        $deptId = $collab?->departement_id;
 
         // Sélection automatique de la période en cours si non spécifiée
         if (!$request->has('periode_id')) {
@@ -41,6 +44,14 @@ class ObjectifController extends Controller
 
         $objectifs = Objectif::where('societe_id', $societeId)
             ->with(['collaborateur', 'resultatsCles.typeResultatCle', 'resultatsCles.taches.collaborateur', 'resultatsCles.taches.fichiers.collaborateur', 'axeObjectif', 'periodeRelation', 'periodes', 'typeObjectif', 'taches.collaborateur', 'taches.fichiers.collaborateur'])
+            // Manager : restreindre aux objectifs de son département
+            ->when($isManager && $deptId, function ($query) use ($deptId) {
+                $query->whereHas('collaborateur', fn ($q) => $q->where('departement_id', $deptId));
+            })
+            // Collaborateur simple : uniquement ses propres objectifs
+            ->when(!$isManager && !$collab?->aAccesGlobal(), function ($query) use ($collab) {
+                $query->where('collaborateur_id', $collab->id);
+            })
             ->when($request->search, function ($query, $search) {
                 $query->where('titre', 'like', "%{$search}%");
             })
@@ -148,8 +159,11 @@ class ObjectifController extends Controller
                 ]),
             ]);
 
-        // Pour les filtres
-        $collaborateurs = Collaborateur::where('societe_id', $societeId)->actifs()->get(['id', 'nom', 'prenom']);
+        // Pour les filtres — manager : limiter aux collaborateurs de son département
+        $collaborateurs = Collaborateur::where('societe_id', $societeId)
+            ->actifs()
+            ->when($isManager && $deptId, fn ($q) => $q->where('departement_id', $deptId))
+            ->get(['id', 'nom', 'prenom']);
         $periodesDb = Periode::pourSociete($societeId)->actives()->get(['id', 'nom', 'type', 'date_debut', 'date_fin']);
         $axes = AxeObjectif::pourSociete($societeId)->actifs()->ordonne()->get(['id', 'nom', 'couleur']);
         $seuils = \App\Models\SeuilPerformance::pourSociete($societeId)->ordonne()->get();
@@ -173,9 +187,7 @@ class ObjectifController extends Controller
         $velocite = $totalTaches > 0 ? round(($tachesTerminees / $totalTaches) * 100) : 0;
 
         // Collaborateur par défaut pour le modal de création rapide
-        $defaultCollaborateurId = Collaborateur::where('societe_id', $societeId)
-            ->where('user_id', auth()->id())
-            ->first()?->id ?? $collaborateurs->first()?->id;
+        $defaultCollaborateurId = $collab?->id ?? $collaborateurs->first()?->id;
 
         return Inertia::render('OKR/Index', [
             'objectifs' => $objectifs,
@@ -199,7 +211,11 @@ class ObjectifController extends Controller
     {
         Gate::authorize('create', Objectif::class);
         $societeId = session('societe_id');
-        $collaborateurs = Collaborateur::where('societe_id', $societeId)->actifs()->get(['id', 'nom', 'prenom']);
+        $collab = auth()->user()->collaborateurActuel();
+        $collaborateurs = Collaborateur::where('societe_id', $societeId)
+            ->actifs()
+            ->when($collab?->estManager() && $collab->departement_id, fn ($q) => $q->where('departement_id', $collab->departement_id))
+            ->get(['id', 'nom', 'prenom']);
 
         return Inertia::render('OKR/Create', [
             'collaborateurs' => $collaborateurs,
@@ -238,10 +254,21 @@ class ObjectifController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request, $historiqueService) {
-            // Vérification de permission : un simple collaborateur ne peut créer que pour lui-même
-            $currentCollabId = $request->user()->collaborateurActuel()->id;
-            if ((int)$validated['collaborateur_id'] !== $currentCollabId && !$request->user()->estResponsable()) {
+            $currentCollab = $request->user()->collaborateurActuel();
+            $currentCollabId = $currentCollab->id;
+            $cibleId = (int)$validated['collaborateur_id'];
+
+            // Collaborateur simple : uniquement pour soi-même
+            if ($cibleId !== $currentCollabId && !$request->user()->estResponsable()) {
                 abort(403, 'Vous ne pouvez créer un objectif que pour vous-même.');
+            }
+
+            // Manager : uniquement pour un collaborateur de son département
+            if ($currentCollab->estManager() && $cibleId !== $currentCollabId) {
+                $cible = Collaborateur::find($cibleId);
+                if (!$cible || $cible->departement_id !== $currentCollab->departement_id) {
+                    abort(403, 'Vous ne pouvez créer un objectif que pour un collaborateur de votre département.');
+                }
             }
 
             // Résoudre le nom de la période si seul periode_id est fourni
@@ -293,9 +320,13 @@ class ObjectifController extends Controller
 
         $objectif->load(['collaborateur', 'resultatsCles.typeResultatCle', 'resultatsCles.taches', 'resultatsCles.historiqueProgressions.collaborateur', 'axeObjectif', 'periodeRelation', 'periodes', 'typeObjectif', 'taches.collaborateur']);
         $societeId = session('societe_id');
+        $collab = auth()->user()->collaborateurActuel();
 
         // Récupérer les collaborateurs pour le formulaire de création de tâche
-        $collaborateurs = Collaborateur::where('societe_id', $societeId)->actifs()->get(['id', 'nom', 'prenom']);
+        $collaborateurs = Collaborateur::where('societe_id', $societeId)
+            ->actifs()
+            ->when($collab?->estManager() && $collab->departement_id, fn ($q) => $q->where('departement_id', $collab->departement_id))
+            ->get(['id', 'nom', 'prenom']);
 
         // Préparer les tâches liées avec les infos nécessaires
         $taches = $objectif->taches->map(fn ($t) => [

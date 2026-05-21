@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AxeObjectif;
 use App\Models\ConfigurationOkr;
 use App\Models\ConfigurationPrime;
+use App\Models\Departement;
 use App\Models\Devise;
 use App\Models\Module;
 use App\Models\Periode;
@@ -44,6 +45,7 @@ class SocieteController extends Controller
             'templates'          => TemplateObjectif::pourSociete($societeId)->get(),
             'tab'                => request('tab', 'societe'),
             'modulesDisponibles' => $this->buildModulesDisponibles($societe),
+            'departements'       => Departement::where('societe_id', $societeId)->withCount('collaborateurs')->ordonne()->get(),
         ]);
     }
 

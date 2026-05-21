@@ -20,8 +20,8 @@ class ParametreOkrController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!$request->user() || !$request->user()->estAdmin()) {
-                abort(403, 'Accès réservé aux administrateurs.');
+            if (!$request->user() || !$request->user()->aAccesGlobal()) {
+                abort(403, 'Accès réservé aux administrateurs et directeurs.');
             }
             return $next($request);
         });

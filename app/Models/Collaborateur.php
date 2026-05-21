@@ -16,6 +16,7 @@ class Collaborateur extends Model
     protected $fillable = [
         'user_id',
         'societe_id',
+        'departement_id',
         'nom',
         'prenom',
         'poste',
@@ -35,6 +36,11 @@ class Collaborateur extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function departement(): BelongsTo
+    {
+        return $this->belongsTo(Departement::class);
     }
 
     public function objectifs(): HasMany
@@ -84,6 +90,16 @@ class Collaborateur extends Model
         return $query->where('role', 'manager');
     }
 
+    public function scopeDirecteurs(Builder $query): Builder
+    {
+        return $query->where('role', 'directeur');
+    }
+
+    public function scopeDansDepartement(Builder $query, int $departementId): Builder
+    {
+        return $query->where('departement_id', $departementId);
+    }
+
     // ─── Helpers ───────────────────────────────────────────
 
     public function nomComplet(): string
@@ -96,6 +112,11 @@ class Collaborateur extends Model
         return $this->role === 'admin';
     }
 
+    public function estDirecteur(): bool
+    {
+        return $this->role === 'directeur';
+    }
+
     public function estManager(): bool
     {
         return $this->role === 'manager';
@@ -104,5 +125,17 @@ class Collaborateur extends Model
     public function estCollaborateur(): bool
     {
         return $this->role === 'collaborateur';
+    }
+
+    /** Admin ou Directeur : accès à toute la société */
+    public function aAccesGlobal(): bool
+    {
+        return $this->role === 'admin' || $this->role === 'directeur';
+    }
+
+    /** Admin, Directeur ou Manager : peut gérer des objectifs/tâches */
+    public function estResponsable(): bool
+    {
+        return in_array($this->role, ['admin', 'directeur', 'manager']);
     }
 }

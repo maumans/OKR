@@ -15,11 +15,11 @@ class ModuleSocieteController extends Controller
 
     public function toggle(Module $module)
     {
-        $collaborateur = Auth::user()->collaborateurActuel();
-
-        if (!$collaborateur->estAdmin()) {
-            abort(403, 'Seul un administrateur peut modifier les modules.');
+        if (!Auth::user()->is_superadmin) {
+            abort(403, 'Seule la plateforme Addvalis peut activer ou désactiver des modules.');
         }
+
+        $collaborateur = Auth::user()->collaborateurActuel();
 
         if ($module->est_core) {
             abort(403, 'Les modules cœur ne peuvent pas être désactivés.');

@@ -101,11 +101,27 @@ class User extends Authenticatable
     }
 
     /**
-     * L'utilisateur est-il admin OU manager ?
+     * L'utilisateur est-il Directeur Général de la société courante ?
+     */
+    public function estDirecteur(): bool
+    {
+        return $this->collaborateurActuel()?->estDirecteur() ?? false;
+    }
+
+    /**
+     * L'utilisateur a-t-il un accès global (admin ou directeur) ?
+     */
+    public function aAccesGlobal(): bool
+    {
+        return $this->collaborateurActuel()?->aAccesGlobal() ?? false;
+    }
+
+    /**
+     * L'utilisateur est-il admin, directeur OU manager ?
      */
     public function estResponsable(): bool
     {
-        return $this->estAdmin() || $this->estManager();
+        return $this->collaborateurActuel()?->estResponsable() ?? false;
     }
 
     /**

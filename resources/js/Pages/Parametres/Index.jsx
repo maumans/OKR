@@ -21,6 +21,7 @@ import {
     Package, Search, Lock, CheckCircle, XCircle, Info,
     LayoutDashboard, User, ListChecks, CalendarCheck, Grid3x3,
     TrendingUp, Briefcase, Gift, GraduationCap, Users, Upload,
+    Network, Users2,
 } from 'lucide-react';
 
 const LUCIDE_ICONS = {
@@ -166,12 +167,10 @@ function OngletModules({ modules = [], isAdmin }) {
                 </div>
             </div>
 
-            {!isAdmin && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
-                    <Lock className="h-4 w-4 shrink-0" />
-                    Seul un administrateur de la société peut activer ou désactiver des modules.
-                </div>
-            )}
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 text-sm">
+                <Lock className="h-4 w-4 shrink-0" />
+                L'activation et la désactivation des modules est gérée par la plateforme Addvalis. Contactez votre administrateur plateforme pour toute modification.
+            </div>
 
             {/* Grille de cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -300,10 +299,11 @@ export default function ParametresIndex({
     societe, devises = [], tab = 'societe',
     axes = [], periodes = [], typesObjectifs = [], typesResultatsCles = [],
     statuts = [], seuils = [], configuration, configurationPrime, templates = [],
-    modulesDisponibles = [],
+    modulesDisponibles = [], departements = [],
 }) {
-    const { flash } = usePage().props;
-    const devise = usePage().props.auth?.societe?.devise;
+    const { flash, auth } = usePage().props;
+    const devise = auth?.societe?.devise;
+    const aAccesGlobal = auth?.collaborateur?.aAccesGlobal ?? false;
     const [activeTab, setActiveTab] = useState(tab);
     const [activeDialog, setActiveDialog] = useState(null);
     const [editingItem, setEditingItem] = useState(null);
@@ -348,6 +348,15 @@ export default function ParametresIndex({
         mode_calcul: configurationPrime?.mode_calcul || 'proportionnel',
         paliers: configurationPrime?.paliers || [],
     });
+
+    const deptForm = useForm({ nom: '', description: '', couleur: '#6366f1', ordre: 0 });
+
+    const submitDept = (e) => {
+        e.preventDefault();
+        editingItem
+            ? deptForm.put(route('departements.update', editingItem.id), { onSuccess: () => setActiveDialog(null) })
+            : deptForm.post(route('departements.store'), { onSuccess: () => setActiveDialog(null) });
+    };
 
     // ─── Helpers dialog OKR ─────────────────────────────
     const openAdd = (type, form, defaults) => {
@@ -430,9 +439,16 @@ export default function ParametresIndex({
                     <TabsTrigger value="societe">
                         <Building2 className="h-4 w-4 mr-1.5" />Société
                     </TabsTrigger>
-                    <TabsTrigger value="okr">
-                        <Settings2 className="h-4 w-4 mr-1.5" />Configuration OKR
-                    </TabsTrigger>
+                    {aAccesGlobal && (
+                        <TabsTrigger value="departements">
+                            <Network className="h-4 w-4 mr-1.5" />Départements
+                        </TabsTrigger>
+                    )}
+                    {aAccesGlobal && (
+                        <TabsTrigger value="okr">
+                            <Settings2 className="h-4 w-4 mr-1.5" />Configuration OKR
+                        </TabsTrigger>
+                    )}
                     <TabsTrigger value="modules">
                         <Package className="h-4 w-4 mr-1.5" />Modules
                     </TabsTrigger>
@@ -567,6 +583,79 @@ export default function ParametresIndex({
                                 </CardContent>
                             </Card>
                         </motion.div>
+                    </div>
+                </TabsContent>
+
+                {/* ══════════════ ONGLET DÉPARTEMENTS ══════════════ */}
+                <TabsContent value="departements">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <Network className="h-4 w-4 text-primary-500" /> Départements
+                                </h2>
+                                <p className="text-sm text-gray-500 mt-0.5">
+                                    Organisez votre équipe en départements. Les managers sont restreints à leur département.
+                                </p>
+                            </div>
+                            <Button size="sm" onClick={() => { deptForm.reset(); deptForm.setData('couleur', '#6366f1'); setEditingItem(null); setActiveDialog('dept'); }}>
+                                <Plus className="h-4 w-4 mr-1" /> Ajouter
+                            </Button>
+                        </div>
+
+                        {departements.length === 0 ? (
+                            <Card>
+                                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                                    <Network className="h-10 w-10 text-gray-300 dark:text-dark-600 mb-3" />
+                                    <p className="text-sm font-medium text-gray-500">Aucun département configuré</p>
+                                    <p className="text-xs text-gray-400 mt-1">Créez votre premier département pour organiser votre équipe.</p>
+                                    <Button size="sm" className="mt-4" onClick={() => { deptForm.reset(); deptForm.setData('couleur', '#6366f1'); setEditingItem(null); setActiveDialog('dept'); }}>
+                                        <Plus className="h-4 w-4 mr-1" /> Créer un département
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {departements.map(dept => (
+                                    <Card key={dept.id} className="relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: dept.couleur || '#6366f1' }} />
+                                        <CardContent className="pt-5 pb-4">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="h-8 w-8 rounded-lg flex items-center justify-center text-white shrink-0"
+                                                        style={{ backgroundColor: dept.couleur || '#6366f1' }}>
+                                                        <Users2 className="h-4 w-4" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-[13px] text-gray-900 dark:text-white truncate">{dept.nom}</p>
+                                                        {dept.description && <p className="text-[11px] text-gray-500 truncate">{dept.description}</p>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-1 shrink-0">
+                                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0"
+                                                        onClick={() => { openEdit('dept', deptForm, dept, ['nom', 'description', 'couleur', 'ordre']); }}>
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                                                        onClick={() => { if (confirm(`Supprimer « ${dept.nom} » ?`)) router.delete(route('departements.destroy', dept.id)); }}>
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 flex items-center gap-1.5">
+                                                <Users className="h-3.5 w-3.5 text-gray-400" />
+                                                <span className="text-[12px] text-gray-500">
+                                                    {dept.collaborateurs_count ?? 0} membre{(dept.collaborateurs_count ?? 0) !== 1 ? 's' : ''}
+                                                </span>
+                                                {!dept.actif && (
+                                                    <span className="ml-auto px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-400">Inactif</span>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </TabsContent>
 
@@ -796,7 +885,7 @@ export default function ParametresIndex({
                 <TabsContent value="modules">
                     <OngletModules
                         modules={modulesDisponibles}
-                        isAdmin={usePage().props.auth?.collaborateur?.isAdmin ?? false}
+                        isAdmin={false}
                     />
                 </TabsContent>
 
@@ -934,6 +1023,25 @@ export default function ParametresIndex({
                         <div className="flex justify-end gap-2 pt-2">
                             <Button type="button" variant="outline" onClick={() => setActiveDialog(null)}>Annuler</Button>
                             <Button type="submit" disabled={seuilForm.processing}>{editingItem ? 'Enregistrer' : 'Créer'}</Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Dialog Département ── */}
+            <Dialog open={activeDialog === 'dept'} onOpenChange={(o) => !o && setActiveDialog(null)}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un département</DialogTitle></DialogHeader>
+                    <form onSubmit={submitDept} className="space-y-4 mt-4">
+                        <div><Label>Nom *</Label><Input value={deptForm.data.nom} onChange={e => deptForm.setData('nom', e.target.value)} error={deptForm.errors.nom} placeholder="Ex: Commercial" /></div>
+                        <div><Label>Description</Label><Input value={deptForm.data.description} onChange={e => deptForm.setData('description', e.target.value)} placeholder="Description optionnelle" /></div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><Label>Couleur</Label><Input type="color" value={deptForm.data.couleur} onChange={e => deptForm.setData('couleur', e.target.value)} className="mt-1.5 h-10" /></div>
+                            <div><Label>Ordre</Label><NumberInput value={deptForm.data.ordre} onChange={v => deptForm.setData('ordre', v)} className="mt-1.5" decimals={0} /></div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button type="button" variant="outline" onClick={() => setActiveDialog(null)}>Annuler</Button>
+                            <Button type="submit" disabled={deptForm.processing}>{editingItem ? 'Enregistrer' : 'Créer'}</Button>
                         </div>
                     </form>
                 </DialogContent>

@@ -21,9 +21,19 @@ class TacheController extends Controller
         Gate::authorize('viewAny', Tache::class);
         $societeId = session('societe_id');
         $collaborateurActuel = $request->user()->collaborateurActuel();
+        $isManager = $collaborateurActuel?->estManager();
+        $deptId = $collaborateurActuel?->departement_id;
 
         $taches = Tache::where('societe_id', $societeId)
             ->with(['collaborateur:id,nom,prenom', 'objectif:id,titre,axe_objectif_id', 'fichiers.collaborateur:id,nom,prenom'])
+            // Manager : uniquement tâches de son département
+            ->when($isManager && $deptId, function ($query) use ($deptId) {
+                $query->whereHas('collaborateur', fn ($q) => $q->where('departement_id', $deptId));
+            })
+            // Collaborateur simple : uniquement ses propres tâches
+            ->when(!$isManager && !$collaborateurActuel?->aAccesGlobal(), function ($query) use ($collaborateurActuel) {
+                $query->where('collaborateur_id', $collaborateurActuel->id);
+            })
             ->when($request->search, function ($query, $search) {
                 $query->where('titre', 'like', "%{$search}%");
             })
@@ -76,11 +86,16 @@ class TacheController extends Controller
                 ]),
             ]);
 
-        $collaborateurs = Collaborateur::where('societe_id', $societeId)->actifs()->get(['id', 'nom', 'prenom']);
+        $collaborateurs = Collaborateur::where('societe_id', $societeId)
+            ->actifs()
+            ->when($isManager && $deptId, fn ($q) => $q->where('departement_id', $deptId))
+            ->get(['id', 'nom', 'prenom']);
 
-        // OKRs actifs de la société pour le select
+        // OKRs actifs — manager : uniquement son département, collaborateur : uniquement les siens
         $objectifs = Objectif::where('societe_id', $societeId)
             ->where('statut', 'actif')
+            ->when($isManager && $deptId, fn ($q) => $q->whereHas('collaborateur', fn ($sq) => $sq->where('departement_id', $deptId)))
+            ->when(!$isManager && !$collaborateurActuel?->aAccesGlobal(), fn ($q) => $q->where('collaborateur_id', $collaborateurActuel->id))
             ->with('resultatsCles:id,objectif_id,description')
             ->get(['id', 'titre', 'axe_objectif_id']);
 
@@ -117,9 +132,20 @@ class TacheController extends Controller
             'resultat_cle_id'  => 'nullable|exists:resultats_cles,id',
             'mission_id'       => 'nullable|exists:missions,id',
         ]);
-        $currentCollabId = $request->user()->collaborateurActuel()->id;
-        if ((int)$validated['collaborateur_id'] !== $currentCollabId && !$request->user()->estResponsable()) {
+        $currentCollab = $request->user()->collaborateurActuel();
+        $currentCollabId = $currentCollab->id;
+        $cibleId = (int)$validated['collaborateur_id'];
+
+        if ($cibleId !== $currentCollabId && !$request->user()->estResponsable()) {
             abort(403, 'Vous ne pouvez assigner une tâche qu\'à vous-même.');
+        }
+
+        // Manager : uniquement pour un collaborateur de son département
+        if ($currentCollab->estManager() && $cibleId !== $currentCollabId) {
+            $cible = Collaborateur::find($cibleId);
+            if (!$cible || $cible->departement_id !== $currentCollab->departement_id) {
+                abort(403, 'Vous ne pouvez assigner une tâche qu\'à un collaborateur de votre département.');
+            }
         }
 
         $tache = Tache::create([

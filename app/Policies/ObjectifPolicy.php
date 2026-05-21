@@ -8,12 +8,31 @@ use Illuminate\Auth\Access\Response;
 
 class ObjectifPolicy
 {
-    /**
-     * S'assure que l'objectif appartient à la même société que l'utilisateur.
-     */
     private function belongsToSameSociete(User $user, Objectif $objectif): bool
     {
         return $user->collaborateurActuel()?->societe_id === $objectif->societe_id;
+    }
+
+    /**
+     * Un manager ne peut voir/modifier que les objectifs de son département.
+     * Un admin/directeur voit tout. Un simple collaborateur voit ses propres objectifs.
+     */
+    private function peutAcceder(User $user, Objectif $objectif): bool
+    {
+        $collab = $user->collaborateurActuel();
+        if (!$collab) return false;
+
+        // Admin ou Directeur : accès global
+        if ($collab->aAccesGlobal()) return true;
+
+        // Manager : seulement son département
+        if ($collab->estManager()) {
+            $cible = $objectif->collaborateur;
+            return $cible && $cible->departement_id === $collab->departement_id;
+        }
+
+        // Collaborateur : uniquement ses propres objectifs
+        return $objectif->collaborateur_id === $collab->id;
     }
 
     public function viewAny(User $user): bool
@@ -27,11 +46,15 @@ class ObjectifPolicy
             return Response::deny('Vous n\'avez pas accès à cet objectif.');
         }
 
-        $collabId = $user->collaborateurActuel()->id;
+        $collab = $user->collaborateurActuel();
 
-        // Si l'objectif est privé, seul le propriétaire (ou un admin/manager) peut le voir
-        if ($objectif->visibilite === 'prive' && $objectif->collaborateur_id !== $collabId && !$user->estResponsable()) {
+        // Objectif privé : seul le propriétaire ou un responsable avec accès peut voir
+        if ($objectif->visibilite === 'prive' && $objectif->collaborateur_id !== $collab->id && !$user->estResponsable()) {
             return Response::deny('Cet objectif est privé.');
+        }
+
+        if (!$this->peutAcceder($user, $objectif)) {
+            return Response::deny('Vous n\'avez pas accès à cet objectif.');
         }
 
         return Response::allow();
@@ -48,10 +71,15 @@ class ObjectifPolicy
             return Response::deny('Action non autorisée.');
         }
 
-        $collabId = $user->collaborateurActuel()->id;
+        $collab = $user->collaborateurActuel();
 
-        // Le propriétaire ou un responsable peut modifier
-        if ($objectif->collaborateur_id === $collabId || $user->estResponsable()) {
+        // Propriétaire peut toujours modifier son propre objectif
+        if ($objectif->collaborateur_id === $collab->id) {
+            return Response::allow();
+        }
+
+        // Responsable avec accès peut modifier
+        if ($user->estResponsable() && $this->peutAcceder($user, $objectif)) {
             return Response::allow();
         }
 

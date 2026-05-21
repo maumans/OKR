@@ -18,9 +18,10 @@ import {
 } from 'lucide-react';
 
 const ROLE_CONFIG = {
-    admin:          { label: 'Administrateur', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', dot: 'bg-red-500' },
-    manager:        { label: 'Manager',         color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', dot: 'bg-violet-500' },
-    collaborateur:  { label: 'Collaborateur',   color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400', dot: 'bg-sky-500' },
+    admin:          { label: 'Administrateur',    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',       dot: 'bg-red-500' },
+    directeur:      { label: 'Directeur Général', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', dot: 'bg-amber-500' },
+    manager:        { label: 'Manager',            color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', dot: 'bg-violet-500' },
+    collaborateur:  { label: 'Collaborateur',      color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',       dot: 'bg-sky-500' },
 };
 
 function StatCard({ icon: Icon, label, value, color, delay = 0 }) {
@@ -38,20 +39,22 @@ function StatCard({ icon: Icon, label, value, color, delay = 0 }) {
     );
 }
 
-export default function CollaborateursIndex({ collaborateurs, filters, stats }) {
+export default function CollaborateursIndex({ collaborateurs, filters, stats, departements = [] }) {
     const [search, setSearch] = useState(filters?.search || '');
     const [activeRole, setActiveRole] = useState(filters?.role || '');
+    const [activeDept, setActiveDept] = useState(filters?.departement_id || '');
     const [activeActif, setActiveActif] = useState(
         filters?.actif !== undefined ? String(filters.actif) : ''
     );
 
     const applyFilters = (updates) => {
-        const current = { search, role: activeRole, actif: activeActif };
+        const current = { search, role: activeRole, actif: activeActif, departement_id: activeDept };
         const merged = { ...current, ...updates };
         const params = {};
         if (merged.search) params.search = merged.search;
         if (merged.role) params.role = merged.role;
         if (merged.actif !== '') params.actif = merged.actif;
+        if (merged.departement_id) params.departement_id = merged.departement_id;
         router.get(route('collaborateurs.index'), params, { preserveState: true, replace: true });
     };
 
@@ -64,6 +67,12 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats }) 
         const next = activeRole === role ? '' : role;
         setActiveRole(next);
         applyFilters({ role: next });
+    };
+
+    const handleDeptFilter = (val) => {
+        const next = activeDept === val ? '' : val;
+        setActiveDept(next);
+        applyFilters({ departement_id: next });
     };
 
     const handleActifFilter = (val) => {
@@ -81,9 +90,9 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats }) 
         router.delete(route('collaborateurs.destroy', collab.id));
     };
 
-    const hasFilter = search || activeRole || activeActif !== '';
+    const hasFilter = search || activeRole || activeActif !== '' || activeDept;
     const clearFilters = () => {
-        setSearch(''); setActiveRole(''); setActiveActif('');
+        setSearch(''); setActiveRole(''); setActiveActif(''); setActiveDept('');
         router.get(route('collaborateurs.index'), {}, { preserveState: false });
     };
 
@@ -107,11 +116,12 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats }) 
             </div>
 
             {/* ── Stat cards ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                <StatCard icon={Users}      label="Total"          value={stats.total}          color="bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"   delay={0.0} />
-                <StatCard icon={UserCheck}  label="Actifs"         value={stats.actifs}          color="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"  delay={0.05} />
-                <StatCard icon={ShieldCheck} label="Administrateurs" value={stats.admins}        color="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"                  delay={0.1} />
-                <StatCard icon={Users}      label="Managers"       value={stats.managers}        color="bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400"      delay={0.15} />
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+                <StatCard icon={Users}      label="Total"             value={stats.total}       color="bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"    delay={0.0} />
+                <StatCard icon={UserCheck}  label="Actifs"            value={stats.actifs}       color="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"   delay={0.05} />
+                <StatCard icon={ShieldCheck} label="Admins"           value={stats.admins}       color="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"                   delay={0.1} />
+                <StatCard icon={Users}      label="Directeurs"        value={stats.directeurs || 0} color="bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400"       delay={0.12} />
+                <StatCard icon={Users}      label="Managers"          value={stats.managers}     color="bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400"       delay={0.15} />
             </div>
 
             {/* ── Filters + Table ── */}
@@ -138,6 +148,7 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats }) 
                             {[
                                 { value: '', label: 'Tous' },
                                 { value: 'admin', label: 'Admins' },
+                                { value: 'directeur', label: 'Directeurs' },
                                 { value: 'manager', label: 'Managers' },
                                 { value: 'collaborateur', label: 'Membres' },
                             ].map(({ value, label }) => (
@@ -154,6 +165,27 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats }) 
                                 </button>
                             ))}
                         </div>
+
+                        {/* Filtre département */}
+                        {departements.length > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs text-gray-400">Dép.</span>
+                                {departements.map(d => (
+                                    <button
+                                        key={d.id}
+                                        onClick={() => handleDeptFilter(String(d.id))}
+                                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                                            activeDept === String(d.id)
+                                                ? 'text-white shadow-sm'
+                                                : 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-400 border-transparent hover:border-gray-300'
+                                        }`}
+                                        style={activeDept === String(d.id) ? { backgroundColor: d.couleur || '#6366f1', borderColor: d.couleur || '#6366f1' } : {}}
+                                    >
+                                        {d.nom}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Toggle actif/inactif */}
                         <div className="flex items-center gap-1.5">
@@ -188,11 +220,12 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats }) 
 
                 {/* Table */}
                 <div className="overflow-x-auto">
-                <Table className="min-w-[580px]">
+                <Table className="min-w-[640px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Membre</TableHead>
                             <TableHead className="hidden sm:table-cell">Poste</TableHead>
+                            <TableHead className="hidden md:table-cell">Département</TableHead>
                             <TableHead>Rôle</TableHead>
                             <TableHead>Statut</TableHead>
                             <TableHead className="hidden lg:table-cell">Depuis</TableHead>
@@ -202,7 +235,7 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats }) 
                     <TableBody>
                         {collaborateurs.data.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6}>
+                                <TableCell colSpan={7}>
                                     <div className="flex flex-col items-center justify-center py-16 text-center">
                                         <div className="p-4 bg-gray-50 dark:bg-dark-800 rounded-2xl mb-3">
                                             <UserX className="h-10 w-10 text-gray-300 dark:text-dark-600" />
@@ -254,6 +287,20 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats }) 
                                         <span className="text-[13px] text-gray-600 dark:text-gray-400">
                                             {collab.poste || <span className="text-gray-300 dark:text-dark-600 italic">—</span>}
                                         </span>
+                                    </TableCell>
+
+                                    {/* Département */}
+                                    <TableCell className="hidden md:table-cell">
+                                        {collab.departement ? (
+                                            <span
+                                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium text-white"
+                                                style={{ backgroundColor: collab.departement.couleur || '#6366f1' }}
+                                            >
+                                                {collab.departement.nom}
+                                            </span>
+                                        ) : (
+                                            <span className="text-[12px] text-gray-300 dark:text-dark-600 italic">—</span>
+                                        )}
                                     </TableCell>
 
                                     {/* Rôle */}

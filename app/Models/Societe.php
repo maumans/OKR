@@ -128,9 +128,19 @@ class Societe extends Model
 
     // ─── Helpers ───────────────────────────────────────────
 
+    public function departements(): HasMany
+    {
+        return $this->hasMany(Departement::class);
+    }
+
     public function admins(): HasMany
     {
         return $this->collaborateurs()->where('role', 'admin');
+    }
+
+    public function directeurs(): HasMany
+    {
+        return $this->collaborateurs()->where('role', 'directeur');
     }
 
     public function managers(): HasMany

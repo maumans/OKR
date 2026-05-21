@@ -30,7 +30,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        $collaborateur = $user?->collaborateurActuel();
+        $collaborateur = $user?->collaborateurActuel()?->load('departement');
         $societe = $collaborateur?->societe?->load('devise');
 
         return [
@@ -40,15 +40,24 @@ class HandleInertiaRequests extends Middleware
                     'is_superadmin' => $user->is_superadmin,
                 ]) : null,
                 'collaborateur' => $collaborateur ? [
-                    'id'           => $collaborateur->id,
-                    'nom'          => $collaborateur->nom,
-                    'prenom'       => $collaborateur->prenom,
-                    'poste'        => $collaborateur->poste,
-                    'role'         => $collaborateur->role,
-                    'actif'        => $collaborateur->actif,
-                    'nom_complet'  => $collaborateur->nomComplet(),
-                    'isResponsable' => $collaborateur->estAdmin() || $collaborateur->estManager(),
-                    'isAdmin'      => $collaborateur->estAdmin(),
+                    'id'              => $collaborateur->id,
+                    'nom'             => $collaborateur->nom,
+                    'prenom'          => $collaborateur->prenom,
+                    'poste'           => $collaborateur->poste,
+                    'role'            => $collaborateur->role,
+                    'actif'           => $collaborateur->actif,
+                    'nom_complet'     => $collaborateur->nomComplet(),
+                    'departement_id'  => $collaborateur->departement_id,
+                    'departement'     => $collaborateur->departement ? [
+                        'id'     => $collaborateur->departement->id,
+                        'nom'    => $collaborateur->departement->nom,
+                        'couleur'=> $collaborateur->departement->couleur,
+                    ] : null,
+                    'isResponsable'   => $collaborateur->estResponsable(),
+                    'isAdmin'         => $collaborateur->estAdmin(),
+                    'isDirecteur'     => $collaborateur->estDirecteur(),
+                    'isManager'       => $collaborateur->estManager(),
+                    'aAccesGlobal'    => $collaborateur->aAccesGlobal(),
                 ] : null,
                 'societe' => $societe ? [
                     'id'                 => $societe->id,
