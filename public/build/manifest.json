@@ -905,7 +905,7 @@
     ]
   },
   "resources/js/Pages/Collaborateurs/Create.jsx": {
-    "file": "assets/Create-DbA9xR88.js",
+    "file": "assets/Create-OUSdyhNo.js",
     "name": "Create",
     "src": "resources/js/Pages/Collaborateurs/Create.jsx",
     "isDynamicEntry": true,
@@ -924,7 +924,7 @@
     ]
   },
   "resources/js/Pages/Collaborateurs/Edit.jsx": {
-    "file": "assets/Edit-D9ig7nb3.js",
+    "file": "assets/Edit-C6l5WaDy.js",
     "name": "Edit",
     "src": "resources/js/Pages/Collaborateurs/Edit.jsx",
     "isDynamicEntry": true,
@@ -943,7 +943,7 @@
     ]
   },
   "resources/js/Pages/Collaborateurs/Index.jsx": {
-    "file": "assets/Index-60dL9VSk.js",
+    "file": "assets/Index-DgQwGCFb.js",
     "name": "Index",
     "src": "resources/js/Pages/Collaborateurs/Index.jsx",
     "isDynamicEntry": true,
@@ -1511,7 +1511,7 @@
     ]
   },
   "resources/js/Pages/Parametres/Index.jsx": {
-    "file": "assets/Index-CWE3WisY.js",
+    "file": "assets/Index-D-bbzlrr.js",
     "name": "Index",
     "src": "resources/js/Pages/Parametres/Index.jsx",
     "isDynamicEntry": true,
@@ -1548,6 +1548,7 @@
       "_trending-up-w40FwzXD.js",
       "_upload-BdXHBaXF.js",
       "_user-BtH3zVP1.js",
+      "_users-round-CgbdWESb.js",
       "_users-CumlPPnM.js",
       "_Badge-Ci1zxupU.js",
       "_Card-BlSI6uvC.js",
@@ -1837,7 +1838,7 @@
     ]
   },
   "resources/js/Pages/SuperAdmin/Societes/Index.jsx": {
-    "file": "assets/Index-D5h6y8DF.js",
+    "file": "assets/Index-__jBn7tF.js",
     "name": "Index",
     "src": "resources/js/Pages/SuperAdmin/Societes/Index.jsx",
     "isDynamicEntry": true,
@@ -2026,7 +2027,7 @@
     ]
   },
   "resources/js/app.jsx": {
-    "file": "assets/app-C7rCjUo1.js",
+    "file": "assets/app-BrMNy6Us.js",
     "name": "app",
     "src": "resources/js/app.jsx",
     "isEntry": true,
@@ -2096,7 +2097,7 @@
       "resources/js/Pages/Welcome.jsx"
     ],
     "css": [
-      "assets/app-s13K9SFH.css"
+      "assets/app-BNl_o5zj.css"
     ]
   }
 }
