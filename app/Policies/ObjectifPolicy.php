@@ -14,8 +14,9 @@ class ObjectifPolicy
     }
 
     /**
-     * Un manager ne peut voir/modifier que les objectifs de son département.
-     * Un admin/directeur voit tout. Un simple collaborateur voit ses propres objectifs.
+     * Admin/Directeur : accès global à la société.
+     * Manager : accès à toute la société (ou à son département si configuré).
+     * Collaborateur : uniquement ses propres objectifs.
      */
     private function peutAcceder(User $user, Objectif $objectif): bool
     {
@@ -25,10 +26,17 @@ class ObjectifPolicy
         // Admin ou Directeur : accès global
         if ($collab->aAccesGlobal()) return true;
 
-        // Manager : seulement son département
+        // Manager : accès à tout son département ; si les départements ne sont pas configurés
+        // (departement_id null), accès à toute la société pour ne pas bloquer les PME
         if ($collab->estManager()) {
             $cible = $objectif->collaborateur;
-            return $cible && $cible->departement_id === $collab->departement_id;
+            if (!$cible) return false;
+
+            // Pas de département configuré → accès à toute la société
+            if (!$collab->departement_id || !$cible->departement_id) return true;
+
+            // Même département
+            return $cible->departement_id === $collab->departement_id;
         }
 
         // Collaborateur : uniquement ses propres objectifs
@@ -72,6 +80,9 @@ class ObjectifPolicy
         }
 
         $collab = $user->collaborateurActuel();
+        if (!$collab) {
+            return Response::deny('Collaborateur non trouvé.');
+        }
 
         // Propriétaire peut toujours modifier son propre objectif
         if ($objectif->collaborateur_id === $collab->id) {
@@ -79,7 +90,7 @@ class ObjectifPolicy
         }
 
         // Responsable avec accès peut modifier
-        if ($user->estResponsable() && $this->peutAcceder($user, $objectif)) {
+        if ($this->peutAcceder($user, $objectif)) {
             return Response::allow();
         }
 

@@ -117,7 +117,7 @@ class ModuleSeeder extends Seeder
             ],
             [
                 'code'        => 'reporting',
-                'nom'         => 'Synthèse & Reporting',
+                'nom'         => 'Reporting & Analytique',
                 'description' => 'Tableaux de bord analytiques et rapports avancés.',
                 'categorie'   => 'ANALYTIQUE',
                 'icone'       => 'BarChart3',
