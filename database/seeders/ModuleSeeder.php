@@ -157,6 +157,17 @@ class ModuleSeeder extends Seeder
                 'ordre'       => 130,
                 'routes'      => ['import.*'],
             ],
+            [
+                'code'        => 'synthese',
+                'nom'         => 'Synthèse',
+                'description' => 'Pilotage mensuel des primes : scores, validation manager, export CSV.',
+                'categorie'   => 'MANAGEMENT',
+                'icone'       => 'BarChart3',
+                'couleur'     => '#7c3aed',
+                'ordre'       => 85,
+                'routes'      => ['synthese.*'],
+                'est_premium' => false,
+            ],
         ];
 
         foreach ($modules as $data) {

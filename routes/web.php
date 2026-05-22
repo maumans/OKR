@@ -16,6 +16,8 @@ use App\Http\Controllers\IndividuelController;
 use App\Http\Controllers\MissionController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\Parametres\ModuleSocieteController;
+use App\Http\Controllers\SyntheseController;
+use App\Http\Controllers\PrimeMensuelleController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -151,7 +153,19 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
 
     // ─── Reporting ────────────────────────────────────────────
     Route::middleware('module:reporting')->group(function () {
-        Route::get('/syntheses', fn () => Inertia::render('Reporting/Index'))->name('syntheses.index');
+        Route::get('/reporting', fn () => Inertia::render('Reporting/Index'))->name('syntheses.index');
+    });
+
+    // ─── Synthèse mensuelle (primes) ─────────────────────────
+    Route::middleware('module:synthese')->prefix('synthese')->name('synthese.')->group(function () {
+        Route::get('/', [SyntheseController::class, 'index'])->name('index');
+        Route::get('/historique', [SyntheseController::class, 'historique'])->name('historique');
+        Route::get('/{mois}/export', [SyntheseController::class, 'export'])->name('export');
+        Route::post('/{mois}/cloturer', [SyntheseController::class, 'cloturer'])->name('cloturer');
+
+        // Primes mensuelles
+        Route::put('/primes/{collaborateur}/{mois}', [PrimeMensuelleController::class, 'update'])->name('primes.update');
+        Route::post('/primes/{collaborateur}/{mois}/valider', [PrimeMensuelleController::class, 'valider'])->name('primes.valider');
     });
 
     // ─── Matrice Eisenhower ───────────────────────────────────

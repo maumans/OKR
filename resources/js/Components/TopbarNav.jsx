@@ -19,7 +19,7 @@ const ALL_NAV_ITEMS = [
     { name: 'LMS',           href: 'formations.index',   color: 'bg-orange-500',  textColor: 'text-orange-500',  moduleCode: 'lms' },
     { name: 'Missions',      href: 'missions.index',     color: 'bg-sky-500',     textColor: 'text-sky-500',     moduleCode: 'missions' },
     { name: 'Incentives',    href: 'incentives.index',   color: 'bg-pink-500',    textColor: 'text-pink-500',    moduleCode: 'incentives' },
-    { name: 'Synthèse',      href: 'syntheses.index',    color: 'bg-indigo-500',  textColor: 'text-indigo-500',  moduleCode: 'reporting' },
+    { name: 'Synthèse',      href: 'synthese.index',     color: 'bg-violet-500',  textColor: 'text-violet-500',  moduleCode: 'synthese' },
     { name: 'Équipe',        href: 'collaborateurs.index',color: 'bg-teal-500',   textColor: 'text-teal-500',    moduleCode: 'equipe' },
     { name: 'Matrice',       href: 'matrice.index',      color: 'bg-fuchsia-500', textColor: 'text-fuchsia-500', moduleCode: 'matrice' },
     { name: 'Import',        href: 'import.index',       color: 'bg-emerald-500', textColor: 'text-emerald-500', moduleCode: 'import' },

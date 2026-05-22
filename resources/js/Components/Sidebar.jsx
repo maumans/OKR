@@ -67,7 +67,8 @@ const navigation = [
     {
         name: 'ANALYTIQUE',
         items: [
-            { name: 'Synthèse', href: 'syntheses.index', icon: BarChart3, moduleCode: 'reporting' },
+            { name: 'Synthèse mensuelle', href: 'synthese.index', icon: BarChart3, moduleCode: 'synthese' },
+            { name: 'Historique synthèses', href: 'synthese.historique', icon: History, moduleCode: 'synthese' },
         ]
     },
     {

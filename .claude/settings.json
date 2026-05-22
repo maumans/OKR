@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(not exist *)",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"d:\\\\Maurice\\\\Programmation\\\\Addvalis\\\\Projet\\\\OKR\\\\Application\\\\OKR\\\\resources\\\\js\\\\Pages\\\\Synthese\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"d:\\\\Maurice\\\\Programmation\\\\Addvalis\\\\Projet\\\\OKR\\\\Application\\\\OKR\\\\app\\\\Support\")"
+    ]
+  }
+}

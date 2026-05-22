@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             TacheSeeder::class,
             ProspectSeeder::class,
             SuperAdminSeeder::class,
+            PrimeMensuelleSeeder::class,
         ]);
     }
 }
