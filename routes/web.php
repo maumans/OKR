@@ -18,6 +18,7 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\Parametres\ModuleSocieteController;
 use App\Http\Controllers\SyntheseController;
 use App\Http\Controllers\PrimeMensuelleController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -36,6 +37,14 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // ─── Notifications in-app ─────────────────────────────────
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
+        Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
+        Route::delete('/{notification}', [NotificationController::class, 'destroy'])->name('destroy');
+    });
 
     // Collaborateurs
     Route::resource('collaborateurs', CollaborateurController::class);
@@ -92,6 +101,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     // ─── Daily ───────────────────────────────────────────────
     Route::middleware('module:daily')->group(function () {
         Route::get('/daily', [BilanJournalierController::class, 'index'])->name('daily.index');
+        Route::get('/daily/overview', [BilanJournalierController::class, 'overview'])->name('daily.overview');
         Route::post('/daily', [BilanJournalierController::class, 'store'])->name('daily.store');
         Route::post('/daily/taches', [BilanJournalierController::class, 'storeTask'])->name('daily.taches.store');
         Route::put('/daily/taches/{tacheDaily}', [BilanJournalierController::class, 'updateTask'])->name('daily.taches.update');

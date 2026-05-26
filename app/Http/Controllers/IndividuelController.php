@@ -9,6 +9,7 @@ use App\Models\AxeObjectif;
 use App\Models\Mission;
 use App\Models\ConfigurationOkr;
 use App\Models\ConfigurationPrime;
+use App\Models\PrimeMensuelle;
 use App\Models\SeuilPerformance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -199,6 +200,14 @@ class IndividuelController extends Controller
             ->whereNotIn('statut', ['completed', 'archived'])
             ->get(['id', 'titre', 'client']);
 
+        // Prime mensuelle pour le collaborateur sélectionné
+        $primeMensuelle = $selectedCollaborateur
+            ? PrimeMensuelle::where('societe_id', $societeId)
+                ->where('collaborateur_id', $selectedCollaborateur->id)
+                ->whereDate('mois', $moisDebut)
+                ->first()
+            : null;
+
         return Inertia::render('Individuels/Index', [
             'collaborateurs'       => $collaborateurs,
             'selectedCollaborateur' => $selectedCollaborateur,
@@ -210,6 +219,7 @@ class IndividuelController extends Controller
             'primeEnAttente'       => $primeEnAttente,
             'primeTotale'          => $primeTotale,
             'seuilPrime'           => $seuilPrime,
+            'primeMensuelle'       => $primeMensuelle,
             'axes'                 => $axes,
             'seuils'               => $seuils,
             'historiqueScores'     => $historiqueScores,
@@ -278,11 +288,35 @@ class IndividuelController extends Controller
     }
 
     /**
+     * Vérifie que l'utilisateur peut modifier un objectif individuel.
+     * Règle : propriétaire OU responsable (admin/directeur/manager) de la même société.
+     */
+    private function autoriserModification(Objectif $objectif): void
+    {
+        $collab = auth()->user()->collaborateurActuel();
+
+        if (!$collab) {
+            abort(403, 'Collaborateur non trouvé.');
+        }
+
+        if ($collab->societe_id !== $objectif->societe_id) {
+            abort(403, 'Action non autorisée.');
+        }
+
+        // Propriétaire ou responsable → autorisé
+        if ($objectif->collaborateur_id === $collab->id || $collab->estResponsable()) {
+            return;
+        }
+
+        abort(403, 'Vous n\'êtes pas autorisé à modifier cet objectif.');
+    }
+
+    /**
      * Mettre à jour un objectif individuel.
      */
     public function update(Request $request, Objectif $objectif)
     {
-        Gate::authorize('update', $objectif);
+        $this->autoriserModification($objectif);
 
         $validated = $request->validate([
             'collaborateur_id' => 'required|exists:collaborateurs,id',
@@ -354,7 +388,7 @@ class IndividuelController extends Controller
     public function updateKrProgression(Request $request, ResultatCle $resultatCle)
     {
         $objectif = $resultatCle->objectif;
-        Gate::authorize('update', $objectif);
+        $this->autoriserModification($objectif);
 
         $validated = $request->validate([
             'progression'   => 'required|numeric|min:0|max:100',
@@ -388,7 +422,7 @@ class IndividuelController extends Controller
      */
     public function destroy(Objectif $objectif)
     {
-        Gate::authorize('delete', $objectif);
+        $this->autoriserModification($objectif);
         $objectif->delete();
 
         return redirect()->back()->with('success', 'Objectif supprimé.');

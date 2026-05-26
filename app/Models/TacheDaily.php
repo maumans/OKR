@@ -17,6 +17,7 @@ class TacheDaily extends Model
         'societe_id',
         'collaborateur_id',
         'tache_id',
+        'mission_id',
         'titre',
         'description',
         'statut',
@@ -51,5 +52,10 @@ class TacheDaily extends Model
     public function typeTache(): BelongsTo
     {
         return $this->belongsTo(TypeTache::class, 'type_tache');
+    }
+
+    public function mission(): BelongsTo
+    {
+        return $this->belongsTo(Mission::class);
     }
 }

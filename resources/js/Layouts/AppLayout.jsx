@@ -3,7 +3,8 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { Toaster, toast } from 'sonner';
 import Sidebar from '@/Components/Sidebar';
 import TopbarNav from '@/Components/TopbarNav';
-import { Bell, Menu, Search, LogOut, User, Settings, Sun, Moon, AlertTriangle, X } from 'lucide-react';
+import NotificationBell from '@/Components/NotificationBell';
+import { Menu, Search, LogOut, User, Settings, Sun, Moon, AlertTriangle, X } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/Components/ui/Button';
 import { UserAvatar } from '@/Components/ui/Avatar';
@@ -185,12 +186,7 @@ export default function AppLayout({ title, children }) {
                         >
                             {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-500" />}
                         </button>
-                        <Button variant="ghost" size="icon" className="relative rounded-lg bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-100 h-9 w-9">
-                            <Bell className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-white dark:border-dark-900">
-                                2
-                            </span>
-                        </Button>
+                        <NotificationBell />
 
                         {/* Menu utilisateur */}
                         {sidebarUser && (

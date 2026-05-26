@@ -6,6 +6,7 @@ use App\Models\Collaborateur;
 use App\Models\Livrable;
 use App\Models\Mission;
 use App\Models\MissionLog;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -188,6 +189,30 @@ class MissionController extends Controller
             'content'         => "Livrable \"{$livrable->nom}\" → {$next}",
         ]);
 
+        // Notification in-app au responsable du livrable + de la mission
+        $notifs = app(NotificationService::class);
+        $statutLabel = [
+            'review'    => 'en révision',
+            'validated' => 'validé',
+            'sent'      => 'envoyé',
+            'feedback'  => 'en feedback',
+            'approved'  => 'approuvé',
+            'archived'  => 'archivé',
+        ][$next] ?? $next;
+
+        $titre = "Livrable « {$livrable->nom} » {$statutLabel}";
+        $body  = "Mission : {$mission->titre} — Client : {$mission->client}";
+        $data  = ['mission_id' => $mission->id, 'livrable_id' => $livrable->id, 'url' => '/missions'];
+
+        $userIds = array_unique(array_filter([
+            $livrable->responsable?->user_id,
+            $mission->responsable?->user_id,
+        ]));
+
+        foreach ($userIds as $userId) {
+            $notifs->notifierUser($mission->societe_id, $userId, 'livrable_statut', $titre, $body, $data);
+        }
+
         return redirect()->back()->with('success', "Livrable avancé : {$next}.");
     }
 
@@ -260,6 +285,9 @@ class MissionController extends Controller
                 'responsable_id'      => $l->responsable_id,
                 'deadline_envoi'      => $l->deadline_envoi?->format('Y-m-d'),
                 'deadline_validation' => $l->deadline_validation?->format('Y-m-d'),
+                'jours_restants'      => $l->deadline_envoi
+                    ? (int) now()->startOfDay()->diffInDays($l->deadline_envoi, false)
+                    : null,
             ])->values(),
             'logs'            => $mission->logs->map(fn ($log) => [
                 'id'          => $log->id,

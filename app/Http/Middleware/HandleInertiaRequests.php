@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\NotificationApp;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -88,6 +89,28 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
             ],
+            'notifications' => fn () => $user && $societe ? [
+                'count' => NotificationApp::where('societe_id', $societe->id)
+                    ->pourUser($user->id)
+                    ->nonLues()
+                    ->count(),
+                'items' => NotificationApp::where('societe_id', $societe->id)
+                    ->pourUser($user->id)
+                    ->latest()
+                    ->limit(10)
+                    ->get()
+                    ->map(fn ($n) => [
+                        'id'         => $n->id,
+                        'type'       => $n->type,
+                        'titre'      => $n->titre,
+                        'body'       => $n->body,
+                        'data'       => $n->data,
+                        'lue'        => $n->lue,
+                        'created_at' => $n->created_at->toISOString(),
+                        'ago'        => $n->created_at->diffForHumans(),
+                    ])
+                    ->toArray(),
+            ] : ['count' => 0, 'items' => []],
         ];
     }
 }

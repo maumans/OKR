@@ -3,10 +3,13 @@ import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/Badge';
+import { Button } from '@/Components/ui/Button';
 import { UserAvatar } from '@/Components/ui/Avatar';
 import { formatNumber, formatCurrency } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, Plus, Pencil, Trash2, Award, ChevronDown, ChevronRight, Eye, X, MessageSquarePlus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/Dialog';
+import { NumberInput } from '@/Components/ui/NumberInput';
 import ObjectifModal from './Components/ObjectifModal';
 import AddTaskModal from './Components/AddTaskModal';
 import TaskDetailPanel from './Components/TaskDetailPanel';
@@ -26,6 +29,87 @@ function formatDeadline(d) {
  const day = dt.getDate();
  const w = day <= 7 ? 'Sem 1' : day <= 14 ? 'Sem 2' : day <= 21 ? 'Sem 3' : 'Fin';
  return `${w} ${m[dt.getMonth()]}`;
+}
+
+// ─── Modal gestion prime ────────────────────────────────────
+function PrimeMensuelleDialog({ open, onClose, collaborateur, prime, mois, devise }) {
+ const [form, setForm] = useState({
+  montant_max:         prime?.montant_max ?? 0,
+  seuil_pourcentage:   prime?.seuil_pourcentage ?? 80,
+  commentaire_manager: prime?.commentaire_manager ?? '',
+  validee:             prime?.validee ?? false,
+ });
+ const [errors, setErrors] = useState({});
+
+ const handleSubmit = () => {
+  router.put(
+   route('synthese.primes.update', [collaborateur.id, mois]),
+   form,
+   {
+    preserveState: true,
+    onSuccess: () => { toast.success('Prime enregistrée'); onClose(); },
+    onError: (e) => setErrors(e),
+   }
+  );
+ };
+
+ return (
+  <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+   <DialogContent className="max-w-[480px]">
+    <DialogHeader>
+     <DialogTitle className="flex items-center gap-2">
+      <Award className="h-4 w-4 text-amber-500" />
+      Prime — {collaborateur?.prenom} {collaborateur?.nom}
+     </DialogTitle>
+    </DialogHeader>
+    <div className="space-y-4 py-2">
+     <div>
+      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Prime maximum</label>
+      <NumberInput
+       value={form.montant_max}
+       onChange={(v) => setForm(f => ({ ...f, montant_max: v }))}
+       suffix={devise?.code ?? 'GNF'}
+       decimals={0}
+       error={errors.montant_max}
+      />
+     </div>
+     <div>
+      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Seuil d'atteinte (%)</label>
+      <NumberInput
+       value={form.seuil_pourcentage}
+       onChange={(v) => setForm(f => ({ ...f, seuil_pourcentage: v }))}
+       suffix="%"
+       decimals={0}
+       error={errors.seuil_pourcentage}
+      />
+     </div>
+     <div>
+      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Commentaire manager</label>
+      <textarea
+       rows={3}
+       value={form.commentaire_manager}
+       onChange={(e) => setForm(f => ({ ...f, commentaire_manager: e.target.value }))}
+       className="w-full rounded-xl border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-none"
+       placeholder="Remarques, justification…"
+      />
+     </div>
+     <label className="flex items-center gap-2 cursor-pointer">
+      <input
+       type="checkbox"
+       checked={form.validee}
+       onChange={(e) => setForm(f => ({ ...f, validee: e.target.checked }))}
+       className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+      />
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Prime validée et accordée</span>
+     </label>
+    </div>
+    <DialogFooter>
+     <Button variant="outline" onClick={onClose}>Annuler</Button>
+     <Button onClick={handleSubmit}>Enregistrer</Button>
+    </DialogFooter>
+   </DialogContent>
+  </Dialog>
+ );
 }
 
 // ─── KR Progress Row with slider + justifier + tasks ────────
@@ -241,12 +325,13 @@ function ObjectifCard({ obj, seuils, seuilPrime, onEdit, onDelete, onAddTask, on
 export default function IndividuelsIndex({
  collaborateurs = [], selectedCollaborateur, moisActuel, moisOptions = [],
  objectifs = [], scoreGlobal = 0, progressionParAxe = [],
- primeEnAttente = 0, primeTotale = 0, seuilPrime = 80,
+ primeEnAttente = 0, primeTotale = 0, seuilPrime = 80, primeMensuelle = null,
  axes = [], seuils = [], filters = {}, auth, missions = []
 }) {
  const devise = auth?.societe?.devise;
  const [showCreate, setShowCreate] = useState(false);
  const [editObj, setEditObj] = useState(null);
+ const [showPrimeDialog, setShowPrimeDialog] = useState(false);
  const [taskModal, setTaskModal] = useState({ open: false, objectifId: null, resultatsCles: [], defaultResultatCleId: null });
  const [taskPanel, setTaskPanel] = useState({ tache: null, krDescription: null });
 
@@ -298,7 +383,8 @@ export default function IndividuelsIndex({
  className="flex items-center gap-1.5 px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-lg shadow-sm transition-all">
  <Plus className="h-3.5 w-3.5" /> Objectif
  </button>
- <button className="flex items-center gap-1.5 px-3 py-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10 text-xs font-semibold rounded-lg border border-amber-200 dark:border-amber-800 transition-all">
+ <button onClick={() => setShowPrimeDialog(true)}
+  className="flex items-center gap-1.5 px-3 py-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10 text-xs font-semibold rounded-lg border border-amber-200 dark:border-amber-800 transition-all">
  <Award className="h-3.5 w-3.5" /> Prime
  </button>
  </div>
@@ -370,6 +456,16 @@ export default function IndividuelsIndex({
  collaborateurs={collaborateurs} onClose={() => setTaskPanel({ tache: null, krDescription: null })} auth={auth} />
  )}
  </AnimatePresence>
+ {selectedCollaborateur && (
+ <PrimeMensuelleDialog
+  open={showPrimeDialog}
+  onClose={() => setShowPrimeDialog(false)}
+  collaborateur={selectedCollaborateur}
+  prime={primeMensuelle}
+  mois={moisActuel}
+  devise={devise}
+ />
+ )}
  </div>
  </AppLayout>
  );

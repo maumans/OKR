@@ -7,7 +7,7 @@ import { UserAvatar } from '@/Components/ui/Avatar';
 import { motion } from 'framer-motion';
 import {
     Users, Target, CheckSquare, TrendingUp, Clock, Award,
-    AlertCircle, AlertTriangle, ArrowRight, Flame, BarChart3, Building2, X
+    AlertCircle, AlertTriangle, ArrowRight, Flame, BarChart3, Building2, X, Package
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { useState } from 'react';
@@ -63,7 +63,8 @@ function MiniStat({ icon: Icon, label, value, subtitle, color = 'primary', delay
 export default function Dashboard({
     stats, dernieresTaches = [], derniersObjectifs = [], noSociete,
     progressionParAxe = [], repartitionTaches = [], pipeline = [],
-    tachesAlerte = [], topCollaborateurs = [], seuils = [], periodes = [], axes = [], filters = {}, collaborateurNom = ''
+    tachesAlerte = [], topCollaborateurs = [], seuils = [], periodes = [], axes = [], filters = {}, collaborateurNom = '',
+    livrables_urgents = []
 }) {
     const [periodeFilter, setPeriodeFilter] = useState(filters?.periode_id || '');
     const [axeFilter, setAxeFilter] = useState(filters?.axe_objectif_id || '');
@@ -158,6 +159,51 @@ export default function Dashboard({
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* ═══ Livrables urgents ══════════════════════════════ */}
+            {livrables_urgents.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="mb-5">
+                    <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-xl px-4 py-3">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Package className="h-4 w-4 text-amber-500" />
+                            <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-400">Livrables urgents</h3>
+                            <Badge variant="warning" className="text-[10px]">{livrables_urgents.length}</Badge>
+                        </div>
+                        <div className="space-y-1.5">
+                            {livrables_urgents.map(l => {
+                                const isOverdue = l.jours_restants <= 0;
+                                return (
+                                    <div key={l.id} className="flex items-center justify-between text-xs gap-2">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            {isOverdue
+                                                ? <AlertTriangle className="h-3 w-3 text-red-400 shrink-0" />
+                                                : <Clock className="h-3 w-3 text-amber-400 shrink-0" />
+                                            }
+                                            <span className="text-gray-800 dark:text-gray-200 font-medium truncate">{l.nom}</span>
+                                            <span className="text-gray-400 shrink-0 hidden sm:inline">— {l.mission.titre}{l.mission.client ? ` · ${l.mission.client}` : ''}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            {l.responsable && <span className="text-gray-400 text-[10px] hidden md:inline">{l.responsable}</span>}
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                                                isOverdue
+                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    : l.jours_restants <= 3
+                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                            }`}>
+                                                {isOverdue ? `${Math.abs(l.jours_restants)}j de retard` : `${l.jours_restants}j restant${l.jours_restants > 1 ? 's' : ''}`}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <Link href={route('missions.index')} className="mt-3 flex items-center justify-center gap-1 text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 font-medium">
+                            Voir les missions <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
                     </div>
                 </motion.div>
             )}

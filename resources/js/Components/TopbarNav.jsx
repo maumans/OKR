@@ -10,6 +10,7 @@ import { UserAvatar } from '@/Components/ui/Avatar';
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/Components/ui/DropdownMenu';
+import NotificationBell from '@/Components/NotificationBell';
 
 const ALL_NAV_ITEMS = [
     { name: 'OKR',           href: 'objectifs.index',   color: 'bg-blue-500',    textColor: 'text-blue-500',    moduleCode: 'okr' },
@@ -111,6 +112,7 @@ export default function TopbarNav() {
                         >
                             {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
                         </button>
+                        <NotificationBell variant="dark" />
                         <Link href={route('parametres.index')} className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded transition-colors">
                             <Settings className="h-3.5 w-3.5" />
                         </Link>

@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/Badge';
 import { motion } from 'framer-motion';
 import {
  Calendar, Plus, ClipboardList, PenLine, History, CheckCircle2,
  Circle, Trash2, Edit2, Timer, TrendingUp, Star, AlertTriangle,
- ChevronDown, ChevronUp,
+ ChevronDown, ChevronUp, LayoutGrid,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
 import { Input } from '@/Components/ui/Input';
@@ -133,7 +133,7 @@ const collabColors = [
 export default function DailyBilan({
  collaborateurs = [], selectedCollaborateur, bilan,
  tachesDuJour = [], historique = [], tachesOkr = {},
- typesTaches = [], scoreJour = 0, currentDate, isOwn,
+ typesTaches = [], missions = [], scoreJour = 0, currentDate, isOwn,
 }) {
  const [showHistory, setShowHistory] = useState(false);
  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -153,7 +153,7 @@ export default function DailyBilan({
  put: putTask, reset: resetTask, errors: taskErrors, processing: taskProcessing,
  } = useForm({
  titre: '', description: '', priorite: 'normale', date: currentDate,
- tache_id: '', type_tache: '', categorie: '', temps_estime: '',
+ tache_id: '', mission_id: '', type_tache: '', categorie: '', temps_estime: '',
  });
 
  // ─── Auto stats from tachesDuJour (always fresh from props) ──────────────
@@ -222,6 +222,7 @@ export default function DailyBilan({
  priorite: task.priorite,
  date: task.date,
  tache_id: task.tache_id || '',
+ mission_id: task.mission_id || '',
  type_tache: task.type_tache || '',
  categorie: task.categorie || '',
  temps_estime: task.temps_estime || '',
@@ -229,7 +230,7 @@ export default function DailyBilan({
  });
  } else {
  setEditingTask(null);
- setTaskData({ titre:'', description:'', priorite:'normale', date:currentDate, tache_id:'', type_tache:'', categorie:'', temps_estime:'' });
+ setTaskData({ titre:'', description:'', priorite:'normale', date:currentDate, tache_id:'', mission_id:'', type_tache:'', categorie:'', temps_estime:'' });
  }
  setIsTaskModalOpen(true);
  };
@@ -302,6 +303,12 @@ export default function DailyBilan({
  <button onClick={goToday} className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700 transition-all">
  Aujourd'hui
  </button>
+ <Link
+ href={route('daily.overview')}
+ className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700 transition-all flex items-center gap-1"
+ >
+ <LayoutGrid className="h-3 w-3" /> Vue d'ensemble
+ </Link>
  {isOwn && (
  <button onClick={() => openTaskModal()}
  className="px-3 py-1.5 text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 rounded-lg shadow-sm transition-all flex items-center gap-1">
@@ -712,6 +719,25 @@ export default function DailyBilan({
  ))}
  </select>
  </div>
+
+ {/* Mission / Projet associé */}
+ {missions.length > 0 && (
+ <div className="space-y-1.5">
+ <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+ Mission / Projet <span className="text-gray-400 font-normal">(optionnel)</span>
+ </label>
+ <select
+ value={taskData.mission_id || ''}
+ onChange={e => setTaskData('mission_id', e.target.value)}
+ className="w-full h-9 px-3 text-sm border rounded-lg border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+ >
+ <option value="">— Aucune mission —</option>
+ {missions.map(m => (
+ <option key={m.id} value={m.id}>{m.titre} — {m.client}</option>
+ ))}
+ </select>
+ </div>
+ )}
 
  {/* Catégorie d'activité */}
  <div className="space-y-1.5">

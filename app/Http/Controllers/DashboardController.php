@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AxeObjectif;
 use App\Models\Collaborateur;
+use App\Models\Livrable;
 use App\Models\Objectif;
 use App\Models\Periode;
 use App\Models\Prospect;
@@ -171,28 +172,54 @@ class DashboardController extends Controller
             ->take(10)
             ->get()
             ->map(fn($a) => [
-                'id' => $a->id,
-                'type' => $a->type,
-                'details' => $a->details,
-                'collaborateur' => $a->collaborateur?->nomComplet() ?? 'Système',
-                'date' => $a->created_at->diffForHumans(),
+                'id'           => $a->id,
+                'type'         => $a->type,
+                'details'      => $a->details,
+                'collaborateur'=> $a->collaborateur?->nomComplet() ?? 'Système',
+                'date'         => $a->created_at->diffForHumans(),
+            ]);
+
+        // ─── Livrables urgents (deadline ≤ 7 jours ou dépassée) ──
+        $livrables_urgents = Livrable::with(['mission:id,titre,client,societe_id', 'responsable:id,nom,prenom'])
+            ->whereHas('mission', fn ($q) => $q->where('societe_id', $societeId)
+                ->whereNotIn('statut', ['completed', 'archived']))
+            ->whereNotNull('deadline_envoi')
+            ->whereNotIn('statut', ['approved', 'archived'])
+            ->whereDate('deadline_envoi', '<=', now()->addDays(7))
+            ->orderBy('deadline_envoi')
+            ->get()
+            ->map(fn ($l) => [
+                'id'             => $l->id,
+                'nom'            => $l->nom,
+                'statut'         => $l->statut,
+                'deadline_envoi' => $l->deadline_envoi->format('Y-m-d'),
+                'jours_restants' => (int) now()->startOfDay()->diffInDays($l->deadline_envoi, false),
+                'mission'        => [
+                    'id'     => $l->mission->id,
+                    'titre'  => $l->mission->titre,
+                    'client' => $l->mission->client,
+                ],
+                'responsable' => $l->responsable
+                    ? $l->responsable->prenom . ' ' . $l->responsable->nom
+                    : null,
             ]);
 
         return Inertia::render('Dashboard', [
-            'stats' => $stats,
-            'dernieresTaches' => $dernieresTaches,
+            'stats'             => $stats,
+            'dernieresTaches'   => $dernieresTaches,
             'derniersObjectifs' => $derniersObjectifs,
             'progressionParAxe' => $progressionParAxe,
             'repartitionTaches' => $repartitionTaches,
-            'pipeline' => $pipeline,
-            'tachesAlerte' => $tachesAlerte,
+            'pipeline'          => $pipeline,
+            'tachesAlerte'      => $tachesAlerte,
             'topCollaborateurs' => $topCollaborateurs,
-            'activiteRecente' => $activiteRecente,
-            'seuils' => $seuils,
-            'periodes' => $periodes,
-            'axes' => $axes,
-            'filters' => $request->only(['periode_id', 'axe_objectif_id']),
-            'collaborateurNom' => $collaborateur->prenom,
+            'activiteRecente'   => $activiteRecente,
+            'livrables_urgents' => $livrables_urgents,
+            'seuils'            => $seuils,
+            'periodes'          => $periodes,
+            'axes'              => $axes,
+            'filters'           => $request->only(['periode_id', 'axe_objectif_id']),
+            'collaborateurNom'  => $collaborateur->prenom,
         ]);
     }
 }
