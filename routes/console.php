@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Alertes livrables : chaque matin à 8h00
 Schedule::command('livrable:alerts')->dailyAt('08:00');
+
+// Rappel Daily : chaque jour ouvré à 11h00
+Schedule::command('daily:rappel')->dailyAt('11:00');

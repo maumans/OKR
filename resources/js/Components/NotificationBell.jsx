@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { Bell, Check, CheckCheck, Trash2, Package, AlertTriangle, TrendingUp, Award, Info } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Package, AlertTriangle, TrendingUp, Award, Info, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const TYPE_CONFIG = {
-    livrable_deadline: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-    livrable_statut:   { icon: Package,       color: 'text-sky-500',   bg: 'bg-sky-50 dark:bg-sky-900/20'   },
-    mission_critique:  { icon: AlertTriangle, color: 'text-red-500',   bg: 'bg-red-50 dark:bg-red-900/20'   },
-    prime_validee:     { icon: Award,         color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20'},
-    default:           { icon: Info,          color: 'text-gray-400',  bg: 'bg-gray-50 dark:bg-dark-800'    },
+    livrable_deadline: { icon: AlertTriangle, color: 'text-amber-500',  bg: 'bg-amber-50 dark:bg-amber-900/20'   },
+    livrable_statut:   { icon: Package,       color: 'text-sky-500',    bg: 'bg-sky-50 dark:bg-sky-900/20'       },
+    mission_critique:  { icon: AlertTriangle, color: 'text-red-500',    bg: 'bg-red-50 dark:bg-red-900/20'       },
+    prime_validee:     { icon: Award,         color: 'text-green-500',  bg: 'bg-green-50 dark:bg-green-900/20'   },
+    daily_rappel:      { icon: ClipboardList, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-900/20' },
+    default:           { icon: Info,          color: 'text-gray-400',   bg: 'bg-gray-50 dark:bg-dark-800'        },
 };
 
 function NotifIcon({ type, className = 'h-4 w-4' }) {
