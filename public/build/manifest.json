@@ -1472,7 +1472,7 @@
     ]
   },
   "resources/js/Pages/OKR/Index.jsx": {
-    "file": "assets/Index-D5BC3OBJ.js",
+    "file": "assets/Index-C6fOI1Wx.js",
     "name": "Index",
     "src": "resources/js/Pages/OKR/Index.jsx",
     "isDynamicEntry": true,
@@ -1504,7 +1504,7 @@
     ]
   },
   "resources/js/Pages/OKR/Show.jsx": {
-    "file": "assets/Show-DR_swh4l.js",
+    "file": "assets/Show-ByxcbED_.js",
     "name": "Show",
     "src": "resources/js/Pages/OKR/Show.jsx",
     "isDynamicEntry": true,
@@ -2123,7 +2123,7 @@
     ]
   },
   "resources/js/app.jsx": {
-    "file": "assets/app-CNJsDcxb.js",
+    "file": "assets/app-BFTICyoq.js",
     "name": "app",
     "src": "resources/js/app.jsx",
     "isEntry": true,
@@ -2196,7 +2196,7 @@
       "resources/js/Pages/Welcome.jsx"
     ],
     "css": [
-      "assets/app-gnrGDn6Z.css"
+      "assets/app-BOui9Jls.css"
     ]
   }
 }

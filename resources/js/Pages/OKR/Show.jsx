@@ -57,7 +57,11 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
     };
 
     const { data, setData, put, processing } = useForm({
-        resultats: objectif.resultats_cles.map(r => ({ id: r.id, progression: r.progression }))
+        resultats: objectif.resultats_cles.map(r => ({
+            id: r.id,
+            progression: r.progression,
+            valeur_actuelle: r.valeur_actuelle ?? 0,
+        }))
     });
 
     const { put: putStatus } = useForm({});
@@ -78,6 +82,23 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
         if (val > 100) val = 100;
         const newResultats = [...data.resultats];
         newResultats[index].progression = val;
+        setData('resultats', newResultats);
+    };
+
+    const handleValeurActuelleChange = (index, value) => {
+        const kr = objectif.resultats_cles[index];
+        const cible = Number(kr.valeur_cible) || 0;
+        const actuelle = Number(value) || 0;
+        const progression = cible > 0 ? Math.min(Math.round((actuelle / cible) * 100 * 10) / 10, 100) : 0;
+        const newResultats = [...data.resultats];
+        newResultats[index].valeur_actuelle = actuelle;
+        newResultats[index].progression = progression;
+        setData('resultats', newResultats);
+    };
+
+    const handleBooleanToggle = (index, checked) => {
+        const newResultats = [...data.resultats];
+        newResultats[index].progression = checked ? 100 : 0;
         setData('resultats', newResultats);
     };
 
@@ -197,9 +218,16 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                             <CardContent className="space-y-6">
                                 {objectif.resultats_cles.map((resultat, index) => {
                                     const tachesKr = taches.filter(t => t.resultat_cle_id === resultat.id);
+                                    const typeValeur = resultat.type_resultat_cle?.type_valeur;
+                                    const isNumeric = typeValeur === 'number' || typeValeur === 'currency';
+                                    const isBoolean = typeValeur === 'boolean';
+                                    const currentProgression = data.resultats[index].progression;
+                                    const currentValeurActuelle = data.resultats[index].valeur_actuelle;
+                                    const isEditable = objectif.statut === 'actif';
+
                                     return (
                                         <div key={resultat.id} className="p-4 rounded-xl border border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
-                                            <div className="flex justify-between items-start mb-2">
+                                            <div className="flex justify-between items-start mb-3">
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-medium text-gray-900 dark:text-gray-100">{resultat.description}</p>
                                                     <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -207,7 +235,9 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                                             <Badge variant="outline" className="text-[10px]">{resultat.type_resultat_cle.nom}</Badge>
                                                         )}
                                                         {resultat.valeur_cible && (
-                                                            <span className="text-xs text-gray-400">Cible : {formatNumber(resultat.valeur_cible)}{resultat.unite ? ` ${resultat.unite}` : ''}</span>
+                                                            <span className="text-xs text-gray-400">
+                                                                Cible : {formatNumber(resultat.valeur_cible)}{resultat.unite ? ` ${resultat.unite}` : ''}
+                                                            </span>
                                                         )}
                                                         {isPondere && resultat.poids && (
                                                             <span className="text-xs text-gray-400">Poids : {resultat.poids}</span>
@@ -224,22 +254,64 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-4">
-                                                <Progress value={data.resultats[index].progression} className="flex-1" variant={data.resultats[index].progression >= 100 ? 'success' : 'default'} />
-                                                {objectif.statut === 'actif' ? (
-                                                    <div className="flex items-center gap-1 shrink-0">
-                                                        <NumberInput
-                                                            decimals={1}
-                                                            className="w-28 font-semibold"
-                                                            value={data.resultats[index].progression}
-                                                            onChange={(v) => handleProgressChange(index, v)}
-                                                            suffix="%"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <span className="font-bold text-gray-700 dark:text-gray-300 w-12 text-right">{resultat.progression}%</span>
-                                                )}
+
+                                            {/* ── Barre de progression ── */}
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <Progress value={currentProgression} className="flex-1" variant={currentProgression >= 100 ? 'success' : 'default'} />
+                                                <span className="text-sm font-bold w-12 text-right shrink-0" style={{ color: getSeuilColor(currentProgression, seuils) || undefined }}>
+                                                    {Math.round(currentProgression)}%
+                                                </span>
                                             </div>
+
+                                            {/* ── Input selon le type ── */}
+                                            {isEditable && (
+                                                <div className="mt-2">
+                                                    {isBoolean ? (
+                                                        /* Toggle Oui / Non */
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleBooleanToggle(index, currentProgression < 100)}
+                                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${currentProgression >= 100 ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                            >
+                                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${currentProgression >= 100 ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                            </button>
+                                                            <span className={`text-sm font-medium ${currentProgression >= 100 ? 'text-emerald-600' : 'text-gray-500'}`}>
+                                                                {currentProgression >= 100 ? 'Atteint' : 'Non atteint'}
+                                                            </span>
+                                                        </div>
+                                                    ) : isNumeric ? (
+                                                        /* Valeur actuelle → calcul auto % */
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="flex flex-col gap-1 flex-1 max-w-xs">
+                                                                <label className="text-[11px] text-gray-500 uppercase tracking-wide">Valeur actuelle</label>
+                                                                <NumberInput
+                                                                    decimals={2}
+                                                                    className="font-semibold"
+                                                                    value={currentValeurActuelle}
+                                                                    onChange={(v) => handleValeurActuelleChange(index, v)}
+                                                                    suffix={resultat.unite || undefined}
+                                                                />
+                                                            </div>
+                                                            <div className="text-xs text-gray-400 mt-4 shrink-0">
+                                                                = {Math.round(currentProgression)}% de la cible
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        /* Saisie directe % */
+                                                        <div className="flex flex-col gap-1 max-w-[120px]">
+                                                            <label className="text-[11px] text-gray-500 uppercase tracking-wide">Progression</label>
+                                                            <NumberInput
+                                                                decimals={1}
+                                                                className="font-semibold"
+                                                                value={currentProgression}
+                                                                onChange={(v) => handleProgressChange(index, v)}
+                                                                suffix="%"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}

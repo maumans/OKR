@@ -378,7 +378,7 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
  preserveState: true,
  onSuccess: () => {
  toast.success('Tâche créée avec succès');
- setTaskData({ titre: '', priorite: 'normale', eisenhower: '', collaborateur_id: String(defaultCollaborateurId || ''), resultat_cle_id: String(defaultResultatCleId || resultatsCles[0]?.id || ''), date: '' });
+ setTaskData({ titre: '', description: '', priorite: 'normale', eisenhower: '', collaborateur_id: String(defaultCollaborateurId || ''), resultat_cle_id: String(defaultResultatCleId || resultatsCles[0]?.id || ''), date: '', mission_id: '', mode_operatoire: [], outils: '', definition_done: [] });
  setSubmitting(false);
  onClose();
  },

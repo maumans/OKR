@@ -355,6 +355,28 @@ class ObjectifController extends Controller
                 'type_nom'           => $objectif->typeObjectif?->nom,
                 'niveau'             => $objectif->typeObjectif?->niveau,
                 'nom_complet'        => $objectif->collaborateur->nomComplet(),
+                'resultats_cles'     => $objectif->resultatsCles->map(fn ($r) => [
+                    'id'                   => $r->id,
+                    'description'          => $r->description,
+                    'description_detaillee'=> $r->description_detaillee,
+                    'progression'          => $r->progression,
+                    'valeur_cible'         => $r->valeur_cible,
+                    'valeur_actuelle'      => $r->valeur_actuelle,
+                    'poids'                => $r->poids,
+                    'unite'                => $r->unite,
+                    'type_resultat_cle'    => $r->typeResultatCle ? [
+                        'id'         => $r->typeResultatCle->id,
+                        'nom'        => $r->typeResultatCle->nom,
+                        'type_valeur'=> $r->typeResultatCle->type_valeur,
+                    ] : null,
+                    'historique_progressions' => $r->historiqueProgressions->map(fn ($h) => [
+                        'id'              => $h->id,
+                        'progression'     => $h->progression,
+                        'justification'   => $h->justification,
+                        'collaborateur'   => $h->collaborateur?->nomComplet(),
+                        'created_at'      => $h->created_at->format('d/m/Y H:i'),
+                    ]),
+                ])->toArray(),
             ]),
             'taches'        => $taches,
             'collaborateurs' => $collaborateurs,
@@ -461,29 +483,55 @@ class ObjectifController extends Controller
         Gate::authorize('update', $objectif);
 
         $validated = $request->validate([
-            'resultats' => 'required|array',
-            'resultats.*.id' => 'required|exists:resultats_cles,id',
-            'resultats.*.progression' => 'required|numeric|min:0|max:100',
-            'resultats.*.justification' => 'nullable|string',
+            'resultats'                    => 'required|array',
+            'resultats.*.id'               => 'required|exists:resultats_cles,id',
+            'resultats.*.progression'      => 'nullable|numeric|min:0|max:100',
+            'resultats.*.valeur_actuelle'  => 'nullable|numeric|min:0',
+            'resultats.*.justification'    => 'nullable|string',
         ]);
 
         $collaborateurId = $request->user()->collaborateurActuel()?->id;
 
         DB::transaction(function () use ($validated, $objectif, $collaborateurId) {
             foreach ($validated['resultats'] as $data) {
-                $kr = ResultatCle::where('id', $data['id'])
+                $kr = ResultatCle::with('typeResultatCle')
+                    ->where('id', $data['id'])
                     ->where('objectif_id', $objectif->id)
                     ->first();
-                    
-                if ($kr && (float)$kr->progression !== (float)$data['progression']) {
-                    event(new ProgressionKrMiseAJour(
-                        $kr,
-                        $kr->progression,
-                        $data['progression'],
-                        $data['justification'] ?? null,
-                        $collaborateurId
-                    ));
-                    $kr->update(['progression' => $data['progression']]);
+
+                if (!$kr) continue;
+
+                $typeValeur = $kr->typeResultatCle?->type_valeur;
+                $nouvelleProgression = (float) ($data['progression'] ?? $kr->progression);
+                $nouvelleValeurActuelle = isset($data['valeur_actuelle']) ? (float) $data['valeur_actuelle'] : $kr->valeur_actuelle;
+
+                // Calcul automatique selon le type du KR
+                if (in_array($typeValeur, ['number', 'currency']) && isset($data['valeur_actuelle'])) {
+                    $cible = (float) $kr->valeur_cible;
+                    $nouvelleProgression = $cible > 0
+                        ? min(round(($nouvelleValeurActuelle / $cible) * 100, 2), 100)
+                        : 0;
+                } elseif ($typeValeur === 'boolean') {
+                    $nouvelleProgression = $nouvelleProgression >= 50 ? 100 : 0;
+                }
+
+                $progressionChanged = (float) $kr->progression !== $nouvelleProgression;
+                $valeurChanged = (float) $kr->valeur_actuelle !== $nouvelleValeurActuelle;
+
+                if ($progressionChanged || $valeurChanged) {
+                    if ($progressionChanged) {
+                        event(new ProgressionKrMiseAJour(
+                            $kr,
+                            $kr->progression,
+                            $nouvelleProgression,
+                            $data['justification'] ?? null,
+                            $collaborateurId
+                        ));
+                    }
+                    $kr->update([
+                        'progression'     => $nouvelleProgression,
+                        'valeur_actuelle' => $nouvelleValeurActuelle,
+                    ]);
                 }
             }
         });
