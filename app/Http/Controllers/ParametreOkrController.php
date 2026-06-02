@@ -13,18 +13,22 @@ use App\Models\ConfigurationPrime;
 use App\Models\PalierPrime;
 use App\Models\TemplateObjectif;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 
-class ParametreOkrController extends Controller
+class ParametreOkrController extends Controller implements HasMiddleware
 {
-    public function __construct()
+    public static function middleware(): array
     {
-        $this->middleware(function ($request, $next) {
-            if (!$request->user() || !$request->user()->aAccesGlobal()) {
-                abort(403, 'Accès réservé aux administrateurs et directeurs.');
-            }
-            return $next($request);
-        });
+        return [
+            new Middleware(function ($request, $next) {
+                if (!$request->user() || !$request->user()->aAccesGlobal()) {
+                    abort(403, 'Accès réservé aux administrateurs et directeurs.');
+                }
+                return $next($request);
+            }),
+        ];
     }
 
     public function index()
