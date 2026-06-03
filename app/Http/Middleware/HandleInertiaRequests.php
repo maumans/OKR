@@ -31,7 +31,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        $collaborateur = $user?->collaborateurActuel()?->load('departement');
+        $collaborateur = $user?->collaborateurActuel()?->load(['departement', 'roles']);
         $societe = $collaborateur?->societe?->load('devise');
 
         return [
@@ -45,7 +45,7 @@ class HandleInertiaRequests extends Middleware
                     'nom'             => $collaborateur->nom,
                     'prenom'          => $collaborateur->prenom,
                     'poste'           => $collaborateur->poste,
-                    'role'            => $collaborateur->role,
+                    'roles'           => $collaborateur->roles->pluck('code')->toArray(),
                     'actif'           => $collaborateur->actif,
                     'nom_complet'     => $collaborateur->nomComplet(),
                     'departement_id'  => $collaborateur->departement_id,

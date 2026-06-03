@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useForm, router, Link } from '@inertiajs/react';
+import { useForm, router, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/Badge';
 import { motion } from 'framer-motion';
@@ -135,6 +135,10 @@ export default function DailyBilan({
  tachesDuJour = [], historique = [], tachesOkr = {},
  typesTaches = [], missions = [], scoreJour = 0, currentDate, isOwn,
 }) {
+ const { auth } = usePage().props;
+ const canManage = auth?.collaborateur?.isResponsable; // admin, directeur, manager
+ const canAct = isOwn || canManage;
+
  const [showHistory, setShowHistory] = useState(false);
  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
  const [editingTask, setEditingTask] = useState(null);
@@ -154,6 +158,7 @@ export default function DailyBilan({
  } = useForm({
  titre: '', description: '', priorite: 'normale', date: currentDate,
  tache_id: '', mission_id: '', type_tache: '', categorie: '', temps_estime: '',
+ collaborateur_id: '',
  });
 
  // ─── Auto stats from tachesDuJour (always fresh from props) ──────────────
@@ -230,7 +235,7 @@ export default function DailyBilan({
  });
  } else {
  setEditingTask(null);
- setTaskData({ titre:'', description:'', priorite:'normale', date:currentDate, tache_id:'', mission_id:'', type_tache:'', categorie:'', temps_estime:'' });
+ setTaskData({ titre:'', description:'', priorite:'normale', date:currentDate, tache_id:'', mission_id:'', type_tache:'', categorie:'', temps_estime:'', collaborateur_id: selectedCollaborateur.id });
  }
  setIsTaskModalOpen(true);
  };
@@ -246,13 +251,13 @@ export default function DailyBilan({
  };
 
  const toggleTaskStatus = (t) => {
- if (!isOwn) return;
+ if (!canAct) return;
  const newStatus = t.statut === 'termine' ? 'a_faire' : 'termine';
  router.put(route('daily.taches.status', t.id), { statut: newStatus }, { preserveScroll: true });
  };
 
  const deleteTask = (t) => {
- if (!isOwn) return;
+ if (!canAct) return;
  if (confirm('Supprimer cette tâche ?')) {
  router.delete(route('daily.taches.destroy', t.id), { preserveScroll: true });
  }
@@ -309,7 +314,7 @@ export default function DailyBilan({
  >
  <LayoutGrid className="h-3 w-3" /> Vue d'ensemble
  </Link>
- {isOwn && (
+ {canAct && (
  <button onClick={() => openTaskModal()}
  className="px-3 py-1.5 text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 rounded-lg shadow-sm transition-all flex items-center gap-1">
  <Plus className="h-3 w-3" /> Tâche
@@ -341,7 +346,7 @@ export default function DailyBilan({
  return (
  <div key={t.id}
  className="group flex items-start gap-3 px-5 py-3 border-b border-gray-50 dark:border-dark-800/50 last:border-0 hover:bg-gray-50/50 dark:hover:bg-dark-800/30 transition-colors">
- <button onClick={() => toggleTaskStatus(t)} disabled={!isOwn}
+ <button onClick={() => toggleTaskStatus(t)} disabled={!canAct}
  className="mt-0.5 shrink-0 text-gray-300 hover:text-emerald-500 transition-colors disabled:cursor-default disabled:hover:text-gray-300">
  {isDone
  ? <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -421,7 +426,7 @@ export default function DailyBilan({
  </div>
  </div>
 
- {isOwn && (
+ {canAct && (
  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
  <button onClick={() => openTaskModal(t)}
  className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors" title="Modifier">
@@ -440,7 +445,7 @@ export default function DailyBilan({
  ) : (
  <div className="px-5 py-8 text-center border-t border-gray-100 dark:border-dark-800">
  <p className="text-sm text-gray-400">Aucune tâche déclarée pour cette journée.</p>
- {isOwn && <p className="text-xs text-gray-400 mt-1">Clique sur <span className="font-semibold text-orange-500">+ Tâche</span> pour commencer.</p>}
+ {canAct && <p className="text-xs text-gray-400 mt-1">Clique sur <span className="font-semibold text-orange-500">+ Tâche</span> pour commencer.</p>}
  </div>
  )}
  </div>
@@ -672,7 +677,7 @@ export default function DailyBilan({
 
  {/* ═══ Modal Tâche ═══ */}
  <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
- <DialogContent className="max-h-[90vh] overflow-hidden p-0 flex flex-col max-w-lg">
+ <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-hidden p-0 flex flex-col max-w-lg">
  <div className="px-6 pt-6 pb-4 shrink-0 border-b border-gray-100 dark:border-dark-700">
  <DialogHeader>
  <DialogTitle>{editingTask ? 'Modifier la tâche' : 'Nouvelle tâche du jour'}</DialogTitle>

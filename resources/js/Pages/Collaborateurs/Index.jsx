@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
 import { Badge } from '@/Components/ui/Badge';
@@ -40,6 +40,17 @@ function StatCard({ icon: Icon, label, value, color, delay = 0 }) {
 }
 
 export default function CollaborateursIndex({ collaborateurs, filters, stats, departements = [] }) {
+    const { auth } = usePage().props;
+    const aAccesGlobal  = auth?.collaborateur?.aAccesGlobal;
+    const isManager     = auth?.collaborateur?.isManager;
+    const currentDeptId = auth?.collaborateur?.departement_id;
+    const currentId     = auth?.collaborateur?.id;
+
+    // Droits d'action sur un collaborateur donné
+    const canEdit   = (c) => aAccesGlobal || (isManager && c.departement_id === currentDeptId);
+    const canToggle = () => aAccesGlobal;
+    const canDelete = () => aAccesGlobal;
+
     const [search, setSearch] = useState(filters?.search || '');
     const [activeRole, setActiveRole] = useState(filters?.role || '');
     const [activeDept, setActiveDept] = useState(filters?.departement_id || '');
@@ -255,7 +266,6 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats, de
                                 </TableCell>
                             </TableRow>
                         ) : collaborateurs.data.map((collab, i) => {
-                            const role = ROLE_CONFIG[collab.role] || ROLE_CONFIG.collaborateur;
                             return (
                                 <motion.tr
                                     key={collab.id}
@@ -303,12 +313,19 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats, de
                                         )}
                                     </TableCell>
 
-                                    {/* Rôle */}
+                                    {/* Rôles */}
                                     <TableCell>
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${role.color}`}>
-                                            <span className={`h-1.5 w-1.5 rounded-full ${role.dot}`} />
-                                            {role.label}
-                                        </span>
+                                        <div className="flex flex-wrap gap-1">
+                                            {(collab.roles || []).map(r => {
+                                                const cfg = ROLE_CONFIG[r.code] || ROLE_CONFIG.collaborateur;
+                                                return (
+                                                    <span key={r.code} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${cfg.color}`}>
+                                                        <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                                                        {cfg.label}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
                                     </TableCell>
 
                                     {/* Statut */}
@@ -327,42 +344,58 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats, de
 
                                     {/* Actions */}
                                     <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
+                                        {canEdit(collab) ? (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon-sm" className="text-gray-400 hover:text-gray-700 dark:hover:text-white">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href={route('collaborateurs.show', collab.id)} className="flex items-center gap-2">
+                                                            <Eye className="h-3.5 w-3.5" />Voir le profil
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href={route('collaborateurs.edit', collab.id)} className="flex items-center gap-2">
+                                                            <Pencil className="h-3.5 w-3.5" />Modifier
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    {canToggle() && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                onClick={() => toggleActif(collab)}
+                                                                className={`flex items-center gap-2 ${collab.actif ? 'text-amber-600 focus:text-amber-700' : 'text-emerald-600 focus:text-emerald-700'}`}
+                                                            >
+                                                                {collab.actif
+                                                                    ? <><PowerOff className="h-3.5 w-3.5" />Désactiver</>
+                                                                    : <><Power className="h-3.5 w-3.5" />Activer</>
+                                                                }
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                    {canDelete() && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                onClick={() => deleteCollab(collab)}
+                                                                className="flex items-center gap-2 text-red-600 focus:text-red-700"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />Supprimer
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        ) : (
+                                            <Link href={route('collaborateurs.show', collab.id)}>
                                                 <Button variant="ghost" size="icon-sm" className="text-gray-400 hover:text-gray-700 dark:hover:text-white">
-                                                    <MoreVertical className="h-4 w-4" />
+                                                    <Eye className="h-4 w-4" />
                                                 </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-48">
-                                                <DropdownMenuItem asChild>
-                                                    <Link href={route('collaborateurs.show', collab.id)} className="flex items-center gap-2">
-                                                        <Eye className="h-3.5 w-3.5" />Voir le profil
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem asChild>
-                                                    <Link href={route('collaborateurs.edit', collab.id)} className="flex items-center gap-2">
-                                                        <Pencil className="h-3.5 w-3.5" />Modifier
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    onClick={() => toggleActif(collab)}
-                                                    className={`flex items-center gap-2 ${collab.actif ? 'text-amber-600 focus:text-amber-700' : 'text-emerald-600 focus:text-emerald-700'}`}
-                                                >
-                                                    {collab.actif
-                                                        ? <><PowerOff className="h-3.5 w-3.5" />Désactiver</>
-                                                        : <><Power className="h-3.5 w-3.5" />Activer</>
-                                                    }
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    onClick={() => deleteCollab(collab)}
-                                                    className="flex items-center gap-2 text-red-600 focus:text-red-700"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />Supprimer
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                            </Link>
+                                        )}
                                     </TableCell>
                                 </motion.tr>
                             );

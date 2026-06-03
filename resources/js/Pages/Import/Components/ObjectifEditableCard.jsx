@@ -4,7 +4,7 @@ import { Input } from '@/Components/ui/Input';
 import { formatNumber } from '@/lib/utils';
 import {
     ChevronDown, ChevronRight, Check, X, Trash2, Plus,
-    AlertTriangle, Target, ListChecks,
+    AlertTriangle, Target, ListChecks, Clock, Tag,
 } from 'lucide-react';
 
 const PRIORITE_COLORS = {
@@ -68,8 +68,11 @@ export default function ObjectifEditableCard({ objectif, index, axes, onUpdate, 
         setExpandedKrs(prev => ({ ...prev, [krIndex]: !prev[krIndex] }));
     };
 
+    const isV2 = !!objectif.numero;
     const nbKrs = objectif.resultats_cles?.length || 0;
-    const nbTaches = objectif.resultats_cles?.reduce((sum, kr) => sum + (kr.taches?.length || 0), 0) || 0;
+    const nbTachesKr = objectif.resultats_cles?.reduce((sum, kr) => sum + (kr.taches?.length || 0), 0) || 0;
+    const nbTachesDirect = objectif.taches_directes?.length || 0;
+    const nbTaches = nbTachesKr + nbTachesDirect;
 
     return (
         <div className={`rounded-xl border transition-all ${
@@ -98,6 +101,11 @@ export default function ObjectifEditableCard({ objectif, index, axes, onUpdate, 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
                         <Target className="h-4 w-4 text-primary-500 shrink-0" />
+                        {isV2 && (
+                            <span className="text-[10px] font-bold text-primary-600 dark:text-primary-400 shrink-0">
+                                {objectif.numero}
+                            </span>
+                        )}
                         <input
                             type="text"
                             value={objectif.titre}
@@ -119,13 +127,30 @@ export default function ObjectifEditableCard({ objectif, index, axes, onUpdate, 
                             </select>
                         )}
 
-                        <Badge className="text-[10px] bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-400 px-1.5 py-0 shrink-0">
-                            {formatNumber(objectif.progression, 0)}%
-                        </Badge>
+                        {!isV2 && (
+                            <Badge className="text-[10px] bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-400 px-1.5 py-0 shrink-0">
+                                {formatNumber(objectif.progression, 0)}%
+                            </Badge>
+                        )}
                     </div>
-                    <p className="text-[11px] text-gray-400 mt-0.5 pl-6">
-                        {nbKrs} résultat{nbKrs > 1 ? 's' : ''} clé{nbKrs > 1 ? 's' : ''} · {nbTaches} tâche{nbTaches > 1 ? 's' : ''}
-                    </p>
+                    <div className="flex items-center gap-3 mt-0.5 pl-6 flex-wrap">
+                        <p className="text-[11px] text-gray-400">
+                            {nbKrs} résultat{nbKrs > 1 ? 's' : ''} clé{nbKrs > 1 ? 's' : ''} · {nbTaches} tâche{nbTaches > 1 ? 's' : ''}
+                        </p>
+                        {isV2 && objectif.owner && (
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400">Owner : {objectif.owner}</span>
+                        )}
+                        {isV2 && objectif.periodes_detectees?.length > 0 && (
+                            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                                {objectif.periodes_detectees.join(' · ')}
+                            </span>
+                        )}
+                        {isV2 && objectif.prime > 0 && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                Prime {Number(objectif.prime).toLocaleString('fr-FR')} GNF
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -152,6 +177,11 @@ export default function ObjectifEditableCard({ objectif, index, axes, onUpdate, 
                                 <div className="flex-1 min-w-0">
                                     {/* Ligne principale : description + badges */}
                                     <div className="flex items-center gap-2 min-w-0">
+                                        {isV2 && kr.numero && (
+                                            <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 shrink-0 w-8">
+                                                {kr.numero}
+                                            </span>
+                                        )}
                                         <input
                                             type="text"
                                             value={kr.description || ''}
@@ -160,65 +190,88 @@ export default function ObjectifEditableCard({ objectif, index, axes, onUpdate, 
                                             placeholder="Description du KR"
                                         />
 
-                                        {kr.priorite && (
+                                        {!isV2 && kr.priorite && (
                                             <Badge className={`text-[9px] px-1.5 py-0 shrink-0 ${PRIORITE_COLORS[kr.priorite] || PRIORITE_COLORS.P3}`}>
                                                 {kr.priorite}
                                             </Badge>
                                         )}
 
-                                        {kr.departement && (
+                                        {!isV2 && kr.departement && (
                                             <span className="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{kr.departement}</span>
                                         )}
                                     </div>
 
-                                    {/* Ligne secondaire : responsables + dates + progression */}
-                                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                                        {/* Responsables */}
-                                        {kr.responsables?.length > 0 && (
-                                            <div className="flex flex-wrap gap-0.5">
-                                                {kr.responsables.map((r, ri) => (
-                                                    <span key={ri} className="text-[10px] bg-gray-100 dark:bg-dark-700 text-gray-600 dark:text-gray-400 rounded px-1.5 py-0.5">
-                                                        {r}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Dates */}
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                            <input
-                                                type="date"
-                                                value={kr.date_debut || ''}
-                                                onChange={(e) => handleKrChange(krIndex, 'date_debut', e.target.value)}
-                                                className={`text-[10px] w-[110px] bg-transparent border rounded px-1.5 py-0.5 ${
-                                                    kr.date_debut_invalide
-                                                        ? 'border-red-400 text-red-500'
-                                                        : 'border-gray-200 dark:border-dark-600 text-gray-600 dark:text-gray-400'
-                                                }`}
-                                            />
-                                            <input
-                                                type="date"
-                                                value={kr.date_cible || ''}
-                                                onChange={(e) => handleKrChange(krIndex, 'date_cible', e.target.value)}
-                                                className={`text-[10px] w-[110px] bg-transparent border rounded px-1.5 py-0.5 ${
-                                                    kr.date_cible_invalide
-                                                        ? 'border-red-400 text-red-500'
-                                                        : 'border-gray-200 dark:border-dark-600 text-gray-600 dark:text-gray-400'
-                                                }`}
-                                            />
-                                            {(kr.date_debut_invalide || kr.date_cible_invalide) && (
-                                                <span className="text-[9px] text-red-500 flex items-center gap-0.5 shrink-0">
-                                                    <AlertTriangle className="h-2.5 w-2.5" />
-                                                    Corriger
+                                    {/* V2 : type · cible · unité · poids · owner */}
+                                    {isV2 && (
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                            {kr.type_kr && (
+                                                <Badge className="text-[9px] bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-400 px-1.5 py-0 shrink-0">
+                                                    {kr.type_kr}
+                                                </Badge>
+                                            )}
+                                            {kr.valeur_cible != null && (
+                                                <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 shrink-0">
+                                                    Cible : {Number(kr.valeur_cible).toLocaleString('fr-FR')}{kr.unite ? ` ${kr.unite}` : ''}
+                                                </span>
+                                            )}
+                                            {kr.poids != null && kr.poids !== 1 && (
+                                                <span className="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">
+                                                    Poids {kr.poids}
+                                                </span>
+                                            )}
+                                            {kr.owner && (
+                                                <span className="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">
+                                                    {kr.owner}
                                                 </span>
                                             )}
                                         </div>
+                                    )}
 
-                                        {/* Progression */}
-                                        <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 shrink-0 ml-auto">
-                                            {formatNumber(kr.progression, 0)}%
-                                        </span>
-                                    </div>
+                                    {/* V1 : responsables + dates + progression */}
+                                    {!isV2 && (
+                                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                            {kr.responsables?.length > 0 && (
+                                                <div className="flex flex-wrap gap-0.5">
+                                                    {kr.responsables.map((r, ri) => (
+                                                        <span key={ri} className="text-[10px] bg-gray-100 dark:bg-dark-700 text-gray-600 dark:text-gray-400 rounded px-1.5 py-0.5">
+                                                            {r}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                <input
+                                                    type="date"
+                                                    value={kr.date_debut || ''}
+                                                    onChange={(e) => handleKrChange(krIndex, 'date_debut', e.target.value)}
+                                                    className={`text-[10px] w-[110px] bg-transparent border rounded px-1.5 py-0.5 ${
+                                                        kr.date_debut_invalide
+                                                            ? 'border-red-400 text-red-500'
+                                                            : 'border-gray-200 dark:border-dark-600 text-gray-600 dark:text-gray-400'
+                                                    }`}
+                                                />
+                                                <input
+                                                    type="date"
+                                                    value={kr.date_cible || ''}
+                                                    onChange={(e) => handleKrChange(krIndex, 'date_cible', e.target.value)}
+                                                    className={`text-[10px] w-[110px] bg-transparent border rounded px-1.5 py-0.5 ${
+                                                        kr.date_cible_invalide
+                                                            ? 'border-red-400 text-red-500'
+                                                            : 'border-gray-200 dark:border-dark-600 text-gray-600 dark:text-gray-400'
+                                                    }`}
+                                                />
+                                                {(kr.date_debut_invalide || kr.date_cible_invalide) && (
+                                                    <span className="text-[9px] text-red-500 flex items-center gap-0.5 shrink-0">
+                                                        <AlertTriangle className="h-2.5 w-2.5" />
+                                                        Corriger
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 shrink-0 ml-auto">
+                                                {formatNumber(kr.progression, 0)}%
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center gap-1 shrink-0">
@@ -255,9 +308,27 @@ export default function ObjectifEditableCard({ objectif, index, axes, onUpdate, 
                                             >
                                                 {tache.importer && <Check className="h-2.5 w-2.5" />}
                                             </button>
-                                            <span className={`text-[11px] ${tache.importer ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 line-through'}`}>
-                                                {tache.titre}
-                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <span className={`text-[11px] ${tache.importer ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 line-through'}`}>
+                                                    {tache.titre}
+                                                </span>
+                                                {isV2 && (tache.categorie || tache.frequence) && (
+                                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                        {tache.categorie && (
+                                                            <span className="inline-flex items-center gap-0.5 text-[9px] bg-gray-100 dark:bg-dark-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0">
+                                                                <Tag className="h-2 w-2" />
+                                                                {tache.categorie}
+                                                            </span>
+                                                        )}
+                                                        {tache.frequence && (
+                                                            <span className="inline-flex items-center gap-0.5 text-[9px] text-gray-500 dark:text-gray-400">
+                                                                <Clock className="h-2 w-2" />
+                                                                {tache.frequence}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -265,15 +336,52 @@ export default function ObjectifEditableCard({ objectif, index, axes, onUpdate, 
                         </div>
                     ))}
 
+                    {/* Tâches directes (v2 : KR# = "—") */}
+                    {isV2 && objectif.taches_directes?.length > 0 && (
+                        <div className="border-t border-gray-100 dark:border-dark-700">
+                            <div className="px-3 py-1.5 text-[9px] uppercase tracking-wider text-gray-400 font-semibold bg-gray-50 dark:bg-dark-800/50">
+                                Tâches directes sur l'objectif ({objectif.taches_directes.length})
+                            </div>
+                            <div className="pl-6 pr-4 pb-2 space-y-1">
+                                {objectif.taches_directes.map((tache, ti) => (
+                                    <div key={ti} className="flex items-start gap-2 py-1">
+                                        <div className="h-3.5 w-3.5 mt-0.5 rounded border border-emerald-400 bg-emerald-500/20 shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-[11px] text-gray-700 dark:text-gray-300">{tache.titre}</span>
+                                            {(tache.categorie || tache.frequence) && (
+                                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                    {tache.categorie && (
+                                                        <span className="inline-flex items-center gap-0.5 text-[9px] bg-gray-100 dark:bg-dark-700 text-gray-500 rounded px-1.5 py-0">
+                                                            <Tag className="h-2 w-2" />
+                                                            {tache.categorie}
+                                                        </span>
+                                                    )}
+                                                    {tache.frequence && (
+                                                        <span className="inline-flex items-center gap-0.5 text-[9px] text-gray-500 dark:text-gray-400">
+                                                            <Clock className="h-2 w-2" />
+                                                            {tache.frequence}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Ajouter un KR */}
-                    <div className="px-4 py-2 border-t border-gray-100 dark:border-dark-700">
-                        <button
-                            onClick={handleAddKr}
-                            className="text-[11px] text-primary-500 hover:text-primary-700 flex items-center gap-1 font-medium"
-                        >
-                            <Plus className="h-3 w-3" /> Ajouter un résultat clé
-                        </button>
-                    </div>
+                    {!isV2 && (
+                        <div className="px-4 py-2 border-t border-gray-100 dark:border-dark-700">
+                            <button
+                                onClick={handleAddKr}
+                                className="text-[11px] text-primary-500 hover:text-primary-700 flex items-center gap-1 font-medium"
+                            >
+                                <Plus className="h-3 w-3" /> Ajouter un résultat clé
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

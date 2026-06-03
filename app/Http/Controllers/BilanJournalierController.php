@@ -177,23 +177,43 @@ class BilanJournalierController extends Controller
 
     public function storeTask(Request $request)
     {
-        $collaborateur = $request->user()->collaborateurActuel();
+        $currentCollab = $request->user()->collaborateurActuel();
 
         $validated = $request->validate([
-            'titre'        => 'required|string|max:255',
-            'description'  => 'nullable|string',
-            'priorite'     => 'required|in:basse,normale,haute,urgente',
-            'date'         => 'required|date',
-            'tache_id'     => 'nullable|exists:taches,id',
-            'mission_id'   => 'nullable|exists:missions,id',
-            'type_tache'   => 'nullable|string',
-            'categorie'    => 'nullable|in:prospection,rdv,delivery,seminaire,recherche,autre',
-            'temps_estime' => 'nullable|integer|min:0',
+            'titre'            => 'required|string|max:255',
+            'description'      => 'nullable|string',
+            'priorite'         => 'required|in:basse,normale,haute,urgente',
+            'date'             => 'required|date',
+            'tache_id'         => 'nullable|exists:taches,id',
+            'mission_id'       => 'nullable|exists:missions,id',
+            'type_tache'       => 'nullable|string',
+            'categorie'        => 'nullable|in:prospection,rdv,delivery,seminaire,recherche,autre',
+            'temps_estime'     => 'nullable|integer|min:0',
+            'collaborateur_id' => 'nullable|exists:collaborateurs,id',
         ]);
+
+        // Déterminer le collaborateur cible
+        $targetCollabId = $currentCollab->id;
+        $demandeCibleDifferente = !empty($validated['collaborateur_id'])
+            && (int)$validated['collaborateur_id'] !== $currentCollab->id;
+
+        if ($demandeCibleDifferente) {
+            if (!$currentCollab->estResponsable()) {
+                abort(403, 'Vous ne pouvez créer une tâche que pour vous-même.');
+            }
+            // Manager : uniquement pour son département
+            if ($currentCollab->estManager() && !$currentCollab->aAccesGlobal()) {
+                $cible = Collaborateur::find($validated['collaborateur_id']);
+                if (!$cible || $cible->departement_id !== $currentCollab->departement_id) {
+                    abort(403, 'Vous ne pouvez créer une tâche que pour un collaborateur de votre département.');
+                }
+            }
+            $targetCollabId = (int)$validated['collaborateur_id'];
+        }
 
         TacheDaily::create([
             'societe_id'       => session('societe_id'),
-            'collaborateur_id' => $collaborateur->id,
+            'collaborateur_id' => $targetCollabId,
             'tache_id'         => $validated['tache_id'] ?? null,
             'mission_id'       => $validated['mission_id'] ?? null,
             'titre'            => $validated['titre'],
@@ -206,7 +226,7 @@ class BilanJournalierController extends Controller
             'date'             => $validated['date'],
         ]);
 
-        app(DailyService::class)->calculerActivitesJour($collaborateur->id, Carbon::parse($validated['date']));
+        app(DailyService::class)->calculerActivitesJour($targetCollabId, Carbon::parse($validated['date']));
 
         return redirect()->back()->with('success', 'Tâche ajoutée.');
     }

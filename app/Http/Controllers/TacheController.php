@@ -182,6 +182,7 @@ class TacheController extends Controller
             'outils'           => 'nullable|string|max:1000',
             'definition_done'  => 'nullable|array',
             'definition_done.*'=> 'string|max:500',
+            'note'             => 'nullable|string',
             'priorite'         => 'required|in:basse,normale,haute,urgente',
             'eisenhower'       => 'nullable|in:Q1,Q2,Q3,Q4',
             'collaborateur_id' => 'required|exists:collaborateurs,id',
@@ -222,6 +223,45 @@ class TacheController extends Controller
         $this->recalculerProgressionKr($tache->resultat_cle_id);
 
         return redirect()->back();
+    }
+
+    public function updateAssignee(Request $request, Tache $tache)
+    {
+        Gate::authorize('update', $tache);
+
+        $currentCollab = $request->user()->collaborateurActuel();
+        if (!$currentCollab->estResponsable()) {
+            abort(403, 'Vous ne pouvez pas réassigner cette tâche.');
+        }
+
+        $validated = $request->validate([
+            'collaborateur_id' => 'required|exists:collaborateurs,id',
+        ]);
+
+        // Manager : uniquement vers un collaborateur de son département
+        if ($currentCollab->estManager() && !$currentCollab->aAccesGlobal()) {
+            $cible = Collaborateur::find($validated['collaborateur_id']);
+            if (!$cible || $cible->departement_id !== $currentCollab->departement_id) {
+                abort(403, 'Vous ne pouvez assigner cette tâche qu\'à un collaborateur de votre département.');
+            }
+        }
+
+        $tache->update(['collaborateur_id' => $validated['collaborateur_id']]);
+
+        return redirect()->back();
+    }
+
+    public function updateNote(Request $request, Tache $tache)
+    {
+        Gate::authorize('update', $tache);
+
+        $validated = $request->validate([
+            'note' => 'nullable|string',
+        ]);
+
+        $tache->update(['note' => $validated['note'] ?? null]);
+
+        return redirect()->back()->with('success', 'Note sauvegardée.');
     }
 
     public function destroy(Tache $tache)

@@ -159,9 +159,12 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - **Modal d'ajout de tâche** (`AddTaskModal`) : formulaire compact avec sélection obligatoire du KR cible, `router.post` vers `taches.store`, validation client-side, `preserveState: true`.
 - **Panneau de détail tâche** (`TaskDetailPanel`) : slide-over animé (framer-motion spring) depuis la droite avec **mode édition** complet :
   - Header : titre (éditable) + sous-titre KR + boutons ×/✓/crayon.
-  - Onglets : Fiche (actif) / Note (textarea libre).
+  - Onglets : **Fiche** / **Fichiers** (upload/download/suppression) / **Note** (textarea + bouton "Sauvegarder la note").
   - Sections Fiche : 📋 Informations (badges éditables : statut, priorité, eisenhower, date, responsable), 📝 Description & Contexte (textarea), 📋 Mode Opératoire (étapes dynamiques ajout/suppression), 🔧 Outils & Ressources (input texte), ✅ Définition de "Done" (critères dynamiques ajout/suppression).
   - Footer : bouton "Modifier" / "Enregistrer" + poubelle.
+  - **Note persistée** : colonne `note` (text nullable) sur la table `taches`. Route `PATCH /taches/{tache}/note` → `TacheController::updateNote`. Sauvegarde indépendante du formulaire Fiche via `router.patch`.
+  - **Fichiers** : upload immédiat via axios + `router.reload({ only: ['objectifs'] })` après chaque upload pour rafraîchir les props Inertia (évite la disparition des fichiers à la réouverture du panneau).
+  - **Prop `auth`** obligatoire : contrôle l'activation du champ Responsable (`disabled={!auth?.collaborateur?.isResponsable}`) et l'affichage des boutons Modifier/Supprimer dans le footer.
 - **Page Create** (`OKR/Create.jsx`) : formulaire complet pour création avancée (tous les champs : axe, type, visibilité, prime, KRs détaillés avec type/cible/poids/unité).
 - **Page Show** (`OKR/Show.jsx`) : détail objectif avec édition progression KR, historique progression (graphique LineChart), gestion tâches liées, sidebar infos.
 
@@ -448,6 +451,53 @@ Layout dédié (`SuperAdmin/Layout.jsx`) : sidebar `slate-900`, accents `indigo-
 
 ## 🐛 Bugs connus et correctifs
 
+### `$this->middleware()` supprimé dans Laravel 11+ (corrigé Juin 2026)
+
+**Fichiers** : tous les contrôleurs utilisant `$this->middleware()` dans le constructeur.
+
+**Problème** : Laravel 11 a supprimé la méthode `middleware()` de la classe de base `Controller`. Appel résulte en `Call to undefined method`.
+
+**Correctif** : Implémenter l'interface `HasMiddleware` avec une méthode statique `middleware(): array` retournant des objets `Middleware`.
+
+```php
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class MonController extends Controller implements HasMiddleware
+{
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(function ($request, $next) {
+                // logique...
+                return $next($request);
+            }),
+        ];
+    }
+}
+```
+
+---
+
+### Note et Fichiers du `TaskDetailPanel` non persistés (corrigé Juin 2026)
+
+**Fichier** : `resources/js/Pages/OKR/Index.jsx` — composant `TaskDetailPanel`.
+
+**Problèmes** :
+1. **Note** : la textarea de l'onglet Note n'avait aucun mécanisme de sauvegarde — `noteText` était un état local jamais persisté.
+2. **Fichiers** : après upload (axios), si l'utilisateur fermait et rouvrait le panneau sans faire Edit+Save, le fichier disparaissait car `tache.fichiers` dans `taskPanel` (état React) était périmé.
+3. **Prop `auth` manquante** : le champ Responsable était toujours désactivé (`disabled={true}`) et les boutons Modifier/Supprimer du footer invisibles.
+
+**Correctifs** :
+- Migration `2026_06_03_000001_add_note_to_taches` : colonne `note` text nullable.
+- Route `PATCH /taches/{tache}/note` → `TacheController::updateNote` → `redirect()->back()`.
+- `noteText` initialisé depuis `tache.note` à l'ouverture. Bouton "Sauvegarder la note" utilise `router.patch`.
+- `router.reload({ only: ['objectifs'] })` appelé après chaque upload fichier.
+- `auth={auth}` ajouté à l'invocation de `TaskDetailPanel` dans `OKRIndex`.
+- `onError` dans `handleSaveTask` affiche désormais le message de validation via `toast.error`.
+
+---
+
 ### Filtre "Toutes les périodes" — OKR Index (corrigé 20 Mai 2026)
 
 **Fichier** : `resources/js/Pages/OKR/Index.jsx` — fonction `applyFilters`.
@@ -498,7 +548,7 @@ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
 | `objectifs` | Objectifs OKR (titre, axe, période, type, statut, visibilité, prime) |
 | `resultats_cles` | Résultats clés liés à un objectif (description, description_detaillee, progression, poids, valeur_cible, unité, type) |
 | `objectif_periode` | Table pivot multi-périodes (objectif_id, periode_id) — permet à un objectif de couvrir plusieurs trimestres |
-| `taches` | Tâches liées à un KR (titre, description, statut, priorité, date, collaborateur, objectif_id, resultat_cle_id). Hiérarchie : Objectif → KR → Tâche. |
+| `taches` | Tâches liées à un KR (titre, description, mode_operatoire JSON, outils, definition_done JSON, note, statut, priorité, eisenhower, date, collaborateur, objectif_id, resultat_cle_id, mission_id). Hiérarchie : Objectif → KR → Tâche. |
 | `prospects` | Prospects CRM (nom, contact, secteur, statut pipeline, prochain RDV, notes) |
 | `objectifs_remuneres` | Objectifs liés à des primes |
 | `validations_objectifs` | Validations de primes par les managers |
@@ -523,4 +573,4 @@ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
 
 ---
 
-*Dernière mise à jour : 20 Mai 2026 — Phase 5b (Gestion modulaire) + Phase 5c (Console SuperAdmin)*
+*Dernière mise à jour : 3 Juin 2026 — Correctifs TaskDetailPanel (note persistée, fichiers, auth) + compatibilité Laravel 13 middleware*

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -12,7 +13,7 @@ import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
  Search, Plus, Target, Eye, Trash2, Pencil, Copy,
- ChevronDown, ChevronRight, CheckSquare, CheckCircle2, X, Filter,
+ ChevronDown, ChevronRight, CheckSquare, CheckCircle2, Check, X, Filter,
  Paperclip, Download, FileText, FileImage, FileArchive, File,
 } from 'lucide-react';
 import {
@@ -20,6 +21,111 @@ import {
 } from '@/Components/ui/DropdownMenu';
 
 const statutLabels = { brouillon: 'Brouillon', actif: 'Actif', termine: 'Terminé', annule: 'Annulé', a_faire: 'À faire', en_cours: 'En cours', bloque: 'Bloqué' };
+
+// ─── Icône circulaire de statut ───────────────────────────────
+function TacheStatutIcon({ statut, size = 16 }) {
+    const s = size;
+    if (statut === 'termine') return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="8" fill="#10b981" />
+            <path d="M4.5 8.5L7 11L11.5 5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+    if (statut === 'en_cours') return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1.5" />
+            <path d="M8 5V8.5L10 10" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+    if (statut === 'bloque') return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" fill="#fef2f2" stroke="#ef4444" strokeWidth="1.5" />
+            <path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    );
+    return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke="#d1d5db" strokeWidth="1.5" strokeDasharray="2.5 2" />
+        </svg>
+    );
+}
+
+// ─── Sélecteur de statut inline (avec portal pour éviter le clipping) ──
+const STATUTS_TACHE = [
+    { value: 'a_faire',  label: 'À faire',   hint: '0%' },
+    { value: 'en_cours', label: 'En cours',  hint: '50%' },
+    { value: 'bloque',   label: 'Bloqué',    hint: '' },
+    { value: 'termine',  label: 'Terminé',   hint: '100%' },
+];
+
+function TacheStatutPicker({ tache, canChange }) {
+    const [open, setOpen] = useState(false);
+    const [popupStyle, setPopupStyle] = useState({});
+    const btnRef = useRef(null);
+
+    const openPicker = (e) => {
+        e.stopPropagation();
+        if (!canChange) return;
+        if (btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const popupH = STATUTS_TACHE.length * 40;
+            const above = spaceBelow < popupH && rect.top > popupH;
+            setPopupStyle({
+                position: 'fixed',
+                left: rect.left,
+                width: 168,
+                zIndex: 9999,
+                ...(above ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+            });
+        }
+        setOpen(v => !v);
+    };
+
+    const select = (statut) => {
+        setOpen(false);
+        if (statut === tache.statut) return;
+        router.put(route('taches.status', tache.id), { statut }, { preserveScroll: true });
+    };
+
+    return (
+        <div className="flex items-center justify-center">
+            <button
+                ref={btnRef}
+                onClick={openPicker}
+                className={`flex items-center justify-center transition-transform hover:scale-110 ${canChange ? 'cursor-pointer' : 'cursor-default'}`}
+                title={canChange ? 'Changer le statut' : statutLabels[tache.statut]}
+            >
+                <TacheStatutIcon statut={tache.statut} size={16} />
+            </button>
+            {open && createPortal(
+                <>
+                    <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+                    <div style={popupStyle} className="fixed bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl shadow-xl overflow-hidden z-[9999]">
+                        <div className="px-3 py-2 border-b border-gray-100 dark:border-dark-800">
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Statut de la tâche</p>
+                        </div>
+                        {STATUTS_TACHE.map(s => (
+                            <button
+                                key={s.value}
+                                onClick={() => select(s.value)}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-colors hover:bg-gray-50 dark:hover:bg-dark-800 ${
+                                    tache.statut === s.value ? 'bg-gray-50 dark:bg-dark-800 font-semibold' : 'font-normal text-gray-700 dark:text-gray-300'
+                                }`}
+                            >
+                                <TacheStatutIcon statut={s.value} size={14} />
+                                <span className="flex-1 text-left">{s.label}</span>
+                                {s.hint && <span className="text-[10px] text-gray-400">{s.hint}</span>}
+                                {tache.statut === s.value && <Check className="h-3 w-3 text-primary-500 shrink-0" />}
+                            </button>
+                        ))}
+                    </div>
+                </>,
+                document.body
+            )}
+        </div>
+    );
+}
 const prioriteColors = { basse: '#94a3b8', normale: '#f59e0b', haute: '#ef4444', urgente: '#dc2626' };
 const prioriteLabels = { basse: 'Basse', normale: 'Normale', haute: 'Haute', urgente: 'Urgente' };
 const tacheStatutIcons = { a_faire: 'border-gray-300', en_cours: 'border-primary-500 bg-primary-500/20', termine: 'border-emerald-500 bg-emerald-500', bloque: 'border-red-500 bg-red-500/20' };
@@ -814,7 +920,9 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  const [editing, setEditing] = useState(false);
  const [editData, setEditData] = useState({});
  const [saving, setSaving] = useState(false);
+ const [savingNote, setSavingNote] = useState(false);
  const [uploading, setUploading] = useState(false);
+ const [assigneeOpen, setAssigneeOpen] = useState(false);
  const [localFichiers, setLocalFichiers] = useState([]);
 
  const parseJsonArray = (val) => {
@@ -834,6 +942,8 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  useEffect(() => {
  if (tache) {
  setEditing(false);
+ setAssigneeOpen(false);
+ setNoteText(tache.note || '');
  setEditData({
  titre: tache.titre || '',
  description: tache.description || '',
@@ -867,7 +977,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  router.put(route('taches.update', tache.id), editData, {
  preserveScroll: true,
  onSuccess: () => { toast.success('Tâche mise à jour'); setSaving(false); setEditing(false); onClose(); },
- onError: () => setSaving(false),
+ onError: (errors) => { setSaving(false); const msg = Object.values(errors)[0]; toast.error(msg || 'Erreur lors de la sauvegarde.'); },
  onFinish: () => setSaving(false),
  });
  };
@@ -885,12 +995,23 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
    });
    setLocalFichiers(prev => [...prev, data]);
    toast.success('Fichier joint');
+   router.reload({ only: ['objectifs'] });
   } catch {
    toast.error('Erreur lors de l\'envoi');
   } finally {
    setUploading(false);
    try { input.value = ''; } catch {}
   }
+ };
+
+ const handleSaveNote = () => {
+ setSavingNote(true);
+ router.patch(route('taches.note', tache.id), { note: noteText }, {
+ preserveScroll: true,
+ onSuccess: () => { toast.success('Note sauvegardee'); setSavingNote(false); },
+ onError: () => { toast.error('Erreur lors de la sauvegarde.'); setSavingNote(false); },
+ onFinish: () => setSavingNote(false),
+ });
  };
 
  const handleDeleteFichier = async (fichierId) => {
@@ -1066,9 +1187,44 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  </div>
  ) : (
  <div className="flex items-center gap-1.5 flex-wrap">
+ {auth?.collaborateur?.isResponsable && collaborateurs.length > 0 ? (
+ <div className="relative">
+ <button
+ onClick={() => setAssigneeOpen(v => !v)}
+ className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 hover:bg-sky-200 dark:hover:bg-sky-800/40 transition-colors cursor-pointer"
+ title="Changer le responsable"
+ >
+ {tache.collaborateur || 'Non assigné'}
+ <ChevronDown className={`h-2.5 w-2.5 opacity-50 shrink-0 transition-transform ${assigneeOpen ? 'rotate-180' : ''}`} />
+ </button>
+ {assigneeOpen && (
+ <>
+ {/* Backdrop invisible pour fermer au clic extérieur */}
+ <div className="fixed inset-0 z-40" onClick={() => setAssigneeOpen(false)} />
+ <div className="absolute top-full left-0 mt-1 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg shadow-lg z-50 w-44 py-1 max-h-48 overflow-y-auto">
+ {collaborateurs.map(c => (
+ <button
+ key={c.id}
+ onClick={() => {
+ setAssigneeOpen(false);
+ setEditData(prev => ({ ...prev, collaborateur_id: String(c.id) }));
+ router.patch(route('taches.assignee', tache.id), { collaborateur_id: c.id }, { preserveScroll: true });
+ }}
+ className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-dark-800 flex items-center justify-between gap-2 transition-colors"
+ >
+ <span>{c.prenom} {c.nom}</span>
+ {String(c.id) === String(tache.collaborateur_id) && <Check className="h-3 w-3 text-primary-500 shrink-0" />}
+ </button>
+ ))}
+ </div>
+ </>
+ )}
+ </div>
+ ) : (
  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
  {tache.collaborateur || 'Non assigné'}
  </span>
+ )}
  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
  tache.statut === 'termine' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' :
  tache.statut === 'en_cours' ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' :
@@ -1266,13 +1422,20 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  </div>
  ) : (
  /* ── Tab Note ──────────────────────── */
- <div className="px-5 py-4">
+ <div className="px-5 py-4 space-y-3">
  <textarea
  value={noteText}
  onChange={e => setNoteText(e.target.value)}
  placeholder="Ajouter une note sur cette tâche..."
  className="w-full min-h-[200px] px-3 py-2.5 bg-gray-50 dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-[12px] text-gray-700 dark:text-gray-300 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-y transition-all"
  />
+ <button
+ onClick={handleSaveNote}
+ disabled={savingNote}
+ className="w-full px-4 py-2 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-all disabled:opacity-50"
+ >
+ {savingNote ? 'Sauvegarde...' : 'Sauvegarder la note'}
+ </button>
  </div>
  )}
  </div>
@@ -1426,7 +1589,7 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
 }
 
 // ─── Composant KR expandable (niveau 2) ─────────────────────
-function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, objectifId, defaultExpanded = false, auth, objCollabId }) {
+function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, objectifId, defaultExpanded = false, auth, objCollabId, collaborateurs = [] }) {
  const [expanded, setExpanded] = useState(defaultExpanded);
  const krColor = getSeuilColor(kr.progression, seuils) || krBarColors[krIdx % krBarColors.length];
  const krTaches = kr.taches || [];
@@ -1501,31 +1664,49 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
  <tbody>
  {krTaches.map((tache) => (
  <tr key={tache.id} className="border-t border-gray-50 dark:border-dark-800/50 hover:bg-gray-50/50 dark:hover:bg-dark-800/30 transition-colors group">
- <td className="pl-4 pr-2 py-2 w-8">
- <button
- onClick={(e) => {
- e.stopPropagation();
- const newStatut = tache.statut === 'termine' ? 'a_faire' : 'termine';
- router.put(route('taches.status', tache.id), { statut: newStatut }, { preserveScroll: true, onSuccess: () => toast.success(newStatut === 'termine' ? 'Tâche terminée' : 'Tâche réouverte') });
- }}
- className={`h-4 w-4 rounded border-2 cursor-pointer transition-all ${tacheStatutIcons[tache.statut] || tacheStatutIcons.a_faire}`}
- >
- {tache.statut === 'termine' && (
- <svg className="h-full w-full text-white p-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
- <polyline points="20 6 9 17 4 12" />
- </svg>
- )}
- </button>
+ <td className="pl-4 pr-2 py-2 w-8" onClick={e => e.stopPropagation()}>
+ <TacheStatutPicker
+ tache={tache}
+ canChange={tache.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable}
+ />
  </td>
  <td className="py-2">
- <span className={`text-[12px] ${tache.statut === 'termine' ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
+ <span className={`text-[12px] ${
+ tache.statut === 'termine' ? 'line-through text-gray-400' :
+ tache.statut === 'en_cours' ? 'text-primary-700 dark:text-primary-300' :
+ tache.statut === 'bloque' ? 'text-red-600 dark:text-red-400' :
+ 'text-gray-700 dark:text-gray-300'
+ }`}>
  {tache.titre}
  </span>
  </td>
- <td className="py-2 px-2">
+ <td className="py-2 px-2" onClick={e => e.stopPropagation()}>
+ {auth?.collaborateur?.isResponsable && collaborateurs.length > 0 ? (
+ <DropdownMenu>
+ <DropdownMenuTrigger asChild>
+ <button className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 hover:bg-sky-200 dark:hover:bg-sky-800/40 transition-colors whitespace-nowrap cursor-pointer">
+ {tache.collaborateur}
+ <ChevronDown className="h-2.5 w-2.5 opacity-50 shrink-0" />
+ </button>
+ </DropdownMenuTrigger>
+ <DropdownMenuContent align="start" className="w-44">
+ {collaborateurs.map(c => (
+ <DropdownMenuItem
+ key={c.id}
+ onClick={() => router.patch(route('taches.assignee', tache.id), { collaborateur_id: c.id }, { preserveScroll: true })}
+ className="text-xs flex items-center justify-between"
+ >
+ {c.prenom} {c.nom}
+ {String(c.id) === String(tache.collaborateur_id) && <Check className="h-3 w-3 text-primary-500 shrink-0" />}
+ </DropdownMenuItem>
+ ))}
+ </DropdownMenuContent>
+ </DropdownMenu>
+ ) : (
  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 whitespace-nowrap">
  {tache.collaborateur}
  </span>
+ )}
  </td>
  <td className="py-2 px-2 text-center">
  <div className="flex justify-center">
@@ -1595,7 +1776,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
 }
 
 // ─── Composant carte objectif (expandable, niveau 1) ─────────
-function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAddTask, onViewTask, onAddTaskForKr, onEdit, onEditKr, auth }) {
+function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAddTask, onViewTask, onAddTaskForKr, onEdit, onEditKr, auth, collaborateurs = [] }) {
  const [expanded, setExpanded] = useState(defaultExpanded);
  const progColor = getSeuilColor(obj.progression_globale, seuils) || '#3b82f6';
  const tachesTerminees = obj.taches_terminees || 0;
@@ -1718,6 +1899,7 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
  defaultExpanded={krIdx === 0}
  auth={auth}
  objCollabId={obj.collaborateur_id}
+ collaborateurs={collaborateurs}
  />
  ))}
  </div>
@@ -1901,6 +2083,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  onAddTaskForKr={(objId, krId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: krId })}
  onViewTask={(tache, krDescription) => setTaskPanel({ tache, objectifTitre: krDescription })}
  auth={auth}
+ collaborateurs={collaborateurs}
  />
  ))}
  </div>
@@ -1971,6 +2154,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  tache={taskPanel.tache}
  objectifTitre={taskPanel.objectifTitre}
  collaborateurs={collaborateurs}
+ auth={auth}
  onClose={() => setTaskPanel({ tache: null, objectifTitre: null })}
  />
  )}

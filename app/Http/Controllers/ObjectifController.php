@@ -117,6 +117,7 @@ class ObjectifController extends Controller
                         'mode_operatoire' => $t->mode_operatoire,
                         'outils' => $t->outils,
                         'definition_done' => $t->definition_done,
+                        'note' => $t->note,
                         'statut' => $t->statut,
                         'priorite' => $t->priorite,
                         'eisenhower' => $t->eisenhower,

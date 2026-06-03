@@ -282,7 +282,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                                         </div>
                                                     ) : isNumeric ? (
                                                         /* Valeur actuelle → calcul auto % */
-                                                        <div className="flex items-center gap-3">
+                                                        <div className="flex items-end gap-3">
                                                             <div className="flex flex-col gap-1 flex-1 max-w-xs">
                                                                 <label className="text-[11px] text-gray-500 uppercase tracking-wide">Valeur actuelle</label>
                                                                 <NumberInput
@@ -293,7 +293,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                                                     suffix={resultat.unite || undefined}
                                                                 />
                                                             </div>
-                                                            <div className="text-xs text-gray-400 mt-4 shrink-0">
+                                                            <div className="text-xs text-gray-400 pb-2 shrink-0">
                                                                 = {Math.round(currentProgression)}% de la cible
                                                             </div>
                                                         </div>

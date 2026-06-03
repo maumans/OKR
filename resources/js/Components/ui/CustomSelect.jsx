@@ -1,4 +1,5 @@
-import { Fragment } from 'react';
+import { useState, useRef, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { Listbox, Transition } from '@headlessui/react';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,76 +11,105 @@ export function CustomSelect({
     placeholder = "Sélectionner...",
     error,
     className,
-    disabled = false
+    disabled = false,
+    size = 'md',
 }) {
+    const wrapperRef = useRef(null);
+    const [portalStyle, setPortalStyle] = useState({ position: 'fixed', top: 0, left: 0, width: 0, zIndex: 9999 });
     const selectedOption = options.find((opt) => String(opt.value) === String(value));
+
+    const updatePosition = () => {
+        if (!wrapperRef.current) return;
+        const rect = wrapperRef.current.getBoundingClientRect();
+        const estimatedHeight = Math.min(280, options.length * 36 + 8);
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const openAbove = spaceBelow < estimatedHeight && rect.top > estimatedHeight;
+
+        setPortalStyle({
+            position: 'fixed',
+            left: rect.left,
+            width: rect.width,
+            zIndex: 9999,
+            ...(openAbove
+                ? { bottom: window.innerHeight - rect.top + 4 }
+                : { top: rect.bottom + 4 }),
+        });
+    };
+
+    const isSmall = size === 'sm';
 
     return (
         <div className={cn("relative", className)}>
             <Listbox value={value} onChange={onChange} disabled={disabled}>
-                <div className="relative mt-1">
-                    <Listbox.Button className={cn(
-                        "relative w-full cursor-pointer rounded-xl bg-white dark:bg-dark-800 py-2 pl-3 pr-10 text-left border transition-all duration-200 shadow-sm",
-                        error
-                            ? "border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/30"
-                            : "border-gray-200 dark:border-dark-600 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500",
-                        disabled && "opacity-50 cursor-not-allowed"
-                    )}>
-                        <span className="block truncate text-sm text-gray-900 dark:text-gray-100">
-                            {selectedOption ? selectedOption.label : <span className="text-gray-400">{placeholder}</span>}
-                        </span>
-                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                            <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                        </span>
-                    </Listbox.Button>
-                    <Transition
-                        as={Fragment}
-                        leave="transition ease-in duration-100"
-                        leaveFrom="opacity-100"
-                        leaveTo="opacity-0"
+                <div ref={wrapperRef} className="relative">
+                    {/* ── Trigger ── */}
+                    <Listbox.Button
+                        onClick={updatePosition}
+                        className={cn(
+                            "relative w-full flex items-center justify-between gap-2 rounded-xl border bg-white dark:bg-dark-800 transition-all duration-200 cursor-pointer text-left",
+                            isSmall ? "h-8 px-3 text-xs" : "h-10 px-3.5 text-sm",
+                            error
+                                ? "border-red-400 focus:outline-none focus:ring-2 focus:ring-red-400/25"
+                                : "border-gray-200 dark:border-dark-600 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500",
+                            disabled && "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-dark-900"
+                        )}
                     >
-                        <Listbox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white dark:bg-dark-800 py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-white/10 focus:outline-none sm:text-sm">
-                            {options.length === 0 ? (
-                                <div className="relative cursor-default select-none py-2 px-4 text-gray-500 dark:text-gray-400 text-sm">
-                                    Aucune option
+                        <span className={cn("block truncate", selectedOption ? "text-gray-900 dark:text-gray-100" : "text-gray-400")}>
+                            {selectedOption ? selectedOption.label : placeholder}
+                        </span>
+                        <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
+                    </Listbox.Button>
+
+                    {/* ── Dropdown via portal ── */}
+                    {createPortal(
+                        <Transition
+                            as={Fragment}
+                            leave="transition ease-in duration-100"
+                            leaveFrom="opacity-100 translate-y-0"
+                            leaveTo="opacity-0 -translate-y-1"
+                        >
+                            <Listbox.Options
+                                style={portalStyle}
+                                className="overflow-hidden rounded-xl border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 shadow-xl shadow-black/10 dark:shadow-black/30 focus:outline-none"
+                            >
+                                <div className="max-h-60 overflow-y-auto py-1">
+                                    {options.length === 0 ? (
+                                        <div className="py-6 text-center text-xs text-gray-400">
+                                            Aucune option
+                                        </div>
+                                    ) : (
+                                        options.map((option) => (
+                                            <Listbox.Option
+                                                key={option.value}
+                                                value={option.value}
+                                                className={({ active }) => cn(
+                                                    "mx-1 px-3 py-2 rounded-lg cursor-pointer flex items-center justify-between gap-2 transition-colors",
+                                                    active
+                                                        ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
+                                                        : "text-gray-800 dark:text-gray-200"
+                                                )}
+                                            >
+                                                {({ selected }) => (
+                                                    <>
+                                                        <span className={cn("block truncate text-sm", selected ? "font-semibold" : "font-normal")}>
+                                                            {option.label}
+                                                        </span>
+                                                        {selected && (
+                                                            <Check className="h-3.5 w-3.5 shrink-0 text-primary-500" />
+                                                        )}
+                                                    </>
+                                                )}
+                                            </Listbox.Option>
+                                        ))
+                                    )}
                                 </div>
-                            ) : (
-                                options.map((option) => (
-                                    <Listbox.Option
-                                        key={option.value}
-                                        className={({ active }) =>
-                                            cn(
-                                                "relative cursor-pointer select-none py-2 pl-10 pr-4 transition-colors",
-                                                active ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400" : "text-gray-900 dark:text-gray-100"
-                                            )
-                                        }
-                                        value={option.value}
-                                    >
-                                        {({ selected, active }) => (
-                                            <>
-                                                <span className={cn("block truncate", selected ? "font-medium" : "font-normal")}>
-                                                    {option.label}
-                                                </span>
-                                                {selected ? (
-                                                    <span className={cn(
-                                                        "absolute inset-y-0 left-0 flex items-center pl-3",
-                                                        active ? "text-primary-600 dark:text-primary-400" : "text-primary-600 dark:text-primary-400"
-                                                    )}>
-                                                        <Check className="h-4 w-4" aria-hidden="true" />
-                                                    </span>
-                                                ) : null}
-                                            </>
-                                        )}
-                                    </Listbox.Option>
-                                ))
-                            )}
-                        </Listbox.Options>
-                    </Transition>
+                            </Listbox.Options>
+                        </Transition>,
+                        document.body
+                    )}
                 </div>
             </Listbox>
-            {error && (
-                <p className="mt-1.5 text-xs text-red-500">{error}</p>
-            )}
+            {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
         </div>
     );
 }

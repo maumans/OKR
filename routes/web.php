@@ -92,6 +92,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
         Route::post('/taches', [TacheController::class, 'store'])->name('taches.store');
         Route::put('/taches/{tache}', [TacheController::class, 'update'])->name('taches.update');
         Route::put('/taches/{tache}/status', [TacheController::class, 'updateStatus'])->name('taches.status');
+        Route::patch('/taches/{tache}/note', [TacheController::class, 'updateNote'])->name('taches.note');
+        Route::patch('/taches/{tache}/assignee', [TacheController::class, 'updateAssignee'])->name('taches.assignee');
         Route::delete('/taches/{tache}', [TacheController::class, 'destroy'])->name('taches.destroy');
         Route::post('/taches/{tache}/fichiers', [TacheController::class, 'uploadFichier'])->name('taches.fichiers.store');
         Route::get('/taches/{tache}/fichiers/{fichier}/download', [TacheController::class, 'downloadFichier'])->name('taches.fichiers.download');

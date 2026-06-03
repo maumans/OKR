@@ -6,6 +6,7 @@ use App\Models\Traits\BelongsToSociete;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -20,7 +21,6 @@ class Collaborateur extends Model
         'nom',
         'prenom',
         'poste',
-        'role',
         'actif',
     ];
 
@@ -41,6 +41,11 @@ class Collaborateur extends Model
     public function departement(): BelongsTo
     {
         return $this->belongsTo(Departement::class);
+    }
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class)->orderBy('ordre');
     }
 
     public function objectifs(): HasMany
@@ -82,17 +87,17 @@ class Collaborateur extends Model
 
     public function scopeAdmins(Builder $query): Builder
     {
-        return $query->where('role', 'admin');
+        return $query->whereHas('roles', fn ($q) => $q->where('code', 'admin'));
     }
 
     public function scopeManagers(Builder $query): Builder
     {
-        return $query->where('role', 'manager');
+        return $query->whereHas('roles', fn ($q) => $q->where('code', 'manager'));
     }
 
     public function scopeDirecteurs(Builder $query): Builder
     {
-        return $query->where('role', 'directeur');
+        return $query->whereHas('roles', fn ($q) => $q->where('code', 'directeur'));
     }
 
     public function scopeDansDepartement(Builder $query, int $departementId): Builder
@@ -107,35 +112,46 @@ class Collaborateur extends Model
         return "{$this->prenom} {$this->nom}";
     }
 
+    public function hasRole(string $code): bool
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains('code', $code);
+        }
+        return $this->roles()->where('code', $code)->exists();
+    }
+
     public function estAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->hasRole('admin');
     }
 
     public function estDirecteur(): bool
     {
-        return $this->role === 'directeur';
+        return $this->hasRole('directeur');
     }
 
     public function estManager(): bool
     {
-        return $this->role === 'manager';
+        return $this->hasRole('manager');
     }
 
     public function estCollaborateur(): bool
     {
-        return $this->role === 'collaborateur';
+        return $this->hasRole('collaborateur');
     }
 
     /** Admin ou Directeur : accès à toute la société */
     public function aAccesGlobal(): bool
     {
-        return $this->role === 'admin' || $this->role === 'directeur';
+        return $this->hasRole('admin') || $this->hasRole('directeur');
     }
 
     /** Admin, Directeur ou Manager : peut gérer des objectifs/tâches */
     public function estResponsable(): bool
     {
-        return in_array($this->role, ['admin', 'directeur', 'manager']);
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->whereIn('code', ['admin', 'directeur', 'manager'])->isNotEmpty();
+        }
+        return $this->roles()->whereIn('code', ['admin', 'directeur', 'manager'])->exists();
     }
 }

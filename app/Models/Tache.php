@@ -23,10 +23,13 @@ class Tache extends Model
         'mode_operatoire',
         'outils',
         'definition_done',
+        'note',
         'statut',
         'priorite',
         'eisenhower',
         'date',
+        'frequence',
+        'categorie',
     ];
 
     protected function casts(): array

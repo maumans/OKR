@@ -18,15 +18,21 @@ export default function MappingStep({ preview, onCommit, loading }) {
     const { auth } = usePage().props;
     const societe = auth.societe;
 
+    const isV2 = preview.format === 'v2';
+
     // State local pour l'édition
     const [objectifs, setObjectifs] = useState(preview.objectifs || []);
     const [axes, setAxes] = useState(
-        (preview.axes_detectes || []).map((nom, i) => ({
-            nom,
-            nom_original: nom,
-            couleur: COULEURS_PREDEF[i % COULEURS_PREDEF.length],
-            importer: true,
-        }))
+        (preview.axes_detectes || []).map((axe, i) => {
+            const isObj = typeof axe === 'object' && axe !== null;
+            return {
+                nom:          isObj ? axe.nom : axe,
+                nom_original: isObj ? axe.nom : axe,
+                numero:       isObj ? axe.numero : null,
+                couleur:      COULEURS_PREDEF[i % COULEURS_PREDEF.length],
+                importer:     true,
+            };
+        })
     );
     const [collaborateurs, setCollaborateurs] = useState(preview.collaborateurs_mappes || []);
     const [expandAllKrs, setExpandAllKrs] = useState(false);
@@ -64,10 +70,13 @@ export default function MappingStep({ preview, onCommit, loading }) {
         setObjectifs(updated);
     };
 
-    // Calcul du résumé
+    // Calcul du résumé (inclut taches_directes pour le format v2)
     const objImportes = objectifs.filter(o => o.importer);
     const krsImportes = objImportes.flatMap(o => (o.resultats_cles || []).filter(kr => kr.importer));
-    const tachesImportees = krsImportes.flatMap(kr => (kr.taches || []).filter(t => t.importer));
+    const tachesImportees = [
+        ...krsImportes.flatMap(kr => (kr.taches || []).filter(t => t.importer)),
+        ...objImportes.flatMap(o => (o.taches_directes || []).filter(t => t.importer)),
+    ];
     const collabsACreer = collaborateurs.filter(c => c.a_creer && !c.existe);
 
     const allAxeLabels = [...new Set([
@@ -105,12 +114,21 @@ export default function MappingStep({ preview, onCommit, loading }) {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         Aperçu et mapping
+                        {isV2 && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-400">
+                                Format v2 multi-feuilles
+                            </span>
+                        )}
                     </h2>
                     <p className="text-[13px] text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-2">
                         <FileSpreadsheet className="h-3.5 w-3.5" />
-                        {preview.meta?.fichier} — Feuille « {preview.meta?.feuille} » — {preview.meta?.nb_lignes} lignes détectées
+                        {preview.meta?.fichier}
+                        {isV2
+                            ? ` — ${preview.meta?.nb_lignes} objectifs · ${preview.meta?.nb_taches ?? '?'} tâches détectées`
+                            : ` — Feuille « ${preview.meta?.feuille} » — ${preview.meta?.nb_lignes} lignes détectées`
+                        }
                     </p>
                 </div>
                 <Button
@@ -167,6 +185,29 @@ export default function MappingStep({ preview, onCommit, loading }) {
                         </CardContent>
                     </Card>
 
+                    {/* Périodes détectées (v2) */}
+                    {isV2 && objectifs.some(o => o.periodes_detectees?.length > 0) && (
+                        <Card className="rounded-xl border-blue-200 dark:border-blue-500/20 shadow-sm bg-blue-50/50 dark:bg-blue-500/5">
+                            <CardContent className="p-4">
+                                <h3 className="text-[10px] uppercase tracking-wider text-blue-600 dark:text-blue-400 font-semibold mb-2">
+                                    Périodes détectées
+                                </h3>
+                                <div className="space-y-1">
+                                    {objectifs.filter(o => o.periodes_detectees?.length > 0).map((o, i) => (
+                                        <div key={i} className="text-[11px] text-blue-700 dark:text-blue-400">
+                                            <span className="font-medium">{o.numero}</span>
+                                            {' · '}
+                                            {o.periodes_detectees.join(' + ')}
+                                            {o.periodes_detectees.length > 1 && (
+                                                <span className="ml-1 text-[9px] bg-blue-200 dark:bg-blue-500/30 px-1 rounded">multi-période</span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Corrections automatiques */}
                     {preview.corrections?.length > 0 && (
                         <Card className="rounded-xl border-amber-200 dark:border-amber-500/20 shadow-sm bg-amber-50/50 dark:bg-amber-500/5">
@@ -198,14 +239,24 @@ export default function MappingStep({ preview, onCommit, loading }) {
                     </div>
 
                     {/* Légende compacte */}
-                    <div className="flex items-center gap-4 px-4 text-[9px] uppercase tracking-wider text-gray-400 font-semibold">
-                        <span>Description</span>
-                        <span>Prio</span>
-                        <span>Dépt.</span>
-                        <span>Resp.</span>
-                        <span>Dates</span>
-                        <span>%</span>
-                    </div>
+                    {!isV2 && (
+                        <div className="flex items-center gap-4 px-4 text-[9px] uppercase tracking-wider text-gray-400 font-semibold">
+                            <span>Description</span>
+                            <span>Prio</span>
+                            <span>Dépt.</span>
+                            <span>Resp.</span>
+                            <span>Dates</span>
+                            <span>%</span>
+                        </div>
+                    )}
+                    {isV2 && (
+                        <div className="flex items-center gap-4 px-4 text-[9px] uppercase tracking-wider text-gray-400 font-semibold">
+                            <span>Objectif</span>
+                            <span>Owner</span>
+                            <span>Période(s)</span>
+                            <span>KR (type · cible · poids)</span>
+                        </div>
+                    )}
 
                     {/* Objectifs */}
                     {objectifs.map((obj, index) => (

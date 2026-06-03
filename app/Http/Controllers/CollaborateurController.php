@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Collaborateur;
 use App\Models\Departement;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -20,8 +21,7 @@ class CollaborateurController extends Controller
         $deptId = $collab?->departement_id;
 
         $collaborateurs = Collaborateur::where('societe_id', $societeId)
-            ->with(['user:id,email', 'departement:id,nom,couleur'])
-            // Manager : seulement son département
+            ->with(['user:id,email', 'departement:id,nom,couleur', 'roles:id,code,nom,ordre'])
             ->when($isManager && $deptId, fn ($q) => $q->where('departement_id', $deptId))
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -31,7 +31,7 @@ class CollaborateurController extends Controller
                 });
             })
             ->when($request->role, function ($query, $role) {
-                $query->where('role', $role);
+                $query->whereHas('roles', fn ($q) => $q->where('code', $role));
             })
             ->when($request->departement_id, function ($query, $departementId) {
                 $query->where('departement_id', $departementId);
@@ -49,10 +49,10 @@ class CollaborateurController extends Controller
         $stats = [
             'total'         => (clone $baseQuery)->count(),
             'actifs'        => (clone $baseQuery)->where('actif', true)->count(),
-            'admins'        => (clone $baseQuery)->where('role', 'admin')->count(),
-            'directeurs'    => (clone $baseQuery)->where('role', 'directeur')->count(),
-            'managers'      => (clone $baseQuery)->where('role', 'manager')->count(),
-            'collaborateurs'=> (clone $baseQuery)->where('role', 'collaborateur')->count(),
+            'admins'        => (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'admin'))->count(),
+            'directeurs'    => (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'directeur'))->count(),
+            'managers'      => (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'manager'))->count(),
+            'collaborateurs'=> (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'collaborateur'))->count(),
         ];
 
         $departements = Departement::where('societe_id', $societeId)->actifs()->ordonne()->get(['id', 'nom', 'couleur']);
@@ -82,17 +82,17 @@ class CollaborateurController extends Controller
             'prenom'         => 'required|string|max:255',
             'email'          => 'required|email|unique:users,email',
             'poste'          => 'nullable|string|max:255',
-            'role'           => 'required|in:admin,directeur,manager,collaborateur',
+            'roles'          => 'required|array|min:1',
+            'roles.*'        => 'in:admin,directeur,manager,collaborateur',
             'departement_id' => 'nullable|exists:departements,id',
         ]);
 
         $societeId = session('societe_id');
 
-        // Manager ne peut créer que des collaborateurs dans son propre département
         $currentCollab = $request->user()->collaborateurActuel();
         if ($currentCollab?->estManager()) {
             $validated['departement_id'] = $currentCollab->departement_id;
-            if (!in_array($validated['role'], ['collaborateur'])) {
+            if (array_diff($validated['roles'], ['collaborateur'])) {
                 abort(403, 'Un manager ne peut créer que des collaborateurs.');
             }
         }
@@ -103,15 +103,17 @@ class CollaborateurController extends Controller
             'password' => Hash::make('password'),
         ]);
 
-        Collaborateur::create([
+        $collaborateur = Collaborateur::create([
             'user_id'        => $user->id,
             'societe_id'     => $societeId,
             'departement_id' => $validated['departement_id'] ?? null,
             'nom'            => $validated['nom'],
             'prenom'         => $validated['prenom'],
             'poste'          => $validated['poste'] ?? null,
-            'role'           => $validated['role'],
         ]);
+
+        $roleIds = Role::whereIn('code', $validated['roles'])->pluck('id');
+        $collaborateur->roles()->sync($roleIds);
 
         return redirect()
             ->route('collaborateurs.index')
@@ -125,6 +127,7 @@ class CollaborateurController extends Controller
         $collaborateur->load([
             'user:id,email',
             'departement:id,nom,couleur',
+            'roles:id,code,nom,ordre',
             'objectifs' => fn ($q) => $q->with('resultatsCles')->latest()->take(5),
             'taches' => fn ($q) => $q->latest()->take(10),
         ]);
@@ -147,7 +150,7 @@ class CollaborateurController extends Controller
         $this->authorizeAccess($collaborateur);
 
         $societeId = session('societe_id');
-        $collaborateur->load('user:id,email');
+        $collaborateur->load(['user:id,email', 'roles:id,code,nom,ordre']);
         $departements = Departement::where('societe_id', $societeId)->actifs()->ordonne()->get(['id', 'nom', 'couleur']);
 
         return Inertia::render('Collaborateurs/Edit', [
@@ -165,16 +168,16 @@ class CollaborateurController extends Controller
             'prenom'         => 'required|string|max:255',
             'email'          => ['required', 'email', Rule::unique('users', 'email')->ignore($collaborateur->user_id)],
             'poste'          => 'nullable|string|max:255',
-            'role'           => 'required|in:admin,directeur,manager,collaborateur',
+            'roles'          => 'required|array|min:1',
+            'roles.*'        => 'in:admin,directeur,manager,collaborateur',
             'departement_id' => 'nullable|exists:departements,id',
             'actif'          => 'boolean',
         ]);
 
-        // Manager : ne peut pas changer le département ni élever le rôle
         $currentCollab = $request->user()->collaborateurActuel();
         if ($currentCollab?->estManager()) {
             $validated['departement_id'] = $currentCollab->departement_id;
-            if (!in_array($validated['role'], ['collaborateur'])) {
+            if (array_diff($validated['roles'], ['collaborateur'])) {
                 abort(403, 'Un manager ne peut pas modifier le rôle en dehors de collaborateur.');
             }
         }
@@ -183,10 +186,12 @@ class CollaborateurController extends Controller
             'nom'            => $validated['nom'],
             'prenom'         => $validated['prenom'],
             'poste'          => $validated['poste'] ?? null,
-            'role'           => $validated['role'],
             'departement_id' => $validated['departement_id'] ?? null,
             'actif'          => $validated['actif'] ?? $collaborateur->actif,
         ]);
+
+        $roleIds = Role::whereIn('code', $validated['roles'])->pluck('id');
+        $collaborateur->roles()->sync($roleIds);
 
         if ($collaborateur->user) {
             $collaborateur->user->update([
@@ -222,25 +227,18 @@ class CollaborateurController extends Controller
             ->with('success', 'Collaborateur supprimé.');
     }
 
-    /**
-     * Vérifie que l'utilisateur courant a le droit d'accéder à ce collaborateur.
-     * Un manager ne peut accéder qu'aux collaborateurs de son département.
-     */
     private function authorizeAccess(Collaborateur $collaborateur): void
     {
         $societeId = session('societe_id');
 
-        // Doit appartenir à la même société
         if ($collaborateur->societe_id !== $societeId) {
             abort(403);
         }
 
         $currentCollab = auth()->user()->collaborateurActuel();
 
-        // Admin/Directeur : accès global
         if ($currentCollab?->aAccesGlobal()) return;
 
-        // Manager : seulement son département
         if ($currentCollab?->estManager()) {
             if ($collaborateur->departement_id !== $currentCollab->departement_id) {
                 abort(403, 'Vous ne pouvez accéder qu\'aux collaborateurs de votre département.');
@@ -248,7 +246,6 @@ class CollaborateurController extends Controller
             return;
         }
 
-        // Collaborateur simple : uniquement son propre profil
         if ($collaborateur->id !== $currentCollab?->id) {
             abort(403);
         }

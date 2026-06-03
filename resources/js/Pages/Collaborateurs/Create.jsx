@@ -8,6 +8,13 @@ import { NativeSelect as Select } from '@/Components/ui/Select';
 import { motion } from 'framer-motion';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 
+const ROLES_DISPONIBLES = [
+    { value: 'collaborateur', label: 'Collaborateur',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',           dot: 'bg-sky-500' },
+    { value: 'manager',       label: 'Manager',           color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', dot: 'bg-violet-500' },
+    { value: 'directeur',     label: 'Directeur Général', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',     dot: 'bg-amber-500' },
+    { value: 'admin',         label: 'Administrateur',    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',             dot: 'bg-red-500' },
+];
+
 export default function CollaborateursCreate({ departements = [] }) {
     const { auth } = usePage().props;
     const isManager = auth?.collaborateur?.isManager;
@@ -18,9 +25,26 @@ export default function CollaborateursCreate({ departements = [] }) {
         prenom: '',
         email: '',
         poste: '',
-        role: 'collaborateur',
+        roles: ['collaborateur'],
         departement_id: isManager ? (auth?.collaborateur?.departement_id || '') : '',
     });
+
+    const toggleRole = (code) => {
+        const current = data.roles || [];
+        if (current.includes(code)) {
+            // Toujours garder au moins un rôle
+            if (current.length === 1) return;
+            setData('roles', current.filter(r => r !== code));
+        } else {
+            setData('roles', [...current, code]);
+        }
+    };
+
+    const rolesDisponibles = () => {
+        if (isManager) return ROLES_DISPONIBLES.filter(r => r.value === 'collaborateur');
+        if (!aAccesGlobal) return ROLES_DISPONIBLES.filter(r => r.value !== 'admin' && r.value !== 'directeur');
+        return ROLES_DISPONIBLES;
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -81,29 +105,45 @@ export default function CollaborateursCreate({ departements = [] }) {
                                     error={errors.poste} placeholder="Ex: Directrice Commerciale" className="mt-1.5" />
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="role">Rôle *</Label>
-                                    <Select id="role" value={data.role} onChange={(e) => setData('role', e.target.value)}
-                                        error={errors.role} className="mt-1.5">
-                                        <option value="collaborateur">Collaborateur</option>
-                                        {!isManager && <option value="manager">Manager</option>}
-                                        {aAccesGlobal && <option value="directeur">Directeur Général</option>}
-                                        {aAccesGlobal && <option value="admin">Administrateur</option>}
-                                    </Select>
+                            {/* Rôles — checkboxes multi-sélection */}
+                            <div>
+                                <Label>Rôle(s) *</Label>
+                                <p className="text-[11px] text-gray-400 mt-0.5 mb-2">Un collaborateur peut avoir plusieurs rôles simultanément.</p>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    {rolesDisponibles().map(role => {
+                                        const selected = (data.roles || []).includes(role.value);
+                                        return (
+                                            <button
+                                                key={role.value}
+                                                type="button"
+                                                onClick={() => toggleRole(role.value)}
+                                                disabled={isManager && role.value !== 'collaborateur'}
+                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all ${
+                                                    selected
+                                                        ? `${role.color} border-current shadow-sm`
+                                                        : 'bg-gray-50 dark:bg-dark-800 text-gray-400 border-gray-200 dark:border-dark-700 hover:border-gray-300'
+                                                }`}
+                                            >
+                                                <span className={`h-2 w-2 rounded-full ${selected ? role.dot : 'bg-gray-300'}`} />
+                                                {role.label}
+                                                {selected && <span className="ml-0.5">✓</span>}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
+                                {errors.roles && <p className="text-xs text-red-500 mt-1">{errors.roles}</p>}
+                            </div>
 
-                                <div>
-                                    <Label htmlFor="departement_id">Département</Label>
-                                    <Select id="departement_id" value={data.departement_id || ''} onChange={(e) => setData('departement_id', e.target.value || null)}
-                                        error={errors.departement_id} className="mt-1.5"
-                                        disabled={isManager}>
-                                        <option value="">— Aucun département —</option>
-                                        {departements.map(d => (
-                                            <option key={d.id} value={d.id}>{d.nom}</option>
-                                        ))}
-                                    </Select>
-                                </div>
+                            <div>
+                                <Label htmlFor="departement_id">Département</Label>
+                                <Select id="departement_id" value={data.departement_id || ''} onChange={(e) => setData('departement_id', e.target.value || null)}
+                                    error={errors.departement_id} className="mt-1.5"
+                                    disabled={isManager}>
+                                    <option value="">— Aucun département —</option>
+                                    {departements.map(d => (
+                                        <option key={d.id} value={d.id}>{d.nom}</option>
+                                    ))}
+                                </Select>
                             </div>
 
                             <div className="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-dark-700">
