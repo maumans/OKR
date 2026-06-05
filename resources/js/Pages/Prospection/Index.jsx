@@ -327,7 +327,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
 
             {/* Create / Edit Dialog */}
             <Dialog open={isCreateOpen} onOpenChange={v => { if (!v) { setIsCreateOpen(false); setEditingProspect(null); reset(); } }}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                     <DialogHeader>
                         <DialogTitle>{editingProspect ? 'Modifier le prospect' : 'Ajouter un prospect'}</DialogTitle>
                     </DialogHeader>
@@ -395,7 +395,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
 
             {/* Action Dialog */}
             <Dialog open={isActionOpen} onOpenChange={setIsActionOpen}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                     <DialogHeader><DialogTitle>Nouvelle Action Commerciale</DialogTitle></DialogHeader>
                     {actionProspect && <p className="text-sm text-slate-500 mb-4">Prospect: <strong className="text-slate-800 dark:text-white">{actionProspect.nom}</strong></p>}
                     <form onSubmit={submitAction} className="space-y-4">

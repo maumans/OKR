@@ -117,6 +117,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     Route::middleware('module:prospection')->group(function () {
         Route::get('/prospects', [ProspectController::class, 'index'])->name('prospects.index');
         Route::post('/prospects', [ProspectController::class, 'store'])->name('prospects.store');
+        Route::put('/prospects/{prospect}', [ProspectController::class, 'update'])->name('prospects.update');
         Route::put('/prospects/{prospect}/status', [ProspectController::class, 'updateStatus'])->name('prospects.status');
         Route::post('/prospects/{prospect}/actions', [ProspectController::class, 'storeAction'])->name('prospects.actions.store');
         Route::delete('/prospects/{prospect}', [ProspectController::class, 'destroy'])->name('prospects.destroy');

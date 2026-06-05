@@ -1145,7 +1145,7 @@ function CreateProjectModal({ open, onClose, collaborateurs, devise }) {
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg" aria-describedby={undefined}>
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Briefcase className="h-5 w-5 text-sky-500" /> Nouveau projet

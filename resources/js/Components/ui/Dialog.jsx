@@ -27,11 +27,19 @@ const isSelectPortalTarget = (e) => {
     return !!target?.closest?.('[data-searchable-select-portal], [data-select-portal]');
 };
 
-const DialogContent = forwardRef(({ className, children, onPointerDownOutside, onInteractOutside, ...props }, ref) => (
+const DialogContent = forwardRef(({
+    className,
+    children,
+    onPointerDownOutside,
+    onInteractOutside,
+    'aria-describedby': ariaDescribedBy,
+    ...props
+}, ref) => (
     <DialogPortal>
         <DialogOverlay />
         <DialogPrimitive.Content
             ref={ref}
+            aria-describedby={ariaDescribedBy}
             onPointerDownOutside={(e) => {
                 if (isSelectPortalTarget(e)) { e.preventDefault(); return; }
                 onPointerDownOutside?.(e);
