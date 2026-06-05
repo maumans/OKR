@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { Link, router } from '@inertiajs/react';
 import SuperAdminLayout from '../Layout';
 import { Building2, ArrowLeft, Save } from 'lucide-react';
@@ -96,25 +97,11 @@ export default function SocieteEdit({ societe, devises }) {
 
                         <div className="grid grid-cols-2 gap-4">
                             <Field label="Layout">
-                                <select
-                                    value={form.layout_mode}
-                                    onChange={e => set('layout_mode', e.target.value)}
-                                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200"
-                                >
-                                    <option value="sidebar">Sidebar</option>
-                                    <option value="topbar">Topbar</option>
-                                </select>
+                                <SearchableSelect value={form.layout_mode} onChange={v => set("layout_mode", v)} options={[{ value: "sidebar", label: "Sidebar" }, { value: "topbar", label: "Topbar" }]} />
                             </Field>
 
                             <Field label="Devise">
-                                <select
-                                    value={form.devise_id}
-                                    onChange={e => set('devise_id', e.target.value)}
-                                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200"
-                                >
-                                    <option value="">— Devise —</option>
-                                    {devises.map(d => <option key={d.id} value={d.id}>{d.code} — {d.nom}</option>)}
-                                </select>
+                                <SearchableSelect value={form.devise_id} onChange={v => set("devise_id", v)} options={devises.map(d => ({ value: String(d.id), label: d.code + " — " + d.nom }))} nullable nullLabel="— Devise —" />
                             </Field>
                         </div>
 

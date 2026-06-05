@@ -22,11 +22,27 @@ const DialogOverlay = forwardRef(({ className, ...props }, ref) => (
 ));
 DialogOverlay.displayName = 'DialogOverlay';
 
-const DialogContent = forwardRef(({ className, children, ...props }, ref) => (
+const isSelectPortalTarget = (e) => {
+    const target = e.detail?.originalEvent?.target ?? e.target;
+    return !!target?.closest?.('[data-searchable-select-portal], [data-select-portal]');
+};
+
+const DialogContent = forwardRef(({ className, children, onPointerDownOutside, onInteractOutside, ...props }, ref) => (
     <DialogPortal>
         <DialogOverlay />
         <DialogPrimitive.Content
             ref={ref}
+            onPointerDownOutside={(e) => {
+                if (isSelectPortalTarget(e)) { e.preventDefault(); return; }
+                onPointerDownOutside?.(e);
+            }}
+            onInteractOutside={(e) => {
+                if (isSelectPortalTarget(e)) { e.preventDefault(); return; }
+                onInteractOutside?.(e);
+            }}
+            onFocusOutside={(e) => {
+                if (isSelectPortalTarget(e)) { e.preventDefault(); return; }
+            }}
             className={cn(
                 'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
                 'w-[calc(100%-2rem)] sm:w-full max-w-lg max-h-[90vh] overflow-y-auto',

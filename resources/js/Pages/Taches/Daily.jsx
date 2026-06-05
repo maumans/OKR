@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/u
 import { Input } from '@/Components/ui/Input';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 import { Button } from '@/Components/ui/Button';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import {
  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
  ResponsiveContainer, Tooltip as RechartsTooltip,
@@ -235,7 +236,7 @@ export default function DailyBilan({
  });
  } else {
  setEditingTask(null);
- setTaskData({ titre:'', description:'', priorite:'normale', date:currentDate, tache_id:'', mission_id:'', type_tache:'', categorie:'', temps_estime:'', collaborateur_id: selectedCollaborateur.id });
+ setTaskData({ titre:'', description:'', priorite:'normale', date:currentDate, tache_id:'', mission_id:'', type_tache:'', categorie:'', categorie_autre:'', temps_estime:'', collaborateur_id: selectedCollaborateur.id });
  }
  setIsTaskModalOpen(true);
  };
@@ -383,13 +384,17 @@ export default function DailyBilan({
  )}
 
  <div className="mt-1.5 flex items-center gap-2 flex-wrap">
- {t.categorie && t.categorie !== 'autre' && (() => {
+ {t.categorie && (() => {
  const cat = CATEGORIES.find(c => c.value === t.categorie);
- return cat ? (
- <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${cat.bg} ${cat.border} ${cat.color}`}>
- {cat.emoji} {cat.label}
- </span>
- ) : null;
+ if (!cat) return null;
+ const label = t.categorie === 'autre' && t.categorie_autre
+  ? t.categorie_autre
+  : cat.label;
+ return (
+  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${cat.bg} ${cat.border} ${cat.color}`}>
+   {cat.emoji} {label}
+  </span>
+ );
  })()}
  {t.type_tache_nom && (
  <span
@@ -705,24 +710,21 @@ export default function DailyBilan({
  onChange={e => setTaskData('description', e.target.value)}
  placeholder="Détails, contexte, liens..."
  rows={2}
- className="w-full px-3 py-2 text-sm border rounded-lg border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 resize-none"
+ className="w-full rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 px-3 py-2 text-sm placeholder:text-gray-400 hover:border-gray-300 dark:hover:border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-colors duration-150 resize-none"
  />
  </div>
 
  <div className="space-y-1.5">
  <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Tâche OKR associée</label>
- <select
+ <SearchableSelect
  value={taskData.tache_id || ''}
- onChange={e => setTaskData('tache_id', e.target.value)}
- className="w-full h-9 px-3 text-sm border rounded-lg border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
- >
- <option value="">— Aucune tâche OKR —</option>
- {Object.entries(tachesOkr).map(([objectif, taches]) => (
- <optgroup key={objectif} label={objectif}>
- {taches.map(t => <option key={t.id} value={t.id}>{t.titre}</option>)}
- </optgroup>
- ))}
- </select>
+ onChange={v => setTaskData('tache_id', v)}
+ options={Object.entries(tachesOkr).flatMap(([objectif, taches]) =>
+ taches.map(t => ({ value: String(t.id), label: t.titre }))
+ )}
+ nullable nullLabel="— Aucune tâche OKR —"
+ placeholder="Rechercher une tâche OKR..."
+ />
  </div>
 
  {/* Mission / Projet associé */}
@@ -731,16 +733,13 @@ export default function DailyBilan({
  <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
  Mission / Projet <span className="text-gray-400 font-normal">(optionnel)</span>
  </label>
- <select
+ <SearchableSelect
  value={taskData.mission_id || ''}
- onChange={e => setTaskData('mission_id', e.target.value)}
- className="w-full h-9 px-3 text-sm border rounded-lg border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
- >
- <option value="">— Aucune mission —</option>
- {missions.map(m => (
- <option key={m.id} value={m.id}>{m.titre} — {m.client}</option>
- ))}
- </select>
+ onChange={v => setTaskData('mission_id', v)}
+ options={missions.map(m => ({ value: String(m.id), label: m.titre + (m.client ? ` — ${m.client}` : '') }))}
+ nullable nullLabel="— Aucune mission —"
+ placeholder="Rechercher une mission..."
+ />
  </div>
  )}
 
@@ -754,7 +753,11 @@ export default function DailyBilan({
  <button
  key={cat.value}
  type="button"
- onClick={() => setTaskData('categorie', taskData.categorie === cat.value ? '' : cat.value)}
+ onClick={() => {
+ const next = taskData.categorie === cat.value ? '' : cat.value;
+ setTaskData('categorie', next);
+ if (next !== 'autre') setTaskData('categorie_autre', '');
+ }}
  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
  taskData.categorie === cat.value
  ? `${cat.bg} ${cat.border} ${cat.color} shadow-sm`
@@ -765,34 +768,42 @@ export default function DailyBilan({
  </button>
  ))}
  </div>
+ {taskData.categorie === 'autre' && (
+ <input
+ type="text"
+ value={taskData.categorie_autre}
+ onChange={e => setTaskData('categorie_autre', e.target.value)}
+ placeholder="Précisez l'activité (ex : Réunion comité, Formation…)"
+ className="mt-2 w-full px-3 py-2 text-sm border rounded-lg border-gray-300 dark:border-dark-600 bg-white dark:bg-dark-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+ autoFocus
+ />
+ )}
  </div>
 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
  <div className="space-y-1.5">
  <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Type de tâche</label>
- <select
+ <SearchableSelect
  value={taskData.type_tache || ''}
- onChange={e => setTaskData('type_tache', e.target.value)}
- className="w-full h-9 px-3 text-sm border rounded-lg border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
- >
- <option value="">— Sans type —</option>
- {typesTaches.map(t => (
- <option key={t.id} value={t.id}>{t.nom} (+{t.score_base} pts)</option>
- ))}
- </select>
+ onChange={v => setTaskData('type_tache', v)}
+ options={typesTaches.map(t => ({ value: String(t.id), label: `${t.nom} (+${t.score_base} pts)` }))}
+ nullable nullLabel="— Sans type —"
+ placeholder="Rechercher un type..."
+ />
  </div>
  <div className="space-y-1.5">
  <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Priorité</label>
- <select
+ <SearchableSelect
  value={taskData.priorite}
- onChange={e => setTaskData('priorite', e.target.value)}
- className="w-full h-9 px-3 text-sm border rounded-lg border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
- >
- <option value="basse">Basse</option>
- <option value="normale">Normale</option>
- <option value="haute">Haute</option>
- <option value="urgente">Urgente</option>
- </select>
+ onChange={v => setTaskData('priorite', v)}
+ options={[
+ { value: 'basse', label: 'Basse' },
+ { value: 'normale', label: 'Normale' },
+ { value: 'haute', label: 'Haute' },
+ { value: 'urgente', label: 'Urgente' },
+ ]}
+ placeholder="Priorité..."
+ />
  </div>
  </div>
 

@@ -8,9 +8,11 @@ import { Label } from '@/Components/ui/Label';
 import { Badge } from '@/Components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
 import { NativeSelect as Select } from '@/Components/ui/Select';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
+import { NumberInput } from '@/Components/ui/NumberInput';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, GripVertical, Building2, Phone, Briefcase, Calendar, DollarSign, User } from 'lucide-react';
+import { Plus, Search, GripVertical, Building2, Phone, Briefcase, Calendar, DollarSign, User, Activity, TrendingUp, Award } from 'lucide-react';
 import { FunnelChart, Funnel, LabelList, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const columns = [
@@ -22,7 +24,7 @@ const columns = [
     { id: 'perdu', label: 'Perdu', color: 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30' },
 ];
 
-export default function ProspectionIndex({ prospects, filters, collaborateurs = [], secteurs = [], statsPipeline, valeurPipeline }) {
+export default function ProspectionIndex({ prospects, filters, collaborateurs = [], secteurs = [], statsPipeline, valeurPipeline, scoresCommerciaux = [] }) {
     const devise = usePage().props.auth?.societe?.devise;
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [collabFilter, setCollabFilter] = useState(filters?.collaborateur_id || '');
@@ -108,11 +110,15 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
         e.preventDefault();
         if (editingProspect) {
             put(route('prospects.update', editingProspect.id), {
-                onSuccess: () => { setIsCreateOpen(false); setEditingProspect(null); reset(); }
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => { setIsCreateOpen(false); setEditingProspect(null); reset(); },
             });
         } else {
             post(route('prospects.store'), {
-                onSuccess: () => { setIsCreateOpen(false); reset(); }
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => { setIsCreateOpen(false); reset(); },
             });
         }
     };
@@ -197,6 +203,39 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                 </div>
             </div>
 
+            {/* Scores Commerciaux */}
+            {scoresCommerciaux.length > 0 && (
+                <div className="bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-dark-800 p-5 mb-6">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Award className="h-4 w-4 text-amber-500" />
+                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Performances Commerciales</h3>
+                    </div>
+                    <div className="space-y-3">
+                        {scoresCommerciaux.slice(0, 5).map((com, idx) => (
+                            <div key={com.id} className="flex items-center gap-3">
+                                <span className={`text-[11px] font-bold w-5 text-center ${idx === 0 ? 'text-amber-500' : 'text-slate-400'}`}>#{idx + 1}</span>
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 w-36 truncate">{com.nom}</span>
+                                <div className="flex-1 bg-slate-100 dark:bg-dark-800 rounded-full h-2">
+                                    <div
+                                        className={`h-2 rounded-full transition-all ${
+                                            com.score >= 80 ? 'bg-emerald-500' : com.score >= 50 ? 'bg-amber-400' : 'bg-red-400'
+                                        }`}
+                                        style={{ width: `${com.score}%` }}
+                                    />
+                                </div>
+                                <span className={`text-sm font-bold w-10 text-right ${
+                                    com.score >= 80 ? 'text-emerald-600' : com.score >= 50 ? 'text-amber-500' : 'text-red-500'
+                                }`}>{com.score}</span>
+                                <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                                    <span className="flex items-center gap-1"><Activity className="h-3 w-3" />{com.actions}</span>
+                                    <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" />{com.reunions} RDV</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Kanban Board */}
             <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-220px)] min-h-[500px]">
                 {columns.map(col => {
@@ -241,7 +280,12 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                                                     <Phone className="h-3 w-3" /> {prospect.contact}
                                                 </div>
                                             )}
-                                            
+                                            {prospect.source && (
+                                                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-1">
+                                                    <TrendingUp className="h-3 w-3" /> {prospect.source}
+                                                </div>
+                                            )}
+
                                             <div className="mt-3 pt-3 border-t border-slate-100 dark:border-dark-800 flex items-center justify-between">
                                                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                                                     {prospect.prochain_rdv ? (
@@ -253,9 +297,16 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                                                         <span>Aucun RDV</span>
                                                     )}
                                                 </div>
-                                                <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 py-0 border-primary-200 text-primary-600 hover:bg-primary-50" onClick={(e) => openActionModal(e, prospect)}>
-                                                    + Action
-                                                </Button>
+                                                <div className="flex items-center gap-1.5">
+                                                    {prospect.actions_count > 0 && (
+                                                        <span className="flex items-center gap-1 text-[10px] font-medium text-slate-400">
+                                                            <Activity className="h-3 w-3" />{prospect.actions_count}
+                                                        </span>
+                                                    )}
+                                                    <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 py-0 border-primary-200 text-primary-600 hover:bg-primary-50" onClick={(e) => openActionModal(e, prospect)}>
+                                                        + Action
+                                                    </Button>
+                                                </div>
                                             </div>
                                             {prospect.statut === 'gagne' && prospect.date_conversion && (
                                                 <div className="mt-2 text-[10px] font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400 rounded px-2 py-1 inline-block">
@@ -274,36 +325,52 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                 })}
             </div>
 
-            {/* Create Dialog */}
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            {/* Create / Edit Dialog */}
+            <Dialog open={isCreateOpen} onOpenChange={v => { if (!v) { setIsCreateOpen(false); setEditingProspect(null); reset(); } }}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Ajouter un prospect</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>{editingProspect ? 'Modifier le prospect' : 'Ajouter un prospect'}</DialogTitle>
+                    </DialogHeader>
                     <form onSubmit={submitCreate} className="space-y-4 mt-4">
                         <div>
                             <Label>Nom du prospect / entreprise *</Label>
-                            <Input value={data.nom} onChange={e => setData('nom', e.target.value)} error={errors.nom} placeholder="Ex: TechCorp Guinée" />
+                            <Input value={data.nom} onChange={e => setData('nom', e.target.value)} placeholder="Ex: TechCorp Guinée" className="mt-1" />
+                            {errors.nom && <p className="text-xs text-red-500 mt-0.5">{errors.nom}</p>}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Contact (tél/email)</Label>
-                                <Input icon={Phone} value={data.contact} onChange={e => setData('contact', e.target.value)} error={errors.contact} placeholder="+224 6XX XXX XXX" />
+                                <Input icon={Phone} value={data.contact} onChange={e => setData('contact', e.target.value)} placeholder="+224 6XX XXX XXX" className="mt-1" />
                             </div>
                             <div>
                                 <Label>Secteur d'activité</Label>
-                                <Input icon={Briefcase} value={data.secteur} onChange={e => setData('secteur', e.target.value)} error={errors.secteur} placeholder="Technologie, Finance..." />
+                                <Input icon={Briefcase} value={data.secteur} onChange={e => setData('secteur', e.target.value)} placeholder="Technologie, Finance..." className="mt-1" />
                             </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label>Valeur estimée ({devise?.code || 'GNF'})</Label>
-                                <Input type="number" icon={DollarSign} value={data.valeur} onChange={e => setData('valeur', e.target.value)} error={errors.valeur} placeholder="1000000" />
+                                <NumberInput
+                                    value={data.valeur}
+                                    onChange={v => setData('valeur', v)}
+                                    suffix={devise?.code || 'GNF'}
+                                    decimals={0}
+                                    className="mt-1"
+                                />
+                                {errors.valeur && <p className="text-xs text-red-500 mt-0.5">{errors.valeur}</p>}
                             </div>
                             <div>
                                 <Label>Commercial assigné</Label>
-                                <Select value={data.collaborateur_id} onChange={e => setData('collaborateur_id', e.target.value)} error={errors.collaborateur_id} className="mt-1">
-                                    <option value="">Non assigné</option>
-                                    {collaborateurs.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
-                                </Select>
+                                <SearchableSelect
+                                    value={String(data.collaborateur_id || '')}
+                                    onChange={val => setData('collaborateur_id', val)}
+                                    options={collaborateurs.map(c => ({ value: String(c.id), label: `${c.prenom} ${c.nom}` }))}
+                                    placeholder="Non assigné"
+                                    nullable
+                                    nullLabel="Non assigné"
+                                    className="mt-1"
+                                />
+                                {errors.collaborateur_id && <p className="text-xs text-red-500 mt-0.5">{errors.collaborateur_id}</p>}
                             </div>
                         </div>
                         <div>
@@ -312,13 +379,14 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs = 
                         </div>
                         <div>
                             <Label>Note</Label>
-                            <textarea className="flex min-h-[60px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-dark-700 dark:bg-dark-900 dark:placeholder:text-gray-400"
+                            <textarea
+                                className="flex min-h-[60px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-dark-700 dark:bg-dark-900 dark:placeholder:text-gray-400 mt-1"
                                 value={data.note} onChange={e => setData('note', e.target.value)} placeholder="Notes sur le prospect..." />
                         </div>
                         <div className="flex justify-end gap-2 pt-4">
-                            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Annuler</Button>
+                            <Button type="button" variant="outline" onClick={() => { setIsCreateOpen(false); setEditingProspect(null); reset(); }}>Annuler</Button>
                             <Button type="submit" disabled={processing} className="bg-primary-500 hover:bg-primary-600 text-white">
-                                {editingProspect ? 'Mettre à jour' : 'Ajouter'}
+                                {processing ? 'Enregistrement…' : editingProspect ? 'Mettre à jour' : 'Ajouter'}
                             </Button>
                         </div>
                     </form>

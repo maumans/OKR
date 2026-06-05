@@ -37,30 +37,42 @@ class MissionController extends Controller
             ->actifs()
             ->get(['id', 'nom', 'prenom']);
 
+        $allMissions = Mission::where('societe_id', $societeId)->with('livrables:id,mission_id,statut')->get();
+        $stats = [
+            'total'               => $allMissions->count(),
+            'en_attente'          => $allMissions->where('statut', 'en_attente_dir')->count(),
+            'actifs'              => $allMissions->where('statut', 'active')->count(),
+            'clotures'            => $allMissions->whereIn('statut', ['completed', 'archived'])->count(),
+            'livrables_confirmer' => $allMissions->flatMap->livrables->whereIn('statut', ['review', 'validated'])->count(),
+        ];
+
         return Inertia::render('Missions/Index', [
             'missions'       => $missions,
             'collaborateurs' => $collaborateurs,
             'filters'        => $request->only(['search', 'statut', 'type', 'responsable_id']),
+            'stats'          => $stats,
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'client'          => 'required|string|max:255',
-            'titre'           => 'required|string|max:255',
-            'type'            => 'required|in:audit,automation,transformation,formation,integration',
-            'practice'        => 'nullable|string|max:255',
-            'responsable_id'  => 'nullable|exists:collaborateurs,id',
-            'deadline'        => 'nullable|date',
-            'note'            => 'nullable|string',
-            'next_action'     => 'nullable|string|max:500',
-            'next_action_date'=> 'nullable|date',
+            'client'           => 'required|string|max:255',
+            'titre'            => 'required|string|max:255',
+            'type'             => 'required|in:audit,automation,transformation,formation,integration,conseil,deploiement',
+            'practice'         => 'nullable|string|max:255',
+            'responsable_id'   => 'nullable|exists:collaborateurs,id',
+            'deadline'         => 'nullable|date',
+            'montant'          => 'nullable|numeric|min:0',
+            'email_nps_client' => 'nullable|email|max:255',
+            'note'             => 'nullable|string',
+            'next_action'      => 'nullable|string|max:500',
+            'next_action_date' => 'nullable|date',
         ]);
 
         $mission = Mission::create(array_merge($validated, [
             'societe_id' => session('societe_id'),
-            'statut'     => 'active',
+            'statut'     => 'en_attente_dir',
         ]));
 
         MissionLog::create([
@@ -81,11 +93,13 @@ class MissionController extends Controller
         $validated = $request->validate([
             'client'           => 'sometimes|required|string|max:255',
             'titre'            => 'sometimes|required|string|max:255',
-            'type'             => 'sometimes|required|in:audit,automation,transformation,formation,integration',
+            'type'             => 'sometimes|required|in:audit,automation,transformation,formation,integration,conseil,deploiement',
             'practice'         => 'nullable|string|max:255',
-            'statut'           => 'sometimes|in:draft,active,on_hold,completed,archived',
+            'statut'           => 'sometimes|in:en_attente_dir,draft,active,on_hold,completed,archived',
             'responsable_id'   => 'nullable|exists:collaborateurs,id',
             'deadline'         => 'nullable|date',
+            'montant'          => 'nullable|numeric|min:0',
+            'email_nps_client' => 'nullable|email|max:255',
             'note'             => 'nullable|string',
             'next_action'      => 'nullable|string|max:500',
             'next_action_date' => 'nullable|date',
@@ -128,7 +142,7 @@ class MissionController extends Controller
             'responsable_id'      => 'nullable|exists:collaborateurs,id',
             'deadline_envoi'      => 'nullable|date',
             'deadline_validation' => 'nullable|date',
-            'url'                 => 'nullable|url|max:500',
+            'url'                 => 'nullable|string|max:500',
         ]);
 
         $livrable = $mission->livrables()->create(array_merge($validated, [
@@ -160,7 +174,7 @@ class MissionController extends Controller
             'responsable_id'      => 'nullable|exists:collaborateurs,id',
             'deadline_envoi'      => 'nullable|date',
             'deadline_validation' => 'nullable|date',
-            'url'                 => 'nullable|url|max:500',
+            'url'                 => 'nullable|string|max:500',
             'version'             => 'nullable|string|max:20',
         ]);
 
@@ -246,6 +260,43 @@ class MissionController extends Controller
         return redirect()->back()->with('success', 'Log enregistré.');
     }
 
+    // ─── Validation DIR ────────────────────────────────────────────────────────
+
+    public function validateDir(Request $request, Mission $mission)
+    {
+        $this->authorizeSociete($mission);
+
+        $mission->update([
+            'statut'       => 'active',
+            'dir_validated' => true,
+        ]);
+
+        MissionLog::create([
+            'mission_id'      => $mission->id,
+            'societe_id'      => $mission->societe_id,
+            'collaborateur_id'=> $request->user()->collaborateurActuel()?->id,
+            'type'            => 'status',
+            'content'         => 'Projet validé par la Direction — démarrage autorisé',
+        ]);
+
+        return redirect()->back()->with('success', 'Projet validé et démarré.');
+    }
+
+    // ─── NPS ───────────────────────────────────────────────────────────────────
+
+    public function updateNps(Request $request, Mission $mission)
+    {
+        $this->authorizeSociete($mission);
+
+        $validated = $request->validate([
+            'nps_score' => 'required|integer|min:0|max:10',
+        ]);
+
+        $mission->update(['nps_score' => $validated['nps_score']]);
+
+        return redirect()->back()->with('success', 'Score NPS enregistré.');
+    }
+
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
     private function authorizeSociete(Mission $mission): void
@@ -263,6 +314,10 @@ class MissionController extends Controller
             'practice'        => $mission->practice,
             'statut'          => $mission->statut,
             'deadline'        => $mission->deadline?->format('Y-m-d'),
+            'montant'         => $mission->montant,
+            'email_nps_client'=> $mission->email_nps_client,
+            'dir_validated'   => $mission->dir_validated,
+            'nps_score'       => $mission->nps_score,
             'note'            => $mission->note,
             'next_action'     => $mission->next_action,
             'next_action_date'=> $mission->next_action_date?->format('Y-m-d'),

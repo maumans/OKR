@@ -133,26 +133,29 @@ const SelectSeparator = forwardRef(({ className, ...props }, ref) => (
 ));
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
 
-// ─── NativeSelect — backward compat (flèche gérée par le CSS global) ─────────
+// ─── NativeSelect ─────────────────────────────────────────────────────────────
 
 const NativeSelect = forwardRef(({ className, children, error, ...props }, ref) => (
     <div>
-        <select
-            className={cn(
-                'flex h-10 w-full appearance-none rounded-xl border border-gray-200 dark:border-dark-600',
-                'bg-white dark:bg-dark-800 px-4 py-2 text-sm',
-                'text-gray-900 dark:text-gray-100',
-                'focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500',
-                'transition-all duration-200',
-                'disabled:cursor-not-allowed disabled:opacity-50',
-                error && 'border-red-400 focus:ring-red-400/30 focus:border-red-400',
-                className
-            )}
-            ref={ref}
-            {...props}
-        >
-            {children}
-        </select>
+        <div className="relative">
+            <select
+                className={cn(
+                    'flex h-10 w-full appearance-none rounded-xl border border-gray-200 dark:border-dark-600',
+                    'bg-white dark:bg-dark-800 pl-4 pr-10 py-2 text-sm',
+                    'text-gray-900 dark:text-gray-100',
+                    'focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500',
+                    'transition-all duration-200',
+                    'disabled:cursor-not-allowed disabled:opacity-50',
+                    error && 'border-red-400 focus:ring-red-400/30 focus:border-red-400',
+                    className
+                )}
+                ref={ref}
+                {...props}
+            >
+                {children}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        </div>
         {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
     </div>
 ));

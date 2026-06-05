@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/Card';
 import { Badge } from '@/Components/ui/Badge';
@@ -108,22 +109,8 @@ export default function Dashboard({
                     </p>
                 </motion.div>
                 <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2 flex-wrap sm:flex-nowrap">
-                    <select
-                        value={periodeFilter}
-                        onChange={(e) => { setPeriodeFilter(e.target.value); applyFilters('periode_id', e.target.value); }}
-                        className="bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs px-2.5 py-1.5 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-                    >
-                        <option value="">Toute période</option>
-                        {periodes.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                    </select>
-                    <select
-                        value={axeFilter}
-                        onChange={(e) => { setAxeFilter(e.target.value); applyFilters('axe_objectif_id', e.target.value); }}
-                        className="bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs px-2.5 py-1.5 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-                    >
-                        <option value="">Tous les axes</option>
-                        {axes.map(a => <option key={a.id} value={a.id}>{a.nom}</option>)}
-                    </select>
+                    <SearchableSelect value={periodeFilter} onChange={v => { setPeriodeFilter(v); applyFilters({ periode_id: v, axe_id: axeFilter }); }} options={periodes.map(p => ({ value: String(p.id), label: p.nom }))} nullable nullLabel="Toute période" placeholder="Toute période" />
+                    <SearchableSelect value={axeFilter} onChange={v => { setAxeFilter(v); applyFilters({ periode_id: periodeFilter, axe_id: v }); }} options={axes.map(a => ({ value: String(a.id), label: a.nom }))} nullable nullLabel="Tous les axes" placeholder="Tous les axes" />
                     {(periodeFilter || axeFilter) && (
                         <button
                             onClick={() => { setPeriodeFilter(''); setAxeFilter(''); router.get(route('dashboard'), {}, { preserveState: true, replace: true }); }}

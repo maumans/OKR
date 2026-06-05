@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/Badge';
 import { Button } from '@/Components/ui/Button';
@@ -370,10 +371,7 @@ export default function IndividuelsIndex({
  </h1>
  <div className="flex items-center gap-2 mt-0.5">
  <span className="text-[11px] text-gray-400">Mois :</span>
- <select value={moisActuel} onChange={e => handleMoisChange(e.target.value)}
- className="text-sm font-medium text-gray-700 dark:text-gray-300 bg-transparent border-0 p-0 focus:ring-0 cursor-pointer appearance-none">
- {moisOptions.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
- </select>
+ <SearchableSelect value={moisActuel} onChange={v => handleMoisChange({ target: { value: v } })} options={moisOptions.map(m => ({ value: m.value, label: m.label }))} />
  <ChevronDown className="h-3 w-3 text-gray-400 -ml-1" />
  </div>
  </div>

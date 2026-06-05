@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { router } from '@inertiajs/react';
 import SuperAdminLayout from '../Layout';
 import { CreditCard, Pencil, X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -52,19 +53,11 @@ function EditModal({ abonnement, onClose }) {
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-[11px] font-semibold text-slate-500 uppercase">Plan</label>
-                            <select value={form.plan} onChange={e => set('plan', e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border rounded-lg dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="starter">Starter</option>
-                                <option value="pro">Pro</option>
-                                <option value="enterprise">Enterprise</option>
-                            </select>
+                            <SearchableSelect value={form.plan} onChange={v => set("plan", v)} options={[{ value: "starter", label: "Starter" }, { value: "pro", label: "Pro" }, { value: "enterprise", label: "Enterprise" }]} />
                         </div>
                         <div>
                             <label className="text-[11px] font-semibold text-slate-500 uppercase">Statut</label>
-                            <select value={form.statut} onChange={e => set('statut', e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border rounded-lg dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="actif">Actif</option>
-                                <option value="suspendu">Suspendu</option>
-                                <option value="annule">Annulé</option>
-                            </select>
+                            <SearchableSelect value={form.statut} onChange={v => set("statut", v)} options={[{ value: "actif", label: "Actif" }, { value: "suspendu", label: "Suspendu" }, { value: "annule", label: "Annulé" }]} />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">

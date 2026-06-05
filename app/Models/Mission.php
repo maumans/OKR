@@ -20,6 +20,10 @@ class Mission extends Model
         'practice',
         'statut',
         'deadline',
+        'montant',
+        'email_nps_client',
+        'dir_validated',
+        'nps_score',
         'note',
         'next_action',
         'next_action_date',
@@ -33,6 +37,9 @@ class Mission extends Model
             'deadline'         => 'date',
             'next_action_date' => 'date',
             'last_contact_at'  => 'datetime',
+            'montant'          => 'decimal:2',
+            'dir_validated'    => 'boolean',
+            'nps_score'        => 'integer',
         ];
     }
 
@@ -67,6 +74,10 @@ class Mission extends Model
     {
         if (in_array($this->statut, ['completed', 'archived'])) {
             return 'done';
+        }
+
+        if ($this->statut === 'en_attente_dir') {
+            return 'pending';
         }
 
         $now = now();

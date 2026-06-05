@@ -72,6 +72,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     // ─── OKR ────────────────────────────────────────────────
     Route::middleware('module:okr')->group(function () {
         Route::put('/objectifs/kr/{resultatCle}', [ObjectifController::class, 'updateKr'])->name('objectifs.kr.update');
+        Route::delete('/objectifs/kr/{resultatCle}', [ObjectifController::class, 'destroyKr'])->name('objectifs.kr.destroy');
+        Route::post('/objectifs/{objectif}/kr', [ObjectifController::class, 'storeKr'])->name('objectifs.kr.store');
         Route::resource('objectifs', ObjectifController::class)->except(['edit']);
         Route::put('/objectifs/{objectif}/progress', [ObjectifController::class, 'updateProgress'])->name('objectifs.progress');
         Route::put('/objectifs/{objectif}/status', [ObjectifController::class, 'updateStatus'])->name('objectifs.status');
@@ -152,6 +154,8 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
         Route::put('/missions/{mission}/livrables/{livrable}/advance', [MissionController::class, 'advanceLivrable'])->name('missions.livrables.advance');
         Route::delete('/missions/{mission}/livrables/{livrable}', [MissionController::class, 'destroyLivrable'])->name('missions.livrables.destroy');
         Route::post('/missions/{mission}/logs', [MissionController::class, 'storeLog'])->name('missions.logs.store');
+        Route::put('/missions/{mission}/validate-dir', [MissionController::class, 'validateDir'])->name('missions.validate_dir');
+        Route::put('/missions/{mission}/nps', [MissionController::class, 'updateNps'])->name('missions.nps.update');
     });
 
     // ─── Import Excel ─────────────────────────────────────────

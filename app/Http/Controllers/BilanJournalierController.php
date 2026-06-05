@@ -59,6 +59,7 @@ class BilanJournalierController extends Controller
                 'type_tache_nom'    => $t->typeTache?->nom,
                 'type_tache_couleur'=> $t->typeTache?->couleur,
                 'categorie'         => $t->categorie,
+                'categorie_autre'   => $t->categorie_autre,
                 'temps_estime'      => $t->temps_estime,
                 'temps_reel'        => $t->temps_reel,
                 'score'             => $t->score,
@@ -187,9 +188,10 @@ class BilanJournalierController extends Controller
             'tache_id'         => 'nullable|exists:taches,id',
             'mission_id'       => 'nullable|exists:missions,id',
             'type_tache'       => 'nullable|string',
-            'categorie'        => 'nullable|in:prospection,rdv,delivery,seminaire,recherche,autre',
-            'temps_estime'     => 'nullable|integer|min:0',
-            'collaborateur_id' => 'nullable|exists:collaborateurs,id',
+            'categorie'         => 'nullable|in:prospection,rdv,delivery,seminaire,recherche,autre',
+            'categorie_autre'   => 'nullable|string|max:120',
+            'temps_estime'      => 'nullable|integer|min:0',
+            'collaborateur_id'  => 'nullable|exists:collaborateurs,id',
         ]);
 
         // Déterminer le collaborateur cible
@@ -221,6 +223,7 @@ class BilanJournalierController extends Controller
             'priorite'         => $validated['priorite'],
             'type_tache'       => $validated['type_tache'] ?? null,
             'categorie'        => $validated['categorie'] ?? null,
+            'categorie_autre'  => ($validated['categorie'] === 'autre') ? ($validated['categorie_autre'] ?? null) : null,
             'temps_estime'     => $validated['temps_estime'] ?? null,
             'statut'           => 'a_faire',
             'date'             => $validated['date'],
@@ -275,21 +278,23 @@ class BilanJournalierController extends Controller
             'tache_id'     => 'nullable|exists:taches,id',
             'mission_id'   => 'nullable|exists:missions,id',
             'type_tache'   => 'nullable|string',
-            'categorie'    => 'nullable|in:prospection,rdv,delivery,seminaire,recherche,autre',
-            'temps_estime' => 'nullable|integer|min:0',
-            'temps_reel'   => 'nullable|integer|min:0',
+            'categorie'        => 'nullable|in:prospection,rdv,delivery,seminaire,recherche,autre',
+            'categorie_autre'  => 'nullable|string|max:120',
+            'temps_estime'     => 'nullable|integer|min:0',
+            'temps_reel'       => 'nullable|integer|min:0',
         ]);
 
         $tacheDaily->update([
-            'titre'        => $validated['titre'],
-            'description'  => $validated['description'] ?? null,
-            'priorite'     => $validated['priorite'],
-            'tache_id'     => $validated['tache_id'] ?? null,
-            'mission_id'   => $validated['mission_id'] ?? null,
-            'type_tache'   => $validated['type_tache'] ?? null,
-            'categorie'    => $validated['categorie'] ?? null,
-            'temps_estime' => $validated['temps_estime'] ?? null,
-            'temps_reel'   => $validated['temps_reel'] ?? null,
+            'titre'           => $validated['titre'],
+            'description'     => $validated['description'] ?? null,
+            'priorite'        => $validated['priorite'],
+            'tache_id'        => $validated['tache_id'] ?? null,
+            'mission_id'      => $validated['mission_id'] ?? null,
+            'type_tache'      => $validated['type_tache'] ?? null,
+            'categorie'       => $validated['categorie'] ?? null,
+            'categorie_autre' => ($validated['categorie'] === 'autre') ? ($validated['categorie_autre'] ?? null) : null,
+            'temps_estime'    => $validated['temps_estime'] ?? null,
+            'temps_reel'      => $validated['temps_reel'] ?? null,
         ]);
 
         app(DailyService::class)->calculerActivitesJour($tacheDaily->collaborateur_id, Carbon::parse($tacheDaily->date));

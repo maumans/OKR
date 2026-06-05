@@ -59,13 +59,13 @@ export function CustomDatePicker({
                         type="button"
                         disabled={disabled}
                         className={cn(
-                            'relative w-full flex items-center gap-2 rounded-xl bg-white dark:bg-dark-800 text-left border transition-all duration-200 shadow-sm',
+                            'relative w-full flex items-center gap-2 rounded-lg bg-white dark:bg-dark-800 text-left border transition-colors duration-150',
                             isSm
-                                ? 'px-2 py-1.5 text-[11px]'
+                                ? 'px-2.5 py-1.5 text-xs'
                                 : 'py-2 pl-3 pr-3 text-sm',
                             error
-                                ? 'border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/30'
-                                : 'border-gray-200 dark:border-dark-600 hover:border-gray-300 dark:hover:border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500',
+                                ? 'border-red-400 focus:outline-none focus:ring-2 focus:ring-red-400/20'
+                                : 'border-gray-200 dark:border-dark-600 hover:border-gray-300 dark:hover:border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500',
                             disabled && 'opacity-50 cursor-not-allowed',
                             !disabled && 'cursor-pointer'
                         )}

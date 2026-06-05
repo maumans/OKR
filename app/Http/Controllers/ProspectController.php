@@ -21,6 +21,7 @@ class ProspectController extends Controller
 
         $prospects = Prospect::where('societe_id', $societeId)
             ->with('collaborateur:id,nom,prenom')
+            ->withCount('actionsCommerciales')
             ->when($request->search, function ($query, $search) {
                 $query->where('nom', 'like', "%{$search}%")
                       ->orWhere('contact', 'like', "%{$search}%")
@@ -49,6 +50,7 @@ class ProspectController extends Controller
                 'source' => $p->source,
                 'montant_final' => $p->montant_final,
                 'note' => $p->note,
+                'actions_count' => $p->actionsCommerciales_count,
             ]);
 
         $collaborateurs = Collaborateur::where('societe_id', $societeId)->actifs()->get(['id', 'nom', 'prenom']);

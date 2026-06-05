@@ -139,10 +139,11 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats, de
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
                 className="bg-white dark:bg-dark-900 rounded-xl border border-gray-200 dark:border-dark-800 shadow-sm">
 
-                {/* Barre de filtres */}
-                <div className="p-4 border-b border-gray-100 dark:border-dark-800 flex flex-col gap-3">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                        {/* Recherche */}
+                {/* Barre de filtres — 2 lignes pour éviter le chevauchement */}
+                <div className="p-4 border-b border-gray-100 dark:border-dark-800 flex flex-col gap-2.5">
+
+                    {/* Ligne 1 : Recherche + toggle Actifs / Inactifs */}
+                    <div className="flex items-center gap-3">
                         <div className="relative flex-1 min-w-0 max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <input
@@ -154,52 +155,7 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats, de
                             />
                         </div>
 
-                        {/* Pills rôle */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            {[
-                                { value: '', label: 'Tous' },
-                                { value: 'admin', label: 'Admins' },
-                                { value: 'directeur', label: 'Directeurs' },
-                                { value: 'manager', label: 'Managers' },
-                                { value: 'collaborateur', label: 'Membres' },
-                            ].map(({ value, label }) => (
-                                <button
-                                    key={value}
-                                    onClick={() => handleRoleFilter(value === '' ? '' : value)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                        (value === '' && activeRole === '') || activeRole === value
-                                            ? 'bg-primary-500 text-white shadow-sm'
-                                            : 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-dark-700'
-                                    }`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Filtre département */}
-                        {departements.length > 0 && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs text-gray-400">Dép.</span>
-                                {departements.map(d => (
-                                    <button
-                                        key={d.id}
-                                        onClick={() => handleDeptFilter(String(d.id))}
-                                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
-                                            activeDept === String(d.id)
-                                                ? 'text-white shadow-sm'
-                                                : 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-400 border-transparent hover:border-gray-300'
-                                        }`}
-                                        style={activeDept === String(d.id) ? { backgroundColor: d.couleur || '#6366f1', borderColor: d.couleur || '#6366f1' } : {}}
-                                    >
-                                        {d.nom}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Toggle actif/inactif */}
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 ml-auto shrink-0">
                             <button
                                 onClick={() => handleActifFilter('true')}
                                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
@@ -226,6 +182,56 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats, de
                                 </button>
                             )}
                         </div>
+                    </div>
+
+                    {/* Ligne 2 : Pills rôle + séparateur + filtre département */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Rôles */}
+                        {[
+                            { value: '', label: 'Tous' },
+                            { value: 'admin', label: 'Admins' },
+                            { value: 'directeur', label: 'Directeurs' },
+                            { value: 'manager', label: 'Managers' },
+                            { value: 'collaborateur', label: 'Membres' },
+                        ].map(({ value, label }) => (
+                            <button
+                                key={value}
+                                onClick={() => handleRoleFilter(value === '' ? '' : value)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                    (value === '' && activeRole === '') || activeRole === value
+                                        ? 'bg-primary-500 text-white shadow-sm'
+                                        : 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-dark-700'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+
+                        {/* Séparateur vertical */}
+                        {departements.length > 0 && (
+                            <span className="h-4 w-px bg-gray-200 dark:bg-dark-700 mx-1 shrink-0" />
+                        )}
+
+                        {/* Départements */}
+                        {departements.length > 0 && (
+                            <>
+                                <span className="text-xs text-gray-400 shrink-0">Dép.</span>
+                                {departements.map(d => (
+                                    <button
+                                        key={d.id}
+                                        onClick={() => handleDeptFilter(String(d.id))}
+                                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                                            activeDept === String(d.id)
+                                                ? 'text-white shadow-sm'
+                                                : 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-400 border-transparent hover:border-gray-300 dark:hover:border-dark-600'
+                                        }`}
+                                        style={activeDept === String(d.id) ? { backgroundColor: d.couleur || '#6366f1', borderColor: d.couleur || '#6366f1' } : {}}
+                                    >
+                                        {d.nom}
+                                    </button>
+                                ))}
+                            </>
+                        )}
                     </div>
                 </div>
 

@@ -83,9 +83,7 @@ export default function ObjectifModal({ open, onClose, collaborateurs, selectedC
                             </div>
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mois / Période</label>
-                                <select value={form.mois || ''} onChange={e => setField('mois', e.target.value)} className={inputCls}>
-                                    {moisOptions.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                                </select>
+                                <SearchableSelect value={form.mois || ""} onChange={v => setField("mois", v)} options={moisOptions.map(m => ({ value: m.value, label: m.label }))} />
                             </div>
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe</label>

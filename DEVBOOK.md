@@ -75,6 +75,40 @@ Le concept central de l'application est la gestion multi-sociétés (Multi-Tenan
 - Ils suivent l'approche shadcn/ui : code source intégré pour une personnalisation totale, basés sur Radix UI et `class-variance-authority` (cva).
 - **NumberInput** : composant spécialisé pour les champs numériques avec formatage français en temps réel (`150 000,5`). Supporte `suffix` (GNF, %), `decimals`, auto-select au focus.
 
+### Composants Select (v2 — Juin 2026)
+
+Trois composants Select coexistent selon les besoins :
+
+| Composant | Fichier | Usage |
+|-----------|---------|-------|
+| `SearchableSelect` | `ui/SearchableSelect.jsx` | Sélecteur principal avec recherche (> 5 options). Utilisé partout (filtres, modals, panneaux). |
+| `CustomSelect` | `ui/CustomSelect.jsx` | Sélecteur compact sans recherche, même API que SearchableSelect. |
+| `NativeSelect` | `ui/Select.jsx` | Select HTML natif avec flèche personnalisée, pour formulaires simples. Importé `{ NativeSelect as Select }`. |
+
+**Architecture — SearchableSelect & CustomSelect** : basés sur `@radix-ui/react-popover`. Le Popover Radix cohabite nativement avec `@radix-ui/react-dialog` (les deux partagent un contexte `DismissableLayer` — le Dialog ne se ferme pas quand on interagit avec le select ouvert à l'intérieur).
+
+**API commune SearchableSelect / CustomSelect** :
+```jsx
+<SearchableSelect
+  value={string}             // valeur sélectionnée (toujours string)
+  onChange={fn}              // callback (val: string)
+  options={[{value, label}]} // tableau d'options
+  placeholder="..."          // texte si vide
+  nullable={false}           // ajoute une option "vide" en tête
+  nullLabel="— Aucun —"      // label de l'option vide
+  size="md"                  // 'md' | 'sm'
+  disabled={false}
+  error="message"            // affiche message d'erreur rouge
+  className="..."            // classes sur le wrapper
+/>
+```
+
+**Règles d'implémentation** :
+- Utiliser `onPointerDown` avec `e.preventDefault()` sur les options (pas `onClick`) pour éviter tout changement de focus avant la sélection.
+- `onCloseAutoFocus={(e) => e.preventDefault()}` sur `PopoverContent` pour empêcher le retour de focus sur le trigger à la fermeture.
+- `--radix-popover-trigger-width` : CSS variable Radix pour aligner la largeur du dropdown sur le trigger.
+- **Ne jamais** utiliser `@headlessui/react` dans les selects — installé en v2 (API complètement différente de v1).
+
 ### Formatage des nombres
 - Format français partout : `150 000,5` (espaces comme séparateur de milliers, virgule décimale).
 - Utilitaires : `formatNumber(value, decimals)` et `parseFormattedNumber(str)` dans `lib/utils.js`.
@@ -142,9 +176,15 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 
 ### Vue OKR hiérarchique (v6)
 - **Onglets de période** : style underline avec plage de dates (ex: "Q2 2026 Avr-Juin"). Clic toggle sélection.
-- **Barre de filtres** : FILTRES label + recherche + responsables + statuts + bouton "× Effacer".
+- **Barre de filtres** : FILTRES label + recherche + responsables + statuts + bouton "× Effacer". Tous les `SearchableSelect` de filtre passent `placeholder=` égal au `nullLabel` pour afficher un libellé descriptif au lieu du générique "Sélectionner...".
 - **Bandeau de progression globale** : barre pleine largeur avec gradient, dot coloré, pourcentage.
 - **Bouton "+ Nouvel objectif"** : ouvre un **modal de création rapide** (intitulé + **périodes multi-sélection** (checkboxes) + responsable + KRs dynamiques). Utilise `router.post` avec `preserveState: true` et validation client-side. KRs vides filtrés automatiquement. Erreurs affichées dans un bandeau rouge. Un objectif peut couvrir **plusieurs trimestres** via la table pivot `objectif_periode`.
+- **Regroupement par axes** : les objectifs sont organisés en sections par axe stratégique (ordre des axes configurés, "Sans axe" en dernier). Chaque groupe affiche un en-tête avec dot coloré + nom de l'axe en majuscules + compteur, une ligne de séparation, et les cartes avec une bordure latérale `couleur+40` (semi-transparente). Calculé via `useMemo` depuis `objectifs.data` et le tableau `axes`.
+- **Barre de raccourcis rapides** : entre le bandeau de progression et les objectifs, 4 boutons inline :
+  - **+ Ajouter un axe** (bouton sombre) → redirige vers `parametres.okr.index`.
+  - **+ Objectif** (bouton outline) → ouvre `CreateObjectifModal`.
+  - **+ Key Result** (bouton outline) → ouvre `QuickKRModal` (sélecteur objectif + description KR + valeur cible + unité).
+  - **+ Tâche** (bouton outline) → ouvre `QuickTaskModal` (titre + sélecteur objectif + sélecteur KR chargé dynamiquement + priorité + assigné).
 - **Cartes objectif expandables** (composant `ObjectifCard`) :
   - Header : chevron expand + dot axe + titre + badge axe (couleur) + badge type + badge % progression.
   - Sub-line : X/Y tâches · N KR + mini progress bar.
@@ -155,8 +195,11 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
   - **Checkbox fonctionnelle** : toggle `a_faire` ↔ `termine` via `PUT /taches/{id}/status`. Texte barré quand terminé.
   - **Boutons d'action tâche** : œil → ouvre panneau détail slide-over ; poubelle → suppression avec confirmation.
   - **"+ Ajouter une tâche"** par KR : chaque KR a son bouton pour ajouter une tâche directement liée à ce KR.
+  - **Pied de carte expandée** : boutons **+ KR** (sombre) et **+ Tâche** (outline) visibles uniquement pour le responsable/propriétaire. `+ KR` ouvre `QuickKRModal` avec l'objectif pré-sélectionné (`defaultObjectifId`). `+ Tâche` ouvre `AddTaskModal` avec les KRs de l'objectif déjà chargés.
 - **Modal d'édition d'objectif** (`EditObjectifModal`) : formulaire complet inline pour modifier titre, responsable, **périodes multiples** (checkboxes), axe, type, visibilité, prime, et tous les KRs (ajout/modification/suppression). Les KRs ont un champ `description_detaillee` (textarea). Envoi via `router.put` avec sync des KRs et périodes.
 - **Modal d'ajout de tâche** (`AddTaskModal`) : formulaire compact avec sélection obligatoire du KR cible, `router.post` vers `taches.store`, validation client-side, `preserveState: true`.
+- **`QuickKRModal`** : modal compact (max-w-md) pour ajouter un KR rapidement. Sélecteur d'objectif (pré-rempli si ouvert depuis une carte), description, valeur cible, unité. Route `POST /objectifs/{objectif}/kr` → `objectifs.kr.store`. Prop `defaultObjectifId` pour pré-sélection.
+- **`QuickTaskModal`** : modal compact pour créer une tâche depuis n'importe où. Sélecteur d'objectif → KRs chargés dynamiquement depuis `objectifs.data` (sans appel API) → titre + priorité + assigné.
 - **Panneau de détail tâche** (`TaskDetailPanel`) : slide-over animé (framer-motion spring) depuis la droite avec **mode édition** complet :
   - Header : titre (éditable) + sous-titre KR + boutons ×/✓/crayon.
   - Onglets : **Fiche** / **Fichiers** (upload/download/suppression) / **Note** (textarea + bouton "Sauvegarder la note").
@@ -250,6 +293,10 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - [x] OKR Index : vue hiérarchique, modal création rapide, task panel slide-over, KR barres h-7 colorées.
 - [x] Dashboard : composant MiniStat inline, spacing optimisé.
 - [x] Daily : refonte complète avec onglets équipe, compteurs activité, historique.
+- [x] **Regroupement OKR par axes** : objectifs organisés par section d'axe (en-tête coloré + bordure latérale + compteur). `useMemo` depuis `objectifs.data` et `axes`.
+- [x] **Barre de raccourcis OKR** : 4 boutons rapides (+ Axe → params, + Objectif, + KR via `QuickKRModal`, + Tâche via `QuickTaskModal`).
+- [x] **Boutons inline + KR / + Tâche** dans le pied de chaque `ObjectifCard` expandée (visibles si responsable).
+- [x] **Fix `SearchableSelect` placeholders** : tous les selects de filtre (OKR, Dashboard, Matrice, SuperAdmin/AuditLogs) passent désormais `placeholder=` égal au `nullLabel` pour afficher un libellé descriptif.
 
 ### Phase 4b : Matrice Eisenhower ✅
 - [x] Page Matrice Eisenhower (`/matrice`) : vue 4 quadrants (Q1 Faire, Q2 Planifier, Q3 Déléguer, Q4 Éliminer).
@@ -290,20 +337,27 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - [x] Sélecteur de devise dans Paramètres société (liste déroulante des devises actives).
 - [x] Seeders : `DeviseSeeder` (idempotent) → `SocieteSeeder` (GNF par défaut).
 
-### Phase 4f : Module Missions (War Room Ops) ✅
+### Phase 4f : Module Missions → Projets & Delivery (refonte Juin 2026) ✅
 - [x] **Tables** : `missions`, `livrables`, `mission_logs` (migration `2026_05_15_210001`).
+- [x] **Nouveaux champs** (`2026_06_05_000005`) : `montant` (decimal 15,2), `email_nps_client` (string), `dir_validated` (boolean mission), `nps_score` (tinyint 0–10) + statut `en_attente_dir` ajouté à l'enum.
 - [x] **Modèles** : `Mission`, `Livrable`, `MissionLog` (trait `BelongsToSociete`).
-- [x] **Calcul de pression** (`Mission::getPressureAttribute`) : 5 niveaux — `critical` (deadline dépassée), `warning` (deadline < 3j ou SLA dépassé), `watch` (inactif 7j+), `ok`, `done`.
+- [x] **Calcul de pression** (`Mission::getPressureAttribute`) : 6 niveaux — `pending` (en_attente_dir), `critical`, `warning`, `watch`, `ok`, `done`.
 - [x] **SLA par canal** : WhatsApp 2h, Appel 4h, Email/Réunion 24h.
 - [x] **Lifecycle livrables** : draft → review → validated → sent → feedback → approved → archived.
-- [x] **Controller** `MissionController` : 9 routes (CRUD missions, CRUD livrables, avancement livrable, journal).
-- [x] **Page React** `Missions/Index.jsx` : tableau avec dots de pression + panneau latéral (slide-over Framer Motion) avec 3 onglets :
-  - **Livrables** : liste des livrables avec avancement statut en 1 clic, ajout inline.
-  - **Infos** : édition complète de la mission (formulaire complet : client, type, statut, responsable, deadline, canal SLA, prochaine action, note).
-  - **Journal** : fil d'activité avec types (action/note/statut/livrable), ajout rapide.
-- [x] **Résumé de pression** : bandeau coloré en haut de page par niveau (Critique/Alerte/Veille/OK/Terminé).
-- [x] **Navigation** : TopbarNav pill "Missions" → `missions.index` (sky-500) + Sidebar "Missions & Delivery" (Briefcase) sous BUSINESS.
-- [x] **Filtres** : recherche texte, filtre statut, filtre type de mission.
+- [x] **Workflow validation DIR** : nouveau projet créé en `en_attente_dir` → bouton "Valider DIR" → passe en `active` + log automatique.
+- [x] **Controller** `MissionController` : 11 routes (CRUD missions, CRUD livrables, avancement livrable, journal, `validateDir`, `updateNps`).
+- [x] **Page React** `Missions/Index.jsx` — refonte complète :
+  - **Sidebar module** : navigation gauche avec 6 vues (Tous les projets, En attente DIR, Projets actifs, Livrables à confirmer, Projets clôturés, NPS & Scores).
+  - **Stats header** : 5 indicateurs cliquables (En attente DIR, Actifs, Livrables à conf., Avancement %, NPS moyen /10) — toute la largeur.
+  - **Alertes bannières** : amber (projets en attente DIR) + blue (livrables à confirmer) avec bouton "Voir" → navigation directe.
+  - **Barre d'actions** : "Nouveau projet" + "Recalculer" + recherche + "Dernière sync".
+  - **Cartes projet** : dot pression, titre, client · manager · montant, barre de progression, X/Y livrables, badge NPS si renseigné, bouton "✓ Valider DIR" (visible si `en_attente_dir`).
+  - **Groupement** : en vue "Tous les projets", les cartes sont groupées par statut.
+  - **Panneau détail** (slide-over) : 3 onglets Livrables / Infos / Journal — champs enrichis (montant, email NPS, selects CustomSelect/SearchableSelect).
+  - **Édition inline livrables** : bouton crayon au survol → formulaire in-place avec tous les champs (nom, type, statut, responsable, deadlines, URL, DIR validé, AR count). Soumission `preserveState: true`.
+  - **Section NPS** : grille de boutons 0–10 par projet, badge score coloré (rouge/amber/vert), légende Détracteur/Neutre/Promoteur.
+  - **Modal création** : champs NOM DU PROJET, CLIENT, MANAGER, TYPE, DATE FIN, MONTANT (NumberInput), EMAIL NPS CLIENT + notice "soumis à la validation DIR".
+- [x] **Navigation** : TopbarNav pill "Missions" → `missions.index` (sky-500) + Sidebar "Missions & Delivery" sous BUSINESS.
 
 ### Phase 5a : Module d'import Excel ✅
 - [x] **Table `imports`** : traçabilité des imports avec payload JSON et IDs créés pour rollback.
@@ -326,6 +380,11 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - [x] **Page `Import/Historique.jsx`** : tableau des imports passés avec bouton rollback.
 - [x] **Sauvegarde brouillon** : persistance localStorage du mapping édité.
 - [x] **Navigation** : TopbarNav pill "Import" (emerald-500) + Sidebar section ADMINISTRATION (Import de données, Historique des imports).
+
+### Phase 4g : Enrichissement module Prospection (Juin 2026) ✅
+- [x] **Section "Performances Commerciales"** : bandeau au-dessus du Kanban — top 5 commerciaux avec barre de score (vert ≥80, amber ≥50, rouge <50), compteurs actions et RDV. Données issues de `scoresCommerciaux` (déjà calculé par `ScoreService`).
+- [x] **Cartes prospect enrichies** : affichage de la `source` (avec icône TrendingUp) et du compteur d'`actions_count` (via `withCount('actionsCommerciales')` dans `ProspectController`).
+- [x] **Modal prospect** : `valeur` remplacé par `<NumberInput>` (fin du bug locale française) ; `Commercial assigné` remplacé par `<SearchableSelect>` ; `preserveState: true` sur `put` et `post` ; titre dynamique "Modifier le prospect" / "Ajouter un prospect" ; erreurs de validation visibles sous chaque champ ; bouton "Enregistrement…" pendant la requête.
 
 ### Phase 5 : LMS et Reporting ⏳
 - [ ] Module LMS : Formations et modules d'apprentissage (page placeholder, modèles et migration existants).
@@ -498,6 +557,68 @@ class MonController extends Controller implements HasMiddleware
 
 ---
 
+### Composants Select défaillants — Dialog incompatible + crash Headless UI (corrigé Juin 2026)
+
+**Fichiers** : `resources/js/Components/ui/CustomSelect.jsx`, `resources/js/Components/ui/SearchableSelect.jsx`, `resources/js/Components/ui/Select.jsx`.
+
+**Problèmes** :
+1. **`CustomSelect` crash total** : utilisait l'API Headless UI v1 (`Listbox.Button`, `Listbox.Options`) alors que `@headlessui/react@^2.0.0` est installé. Ces exports n'existent plus en v2 → crash JavaScript au runtime.
+2. **`SearchableSelect` ferme le Dialog** : le dropdown portal (`document.body`) était interprété par Radix `DismissableLayer` comme "hors Dialog" → le Dialog se fermait dès qu'on cliquait une option.
+3. **`SearchableSelect` impossible à utiliser dans un Dialog** : le `FocusScope` de Radix Dialog piégeait le focus et empêchait de mettre le focus sur la barre de recherche (rendue dans un portal externe).
+4. **`NativeSelect` sans flèche** : `appearance-none` retirait la flèche native sans en ajouter une — ressemblait visuellement à un `<input>` texte.
+
+**Correctifs** :
+- `CustomSelect` et `SearchableSelect` **réécrits** avec `@radix-ui/react-popover` (déjà en dépendance). Radix Popover et Radix Dialog partagent un contexte `DismissableLayer` — le Dialog suspend sa propre détection de fermeture quand un Popover imbriqué est ouvert.
+- `onPointerDown` avec `e.preventDefault()` sur chaque option (sélection avant tout changement de focus).
+- `onCloseAutoFocus={(e) => e.preventDefault()}` sur `PopoverContent` (pas de scintillement à la fermeture).
+- `NativeSelect` : wrapper `<div className="relative">` + `<ChevronDown>` en absolu ; `className` reste sur le `<select>` pour compatibilité ascendante (`h-8`, `w-36`, etc.).
+
+---
+
+### `useForm.post/put` sans `preserveState` ferme le panneau et avale les erreurs (corrigé Juin 2026)
+
+**Fichiers** : `Missions/Index.jsx` (LivrablesTab), `Prospection/Index.jsx` (modal prospect).
+
+**Problème** : Les soumissions `useForm.post` / `useForm.put` sans `preserveState: true` déclenchent une navigation Inertia complète après redirect. L'état React local (ex: `selectedMission`, `editingProspect`) est réinitialisé → le panneau se ferme, les erreurs de validation sont invisibles.
+
+**Correctif** : Ajouter `preserveState: true` et `preserveScroll: true` à tous les appels `post`/`put` dans les panneaux et modals. La règle générale :
+- Formulaires dans un panneau/modal slide-over → **toujours** `preserveState: true`.
+- Formulaires de page dédiée (pleine page) → pas nécessaire.
+
+---
+
+### `type="number"` en locale française renvoie chaîne vide (corrigé Juin 2026)
+
+**Fichier** : `Prospection/Index.jsx` — champ `valeur` du modal prospect.
+
+**Problème** : En locale française, le navigateur affiche `1 000 000,00` dans un `<input type="number">`. Si l'utilisateur ne retouche pas le champ, la soumission envoie la valeur correcte. Mais si le champ est re-rendu ou si la valeur contient une virgule, `.value` retourne `""` → validation `numeric` Laravel échoue silencieusement.
+
+**Correctif** : Remplacer systématiquement tous les `<Input type="number">` par `<NumberInput>` (cf. conventions). Le `NumberInput` gère le formatage français en interne et envoie la valeur numérique brute.
+
+**Règle** : Ne jamais utiliser `type="number"` dans ce projet. Utiliser `<NumberInput>` partout.
+
+---
+
+### URL stricte sur les livrables bloquait silencieusement l'ajout (corrigé Juin 2026)
+
+**Fichier** : `MissionController.php` — `storeLivrable` et `updateLivrable`.
+
+**Problème** : La règle `'url' => 'nullable|url|max:500'` rejetait tout texte ne commençant pas par `http://` ou `https://` (ex: un chemin relatif ou un identifiant). L'erreur était muette faute d'affichage côté frontend.
+
+**Correctif** : Règle passée à `'url' => 'nullable|string|max:500'`. La validation de format URL n'est pas critique pour un champ de lien livrable.
+
+---
+
+### `NumberInput` — valeur alignée à droite (corrigé Juin 2026)
+
+**Fichier** : `resources/js/Components/ui/NumberInput.jsx`.
+
+**Problème** : La classe `text-right` était codée en dur dans le composant, ce qui alignait tous les montants à droite même dans des contextes où c'est inattendu (formulaires).
+
+**Correctif** : Remplacé `text-right` par `text-left` dans le `cn()` du composant. Le montant s'affiche maintenant aligné à gauche, cohérent avec tous les autres champs texte.
+
+---
+
 ### Filtre "Toutes les périodes" — OKR Index (corrigé 20 Mai 2026)
 
 **Fichier** : `resources/js/Pages/OKR/Index.jsx` — fonction `applyFilters`.
@@ -526,15 +647,18 @@ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
 - **Seeders** : Structure modulaire (`SocieteSeeder` → `CollaborateurSeeder` → `ParametreOKRSeeder` → `OKRSeeder` → `TacheSeeder` → `ProspectSeeder`). Les tâches seedées sont liées à des KRs spécifiques (hiérarchie Objectif → KR → Tâche).
 - **Réponses Inertia** : Toujours `redirect()->back()` ou `Inertia::render()`, jamais `response()->json()`.
 - **Modals** : Les formulaires de création rapide utilisent `router.post` (pas `useForm.post`) avec `preserveState: true` et `onError` pour garder le modal ouvert en cas d'erreur.
+- **Validation URL** : Utiliser `nullable|string|max:500` plutôt que `nullable|url` pour les champs de lien — la règle `url` Laravel est trop stricte pour des saisies libres.
 
 ### Frontend (React)
 - **Composants** : Fonctions exportées par défaut. Nommage en PascalCase.
 - **Inertia** : Utilisation de `router` pour les formulaires modaux (plus fiable que `useForm` pour garder l'état). `useForm` uniquement pour les pages de formulaire dédiées.
 - **Styling** : Utilisation systématique de Tailwind. Pour les variantes complexes, utiliser `cva`.
 - **Imports** : Toujours `export default` pour les composants. Imports nommés `{ X }` uniquement pour les named exports (ex: UI components).
-- **Nombres** : Utiliser `<NumberInput>` pour les champs, `formatNumber()` pour l'affichage.
+- **Nombres** : Utiliser `<NumberInput>` pour **tous** les champs numériques (interdit d'utiliser `type="number"` — bug locale française). `formatNumber()` pour l'affichage en lecture seule.
 - **Langue** : Toute l'interface utilisateur doit être en **français**. Aucun texte en anglais visible par l'utilisateur.
 - **Modals inline** : Les modals de création (objectif, tâche) sont des composants locaux dans le fichier de la page parent, pas des fichiers séparés.
+- **`preserveState` obligatoire** : Tout `useForm.post` / `useForm.put` / `router.put` déclenché depuis un panneau slide-over ou un modal doit inclure `preserveState: true, preserveScroll: true` pour maintenir l'état React et afficher les erreurs de validation.
+- **Selects** : Ne jamais utiliser `NativeSelect` dans les formulaires — utiliser `SearchableSelect` (> 5 options ou responsables) ou `CustomSelect` (≤ 5 options fixes). `NativeSelect` uniquement pour les filtres légers dans les barres de recherche.
 
 ---
 
@@ -549,7 +673,10 @@ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
 | `resultats_cles` | Résultats clés liés à un objectif (description, description_detaillee, progression, poids, valeur_cible, unité, type) |
 | `objectif_periode` | Table pivot multi-périodes (objectif_id, periode_id) — permet à un objectif de couvrir plusieurs trimestres |
 | `taches` | Tâches liées à un KR (titre, description, mode_operatoire JSON, outils, definition_done JSON, note, statut, priorité, eisenhower, date, collaborateur, objectif_id, resultat_cle_id, mission_id). Hiérarchie : Objectif → KR → Tâche. |
-| `prospects` | Prospects CRM (nom, contact, secteur, statut pipeline, prochain RDV, notes) |
+| `missions` | Projets & Delivery (titre, client, type, statut enum incl. `en_attente_dir`, responsable, deadline, montant, email_nps_client, dir_validated, nps_score, SLA channel, next_action) |
+| `livrables` | Livrables liés à une mission (nom, type_livrable, statut lifecycle, dir_validated, ar_count, url, deadlines) |
+| `mission_logs` | Journal d'activité mission (type action/note/statut/livrable, content, auteur) |
+| `prospects` | Prospects CRM (nom, contact, secteur, statut pipeline, prochain RDV, valeur, source, montant_final, date_premier_contact, date_conversion, notes) |
 | `objectifs_remuneres` | Objectifs liés à des primes |
 | `validations_objectifs` | Validations de primes par les managers |
 | `bilans_journaliers` | Bilans daily (note, blocages, seminaires, recherches, prospection, rdv, delivery) |
@@ -573,4 +700,4 @@ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
 
 ---
 
-*Dernière mise à jour : 3 Juin 2026 — Correctifs TaskDetailPanel (note persistée, fichiers, auth) + compatibilité Laravel 13 middleware*
+*Dernière mise à jour : 5 Juin 2026 — Refonte Module Missions → Projets & Delivery (sidebar navigation, workflow DIR, NPS, stats header, édition inline livrables) + enrichissement Module Prospection (scores commerciaux, actions_count, fix NumberInput valeur, preserveState) + corrections bugs (type="number" locale française, URL validation, text-right NumberInput)*

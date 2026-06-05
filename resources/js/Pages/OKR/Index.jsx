@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, router } from '@inertiajs/react';
 import axios from 'axios';
@@ -154,10 +154,18 @@ function formatPeriodDates(p) {
 }
 
 // ─── Modal de création rapide d'objectif ────────────────────
-function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, collaborateurs, axes = [], typesObjectifs = [], configuration, auth, missions = [] }) {
+function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, collaborateurs, axes = [], typesObjectifs = [], typesResultatsCles = [], configuration, auth, missions = [] }) {
  const devise = auth?.societe?.devise;
+ const isPondere = configuration?.mode_calcul === 'pondere';
  const [error, setError] = useState('');
  const [submitting, setSubmitting] = useState(false);
+
+ const makeKR = () => ({
+ description: '', description_detaillee: '', type_resultat_cle_id: '',
+ valeur_cible: 100, unite: '', poids: 1,
+ mode_calcul: 'pourcentage', milestones: [],
+ });
+
  const [formData, setFormData] = useState({
  titre: '',
  periode_ids: periodes[0]?.id ? [periodes[0].id] : [],
@@ -167,19 +175,37 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  visibilite: configuration?.visibilite_defaut || 'equipe',
  prime: '',
  mission_id: '',
- resultats_cles: [{ description: '' }],
+ resultats_cles: [makeKR()],
  });
 
+ // Mois couverts par les périodes sélectionnées
+ const moisPeriode = useMemo(() => {
+ const selected = periodes.filter(p => formData.periode_ids.includes(p.id));
+ const mois = [];
+ for (const p of selected) {
+ if (!p.date_debut || !p.date_fin) continue;
+ let cur = new Date(p.date_debut + 'T00:00:00');
+ const end = new Date(p.date_fin + 'T00:00:00');
+ while (cur <= end) {
+ const key = cur.toISOString().slice(0, 7);
+ const lab = cur.toLocaleDateString('fr-FR', { month: 'short' });
+ if (!mois.find(m => m.mois === key)) {
+ mois.push({ mois: key, label: lab.charAt(0).toUpperCase() + lab.slice(1, 4) + '.', cible: 0, valeur_actuelle: 0 });
+ }
+ cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+ }
+ }
+ return mois;
+ }, [formData.periode_ids, periodes]);
+
  const setField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
- const addKR = () => setField('resultats_cles', [...formData.resultats_cles, { description: '' }]);
+ const addKR = () => setField('resultats_cles', [...formData.resultats_cles, makeKR()]);
  const removeKR = (i) => {
- const n = [...formData.resultats_cles];
- n.splice(i, 1);
- setField('resultats_cles', n);
+ const n = [...formData.resultats_cles]; n.splice(i, 1); setField('resultats_cles', n);
  };
- const updateKR = (i, val) => {
+ const updateKR = (i, field, value) => {
  const n = [...formData.resultats_cles];
- n[i] = { description: val };
+ n[i] = { ...n[i], [field]: value };
  setField('resultats_cles', n);
  };
 
@@ -203,7 +229,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  visibilite: configuration?.visibilite_defaut || 'equipe',
  prime: '',
  mission_id: '',
- resultats_cles: [{ description: '' }],
+ resultats_cles: [makeKR()],
  });
  setError('');
  };
@@ -222,8 +248,26 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  return;
  }
 
- // Filtrer les KR vides
- const filledKRs = formData.resultats_cles.filter(kr => kr.description.trim() !== '');
+ // Filtrer les KR sans description
+ const filledKRs = formData.resultats_cles
+ .filter(kr => (kr.description || '').trim() !== '')
+ .map(kr => {
+ const modeCalcul = kr.mode_calcul || 'pourcentage';
+ const milestones = (modeCalcul === 'mensuel' && kr.milestones?.length) ? kr.milestones : null;
+ return {
+ description: kr.description,
+ description_detaillee: kr.description_detaillee || '',
+ type_resultat_cle_id: kr.type_resultat_cle_id || null,
+ valeur_cible: (modeCalcul === 'mensuel' && milestones)
+ ? milestones.reduce((s, m) => s + (Number(m.cible) || 0), 0)
+ : (kr.valeur_cible ?? 100),
+ unite: kr.unite || null,
+ poids: kr.poids ?? 1,
+ mode_calcul: modeCalcul,
+ milestones,
+ };
+ });
+
  if (filledKRs.length === 0) {
  setError('Ajoutez au moins un résultat clé.');
  return;
@@ -337,13 +381,17 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  {axes.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe stratégique</label>
- <SearchableSelect value={formData.axe_objectif_id} onChange={v => setField('axe_objectif_id', v)} options={axes.map(a => ({ value: String(a.id), label: a.nom }))} nullable nullLabel="— Aucun axe —" className="mt-1" />
+ <SearchableSelect value={formData.axe_objectif_id} onChange={v => setField('axe_objectif_id', v)}
+ options={axes.map(a => ({ value: String(a.id), label: a.nom }))}
+ nullable nullLabel="— Aucun axe —" placeholder="Rechercher un axe..." className="mt-1" />
  </div>
  )}
  {typesObjectifs.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</label>
- <SearchableSelect value={formData.type_objectif_id} onChange={v => setField('type_objectif_id', v)} options={typesObjectifs.map(t => ({ value: String(t.id), label: t.nom }))} nullable nullLabel="— Aucun type —" className="mt-1" />
+ <SearchableSelect value={formData.type_objectif_id} onChange={v => setField('type_objectif_id', v)}
+ options={typesObjectifs.map(t => ({ value: String(t.id), label: t.nom }))}
+ nullable nullLabel="— Aucun type —" placeholder="Rechercher un type..." className="mt-1" />
  </div>
  )}
  </div>
@@ -352,12 +400,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visibilité</label>
- <select value={formData.visibilite} onChange={e => setField('visibilite', e.target.value)}
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
- <option value="tous">Tous</option>
- <option value="equipe">Équipe</option>
- <option value="prive">Privé</option>
- </select>
+ <SearchableSelect value={formData.visibilite} onChange={v => setField('visibilite', v)} options={[{ value: 'tous', label: 'Tous' }, { value: 'equipe', label: 'Équipe' }, { value: 'prive', label: 'Privé' }]} />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prime ({devise?.code || 'GNF'})</label>
@@ -375,32 +418,100 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
 
  {/* Key Results */}
  <div className="mt-5">
- <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Key Results</p>
- <div className="space-y-2">
- {formData.resultats_cles.map((kr, i) => (
- <div key={i} className="flex items-center gap-2">
+ <div className="flex items-center justify-between mb-2">
+ <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Résultats Clés</p>
+ <button type="button" onClick={addKR} className="text-[11px] text-primary-500 hover:text-primary-700 font-medium flex items-center gap-1">
+ <Plus className="h-3.5 w-3.5" /> Ajouter un KR
+ </button>
+ </div>
+ <div className="space-y-3">
+ {formData.resultats_cles.map((kr, i) => {
+ const selectedType = typesResultatsCles.find(t => t.id === Number(kr.type_resultat_cle_id));
+ const isBoolean = selectedType?.type_valeur === 'boolean';
+ return (
+ <div key={i} className="p-3 rounded-lg border border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 space-y-2">
+ {/* Titre + type + supprimer */}
+ <div className="flex items-start gap-2">
+ <span className="text-[10px] font-bold text-gray-400 mt-2 w-5 shrink-0">#{i+1}</span>
  <input
  type="text"
  value={kr.description}
- onChange={e => updateKR(i, e.target.value)}
- placeholder={`KR ${i + 1} : ex. Atteindre 100 ventes...`}
- className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all"
+ onChange={e => updateKR(i, 'description', e.target.value)}
+ placeholder="Titre du KR..."
+ className="flex-1 px-2.5 py-1.5 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all"
  />
+ {typesResultatsCles.length > 0 && (
+ <SearchableSelect value={kr.type_resultat_cle_id} onChange={v => { updateKR(i, "type_resultat_cle_id", v); const t=typesResultatsCles.find(t=>t.id===Number(v)); if(t?.unite) updateKR(i,"unite",t.unite); if(t?.type_valeur==="boolean") updateKR(i,"valeur_cible",1); }} size="sm" className="w-28 shrink-0" nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
+ )}
  {formData.resultats_cles.length > 1 && (
- <button type="button" onClick={() => removeKR(i)} className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+ <button type="button" onClick={() => removeKR(i)} className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0">
  <X className="h-3.5 w-3.5" />
  </button>
  )}
  </div>
- ))}
+
+ {/* Cible · Unité · Poids (mode standard) */}
+ {!isBoolean && kr.mode_calcul !== 'mensuel' && (
+ <div className="flex items-center gap-2 ml-5 flex-wrap">
+ <div className="flex items-center gap-1.5">
+ <span className="text-[10px] text-gray-400">Cible</span>
+ <input type="number" value={kr.valeur_cible} onChange={e => updateKR(i, 'valeur_cible', Number(e.target.value))}
+ className="w-20 px-2 py-1 text-xs bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-right" />
  </div>
- <button
- type="button"
- onClick={addKR}
- className="w-full mt-2 py-2 text-xs font-medium text-primary-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg border border-dashed border-gray-200 dark:border-dark-700 transition-all flex items-center justify-center gap-1"
- >
- + Ajouter un KR
- </button>
+ <div className="flex items-center gap-1.5">
+ <span className="text-[10px] text-gray-400">Unité</span>
+ <SearchableSelect value={kr.unite || ""} onChange={v => updateKR(i, "unite", v)} size="sm" className="w-28" nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }))} />
+ </div>
+ {isPondere && (
+ <div className="flex items-center gap-1.5">
+ <span className="text-[10px] text-gray-400">Poids</span>
+ <input type="number" step="0.1" value={kr.poids} onChange={e => updateKR(i, 'poids', Number(e.target.value))}
+ className="w-16 px-2 py-1 text-xs bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-right" />
+ </div>
+ )}
+ </div>
+ )}
+
+ {/* Toggle ventilation mensuelle */}
+ {!isBoolean && moisPeriode.length >= 2 && (
+ <label className="flex items-center gap-1.5 ml-5 text-[11px] text-gray-500 cursor-pointer select-none w-fit">
+ <input type="checkbox" checked={kr.mode_calcul === 'mensuel'}
+ onChange={e => {
+ const on = e.target.checked;
+ updateKR(i, 'mode_calcul', on ? 'mensuel' : 'pourcentage');
+ updateKR(i, 'milestones', on ? moisPeriode.map(m => ({ ...m, cible: 0 })) : []);
+ }}
+ className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+ Ventilation mensuelle
+ </label>
+ )}
+
+ {/* Cibles par mois */}
+ {!isBoolean && kr.mode_calcul === 'mensuel' && (
+ <div className="ml-5 flex items-center gap-2 flex-wrap">
+ <div className="flex items-center gap-1.5">
+ <span className="text-[10px] text-gray-400">Unité</span>
+ <SearchableSelect value={kr.unite || ""} onChange={v => updateKR(i, "unite", v)} size="sm" className="w-28" nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }))} />
+ </div>
+ {(kr.milestones || []).map((m, mi) => (
+ <div key={m.mois} className="flex items-center gap-1 bg-white dark:bg-dark-800 rounded px-2 py-1 border border-gray-200 dark:border-dark-700">
+ <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 shrink-0">{m.label}</span>
+ <input type="number" value={m.cible} onChange={e => {
+ const ms = [...(kr.milestones || [])];
+ ms[mi] = { ...ms[mi], cible: Number(e.target.value) || 0 };
+ updateKR(i, 'milestones', ms);
+ }} className="w-16 text-xs text-right bg-transparent border-none outline-none" />
+ </div>
+ ))}
+ <span className="text-[10px] text-gray-400">
+ = {(kr.milestones || []).reduce((s, m) => s + (Number(m.cible) || 0), 0).toLocaleString('fr-FR')} {kr.unite}
+ </span>
+ </div>
+ )}
+ </div>
+ );
+ })}
+ </div>
  </div>
  </div>
 
@@ -520,37 +631,12 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
  {resultatsCles.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Résultat Clé *</label>
- <select
- value={taskData.resultat_cle_id}
- onChange={e => updateField('resultat_cle_id', e.target.value)}
- className="w-full mt-1 px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer"
- >
- {resultatsCles.map(kr => <option key={kr.id} value={String(kr.id)}>{kr.description}</option>)}
- </select>
+ <SearchableSelect value={taskData.resultat_cle_id} onChange={v => updateField("resultat_cle_id", v)} options={resultatsCles.map(kr=>({value:String(kr.id),label:kr.description}))} />
  </div>
  )}
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
- <select
- value={taskData.priorite}
- onChange={e => updateField('priorite', e.target.value)}
- className="px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer"
- >
- <option value="basse">Basse</option>
- <option value="normale">Normale</option>
- <option value="haute">Haute</option>
- <option value="urgente">Urgente</option>
- </select>
- <select
- value={taskData.eisenhower}
- onChange={e => updateField('eisenhower', e.target.value)}
- className="px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer"
- >
- <option value="">Eisenhower...</option>
- <option value="Q1">Q1 — Faire maintenant · Urgent + Important</option>
- <option value="Q2">Q2 — Planifier · Important + Pas urgent</option>
- <option value="Q3">Q3 — Déléguer · Urgent + Pas important</option>
- <option value="Q4">Q4 — Éliminer · Ni urgent ni important</option>
- </select>
+ <SearchableSelect value={taskData.priorite} onChange={v => updateField("priorite", v)} options={[{value:"basse",label:"Basse"},{value:"normale",label:"Normale"},{value:"haute",label:"Haute"},{value:"urgente",label:"Urgente"}]} />
+ <SearchableSelect value={taskData.eisenhower} onChange={v=>updateField("eisenhower",v)} nullable nullLabel="Eisenhower..." options={[{value:"Q1",label:"Q1 — Faire maintenant"},{value:"Q2",label:"Q2 — Planifier"},{value:"Q3",label:"Q3 — Déléguer"},{value:"Q4",label:"Q4 — Éliminer"}]} />
  </div>
  <CustomDatePicker
  value={taskData.date}
@@ -561,13 +647,7 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
  {auth?.collaborateur?.isResponsable && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assigner à</label>
- <select
- value={taskData.collaborateur_id}
- onChange={e => updateField('collaborateur_id', e.target.value)}
- className="w-full mt-1 px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer"
- >
- {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
- </select>
+ <SearchableSelect value={taskData.collaborateur_id} onChange={v=>updateField("collaborateur_id",v)} options={collaborateurs.map(c=>({value:String(c.id),label:c.prenom+" "+c.nom}))} />
  </div>
  )}
  <textarea
@@ -575,17 +655,10 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
  onChange={e => updateField('description', e.target.value)}
  placeholder="Description (optionnel)..."
  rows={2}
- className="w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-none"
+ className="w-full rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 px-2.5 py-1.5 text-xs placeholder:text-gray-400 hover:border-gray-300 dark:hover:border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-colors duration-150 resize-none"
  />
  {missions.length > 0 && (
- <select
- value={taskData.mission_id}
- onChange={e => updateField('mission_id', e.target.value)}
- className="w-full px-2.5 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 appearance-none cursor-pointer"
- >
- <option value="">Mission / Projet (optionnel)</option>
- {missions.map(m => <option key={m.id} value={String(m.id)}>{m.titre}{m.client ? ` — ${m.client}` : ''}</option>)}
- </select>
+ <SearchableSelect value={taskData.mission_id} onChange={v=>updateField("mission_id",v)} nullable nullLabel="Mission / Projet (optionnel)" options={missions.map(m=>({value:String(m.id),label:m.titre+(m.client?" — "+m.client:"")}))} />
  )}
 
  {/* Mode opératoire */}
@@ -803,12 +876,16 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Axe stratégique</label>
- <SearchableSelect value={formData.axe_objectif_id || ''} onChange={v => setField('axe_objectif_id', v)} options={axes.map(a => ({ value: String(a.id), label: a.nom }))} nullable nullLabel="— Aucun axe —" className="mt-1" />
+ <SearchableSelect value={formData.axe_objectif_id || ''} onChange={v => setField('axe_objectif_id', v)}
+ options={axes.map(a => ({ value: String(a.id), label: a.nom }))}
+ nullable nullLabel="— Aucun axe —" placeholder="Rechercher un axe..." className="mt-1" />
  </div>
  {typesObjectifs.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</label>
- <SearchableSelect value={formData.type_objectif_id || ''} onChange={v => setField('type_objectif_id', v)} options={typesObjectifs.map(t => ({ value: String(t.id), label: t.nom + ' (' + t.niveau + ')' }))} nullable nullLabel="— Aucun type —" className="mt-1" />
+ <SearchableSelect value={formData.type_objectif_id || ''} onChange={v => setField('type_objectif_id', v)}
+ options={typesObjectifs.map(t => ({ value: String(t.id), label: t.nom + ' (' + t.niveau + ')' }))}
+ nullable nullLabel="— Aucun type —" placeholder="Rechercher un type..." className="mt-1" />
  </div>
  )}
  </div>
@@ -817,12 +894,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visibilité</label>
- <select value={formData.visibilite || 'equipe'} onChange={e => setField('visibilite', e.target.value)}
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs appearance-none cursor-pointer">
- <option value="tous">Tous</option>
- <option value="equipe">Équipe</option>
- <option value="prive">Privé</option>
- </select>
+ <SearchableSelect value={formData.visibilite || 'equipe'} onChange={v => setField('visibilite', v)} options={[{ value: 'tous', label: 'Tous' }, { value: 'equipe', label: 'Équipe' }, { value: 'prive', label: 'Privé' }]} />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prime ({devise?.code || 'GNF'})</label>
@@ -848,14 +920,10 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  <input type="text" value={kr.description} onChange={e => updateKR(i, 'description', e.target.value)} placeholder="Titre du KR..."
  className="w-full px-2.5 py-1.5 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
  <textarea value={kr.description_detaillee || ''} onChange={e => updateKR(i, 'description_detaillee', e.target.value)} placeholder="Détails, notes..."
- className="w-full px-2.5 py-1.5 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-[11px] focus:outline-none focus:ring-2 focus:ring-primary-500/30 min-h-[40px]" />
+ className="w-full rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 px-2.5 py-1.5 text-xs placeholder:text-gray-400 hover:border-gray-300 dark:hover:border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-colors duration-150 resize-none min-h-[40px]" />
  </div>
  {typesResultatsCles.length > 0 && (
- <select value={kr.type_resultat_cle_id || ''} onChange={e => updateKR(i, 'type_resultat_cle_id', e.target.value)}
- className="w-28 px-2 py-1.5 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-[11px] appearance-none cursor-pointer shrink-0">
- <option value="">Type...</option>
- {typesResultatsCles.map(t => <option key={t.id} value={String(t.id)}>{t.nom}</option>)}
- </select>
+ <SearchableSelect value={kr.type_resultat_cle_id} onChange={v => { updateKR(i, "type_resultat_cle_id", v); const t=typesResultatsCles.find(t=>t.id===Number(v)); if(t?.unite) updateKR(i,"unite",t.unite); if(t?.type_valeur==="boolean") updateKR(i,"valeur_cible",1); }} size="sm" className="w-28 shrink-0" nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
  )}
  {(formData.resultats_cles || []).length > 1 && (
  <button type="button" onClick={() => removeKR(i)} className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0">
@@ -871,8 +939,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  </div>
  <div className="flex items-center gap-1.5">
  <span className="text-[10px] text-gray-400">Unité</span>
- <input type="text" value={kr.unite || ''} onChange={e => updateKR(i, 'unite', e.target.value)} placeholder="—"
- className="w-16 px-2 py-1 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded text-[11px]" />
+ <SearchableSelect value={kr.unite || ""} onChange={v => updateKR(i, "unite", v)} size="sm" className="w-28" nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }))} />
  </div>
  {isPondere && (
  <div className="flex items-center gap-1.5">
@@ -1135,36 +1202,17 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  <div>
  <label className="text-[10px] text-gray-400">Statut</label>
- <select value={editData.statut} onChange={e => setEditData(prev => ({ ...prev, statut: e.target.value }))}
- className="w-full mt-0.5 px-2 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-[11px] appearance-none cursor-pointer">
- <option value="a_faire">À faire</option>
- <option value="en_cours">En cours</option>
- <option value="termine">Terminé</option>
- <option value="bloque">Bloqué</option>
- </select>
+ <SearchableSelect value={editData.statut} onChange={v=>setEditData(prev=>({...prev,statut:v}))} size="sm" className="mt-0.5" options={[{value:"a_faire",label:"À faire"},{value:"en_cours",label:"En cours"},{value:"termine",label:"Terminé"},{value:"bloque",label:"Bloqué"}]} />
  </div>
  <div>
  <label className="text-[10px] text-gray-400">Priorité</label>
- <select value={editData.priorite} onChange={e => setEditData(prev => ({ ...prev, priorite: e.target.value }))}
- className="w-full mt-0.5 px-2 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-[11px] appearance-none cursor-pointer">
- <option value="basse">Basse</option>
- <option value="normale">Normale</option>
- <option value="haute">Haute</option>
- <option value="urgente">Urgente</option>
- </select>
+ <SearchableSelect value={editData.priorite} onChange={v=>setEditData(prev=>({...prev,priorite:v}))} size="sm" className="mt-0.5" options={[{value:"basse",label:"Basse"},{value:"normale",label:"Normale"},{value:"haute",label:"Haute"},{value:"urgente",label:"Urgente"}]} />
  </div>
  </div>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  <div>
  <label className="text-[10px] text-gray-400">Eisenhower</label>
- <select value={editData.eisenhower || ''} onChange={e => setEditData(prev => ({ ...prev, eisenhower: e.target.value }))}
- className="w-full mt-0.5 px-2 py-1.5 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-[11px] appearance-none cursor-pointer">
- <option value="">Aucun</option>
- <option value="Q1">Q1 — Faire maintenant · Urgent + Important</option>
- <option value="Q2">Q2 — Planifier · Important + Pas urgent</option>
- <option value="Q3">Q3 — Déléguer · Urgent + Pas important</option>
- <option value="Q4">Q4 — Éliminer · Ni urgent ni important</option>
- </select>
+ <SearchableSelect value={editData.eisenhower||""} onChange={v=>setEditData(prev=>({...prev,eisenhower:v}))} size="sm" className="mt-0.5" nullable nullLabel="Aucun" options={[{value:"Q1",label:"Q1 — Faire maintenant"},{value:"Q2",label:"Q2 — Planifier"},{value:"Q3",label:"Q3 — Déléguer"},{value:"Q4",label:"Q4 — Éliminer"}]} />
  </div>
  <div>
  <label className="text-[10px] text-gray-400">Date</label>
@@ -1550,11 +1598,7 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  {typesResultatsCles.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type de KR</label>
- <select value={form.type_resultat_cle_id || ''} onChange={e => setF('type_resultat_cle_id', e.target.value)}
- className={`mt-1 ${inputCls} appearance-none cursor-pointer`}>
- <option value="">Aucun</option>
- {typesResultatsCles.map(t => <option key={t.id} value={String(t.id)}>{t.nom}</option>)}
- </select>
+ <SearchableSelect value={form.type_resultat_cle_id||""} onChange={v=>setForm(prev=>({...prev,type_resultat_cle_id:v}))} size="sm" className="w-28" nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
  </div>
  )}
  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1570,8 +1614,7 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unité</label>
- <input type="text" value={form.unite || ''} onChange={e => setF('unite', e.target.value)}
- className={`mt-1 ${inputCls}`} placeholder="%, GNF..." />
+ <SearchableSelect value={form.unite||""} onChange={v=>setForm(prev=>({...prev,unite:v}))} size="sm" className="w-28" nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t=>t.unite).map(t=>t.unite))].map(u=>({value:u,label:u}))} />
  </div>
  </div>
  </div>
@@ -1776,7 +1819,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
 }
 
 // ─── Composant carte objectif (expandable, niveau 1) ─────────
-function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAddTask, onViewTask, onAddTaskForKr, onEdit, onEditKr, auth, collaborateurs = [] }) {
+function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAddTask, onAddKr, onViewTask, onAddTaskForKr, onEdit, onEditKr, auth, collaborateurs = [] }) {
  const [expanded, setExpanded] = useState(defaultExpanded);
  const progColor = getSeuilColor(obj.progression_globale, seuils) || '#3b82f6';
  const tachesTerminees = obj.taches_terminees || 0;
@@ -1908,10 +1951,187 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
  <p className="text-xs text-gray-400">Aucun résultat clé</p>
  </div>
  )}
+
+ {/* ── Boutons + KR / + Tâche au pied de la carte ── */}
+ {(obj.collaborateur_id === auth?.collaborateur?.id || auth?.collaborateur?.isResponsable) && (
+ <div className="flex items-center gap-2 px-5 py-3 border-t border-gray-100 dark:border-dark-800 bg-gray-50/40 dark:bg-dark-800/30">
+  <button
+  onClick={() => onAddKr?.(obj.id)}
+  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 rounded-lg transition-all"
+  >
+  <Plus className="h-3 w-3" /> KR
+  </button>
+  <button
+  onClick={() => onAddTask?.(obj.id)}
+  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-800 rounded-lg transition-all"
+  >
+  <Plus className="h-3 w-3" /> Tâche
+  </button>
+ </div>
+ )}
  </motion.div>
  )}
  </AnimatePresence>
  </motion.div>
+ );
+}
+
+// ─── Modal ajout rapide de KR ────────────────────────────────
+function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], defaultObjectifId = null }) {
+ const [objId, setObjId] = useState('');
+ const [description, setDescription] = useState('');
+ const [unite, setUnite] = useState('');
+ const [valeurCible, setValeurCible] = useState(100);
+ const [error, setError] = useState('');
+ const [submitting, setSubmitting] = useState(false);
+
+ useEffect(() => {
+  if (open) { setObjId(defaultObjectifId ? String(defaultObjectifId) : ''); setDescription(''); setUnite(''); setValeurCible(100); setError(''); }
+ }, [open, defaultObjectifId]);
+
+ const handleSubmit = (e) => {
+  e.preventDefault();
+  if (!objId) { setError('Sélectionnez un objectif.'); return; }
+  if (!description.trim()) { setError('La description est obligatoire.'); return; }
+  setSubmitting(true);
+  router.post(route('objectifs.kr.store', objId), {
+   description,
+   valeur_cible: valeurCible || 100,
+   unite: unite || null,
+   poids: 1,
+  }, {
+   preserveState: true, preserveScroll: true,
+   onSuccess: () => { toast.success('Résultat clé ajouté'); onClose(); setSubmitting(false); },
+   onError: (errs) => { setError(Object.values(errs)[0] || 'Erreur'); setSubmitting(false); },
+   onFinish: () => setSubmitting(false),
+  });
+ };
+
+ const objOptions = objectifs.map(o => ({ value: String(o.id), label: o.titre }));
+ const uniteOptions = [...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }));
+
+ return (
+  <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+   <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden">
+    <form onSubmit={handleSubmit} className="flex flex-col">
+     <div className="px-5 pt-5 pb-4 space-y-3">
+      <DialogHeader><DialogTitle className="text-sm">Nouveau Résultat Clé</DialogTitle></DialogHeader>
+      {error && <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 rounded-lg"><p className="text-[11px] text-red-600">{error}</p></div>}
+      <div>
+       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Objectif *</label>
+       <div className="mt-1"><SearchableSelect value={objId} onChange={setObjId} options={objOptions} placeholder="Sélectionner un objectif..." /></div>
+      </div>
+      <div>
+       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description du KR *</label>
+       <input autoFocus type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Atteindre 150M GNF de CA..."
+        className="mt-1 w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+       <div>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Valeur cible</label>
+        <input type="number" value={valeurCible} onChange={e => setValeurCible(Number(e.target.value))}
+         className="mt-1 w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
+       </div>
+       <div>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unité</label>
+        <div className="mt-1">
+         <SearchableSelect value={unite} onChange={setUnite} nullable nullLabel="—" placeholder="—" options={uniteOptions} />
+        </div>
+       </div>
+      </div>
+     </div>
+     <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+      <button type="button" onClick={onClose} className="px-4 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 transition-all">Annuler</button>
+      <button type="submit" disabled={submitting} className="px-5 py-1.5 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg shadow-sm transition-all disabled:opacity-50">
+       {submitting ? 'Enregistrement...' : 'Ajouter le KR'}
+      </button>
+     </div>
+    </form>
+   </DialogContent>
+  </Dialog>
+ );
+}
+
+// ─── Modal ajout rapide de tâche (avec sélecteur objectif) ──
+function QuickTaskModal({ open, onClose, objectifs = [], collaborateurs = [], defaultCollaborateurId, auth, missions = [] }) {
+ const [objId, setObjId] = useState('');
+ const [krId, setKrId] = useState('');
+ const [titre, setTitre] = useState('');
+ const [priorite, setPriorite] = useState('normale');
+ const [collabId, setCollabId] = useState(String(defaultCollaborateurId || ''));
+ const [error, setError] = useState('');
+ const [submitting, setSubmitting] = useState(false);
+
+ useEffect(() => {
+  if (open) { setObjId(''); setKrId(''); setTitre(''); setPriorite('normale'); setCollabId(String(defaultCollaborateurId || '')); setError(''); }
+ }, [open]);
+
+ // KRs de l'objectif sélectionné
+ const selectedObj = objectifs.find(o => String(o.id) === String(objId));
+ const krs = selectedObj?.resultats_cles || [];
+
+ useEffect(() => { setKrId(krs[0]?.id ? String(krs[0].id) : ''); }, [objId]);
+
+ const handleSubmit = (e) => {
+  e.preventDefault();
+  if (!titre.trim()) { setError('Le titre est obligatoire.'); return; }
+  if (!objId) { setError('Sélectionnez un objectif.'); return; }
+  setSubmitting(true);
+  router.post(route('taches.store'), {
+   titre,
+   priorite,
+   collaborateur_id: collabId,
+   objectif_id: objId,
+   resultat_cle_id: krId || null,
+  }, {
+   preserveState: true, preserveScroll: true,
+   onSuccess: () => { toast.success('Tâche créée'); onClose(); setSubmitting(false); },
+   onError: (errs) => { setError(Object.values(errs)[0] || 'Erreur'); setSubmitting(false); },
+   onFinish: () => setSubmitting(false),
+  });
+ };
+
+ return (
+  <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+   <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden">
+    <form onSubmit={handleSubmit} className="flex flex-col">
+     <div className="px-5 pt-5 pb-4 space-y-3">
+      <DialogHeader><DialogTitle className="text-sm">Nouvelle tâche rapide</DialogTitle></DialogHeader>
+      {error && <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 rounded-lg"><p className="text-[11px] text-red-600">{error}</p></div>}
+      <input autoFocus type="text" value={titre} onChange={e => setTitre(e.target.value)} placeholder="Titre de la tâche..."
+       className="w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500" />
+      <div>
+       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Objectif *</label>
+       <div className="mt-1"><SearchableSelect value={objId} onChange={setObjId} options={objectifs.map(o => ({ value: String(o.id), label: o.titre }))} placeholder="Sélectionner un objectif..." /></div>
+      </div>
+      {krs.length > 0 && (
+       <div>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Résultat Clé</label>
+        <div className="mt-1"><SearchableSelect value={krId} onChange={setKrId} nullable nullLabel="— Sans KR spécifique —" placeholder="— Sans KR spécifique —" options={krs.map(kr => ({ value: String(kr.id), label: kr.description }))} /></div>
+       </div>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+       <div>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Priorité</label>
+        <div className="mt-1"><SearchableSelect value={priorite} onChange={setPriorite} options={[{value:'basse',label:'Basse'},{value:'normale',label:'Normale'},{value:'haute',label:'Haute'},{value:'urgente',label:'Urgente'}]} /></div>
+       </div>
+       {auth?.collaborateur?.isResponsable && collaborateurs.length > 0 && (
+        <div>
+         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assigner à</label>
+         <div className="mt-1"><SearchableSelect value={collabId} onChange={setCollabId} options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} /></div>
+        </div>
+       )}
+      </div>
+     </div>
+     <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+      <button type="button" onClick={onClose} className="px-4 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 transition-all">Annuler</button>
+      <button type="submit" disabled={submitting} className="px-5 py-1.5 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg shadow-sm transition-all disabled:opacity-50">
+       {submitting ? 'Enregistrement...' : 'Créer la tâche'}
+      </button>
+     </div>
+    </form>
+   </DialogContent>
+  </Dialog>
  );
 }
 
@@ -1924,11 +2144,29 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  const [periodeFilter, setPeriodeFilter] = useState(filters?.periode_id || '');
  const [axeFilter, setAxeFilter] = useState(filters?.axe_objectif_id || '');
  const [typeFilter, setTypeFilter] = useState(filters?.type_objectif_id || '');
+
+ // Regroupement des objectifs par axe (ordre des axes configurés, sans axe en dernier)
+ const objectifsParAxe = useMemo(() => {
+  const groups = {};
+  (objectifs.data || []).forEach(obj => {
+   const key = obj.axe_objectif_id != null ? String(obj.axe_objectif_id) : 'sans_axe';
+   if (!groups[key]) {
+    groups[key] = { id: key, nom: obj.axe || 'Sans axe', couleur: obj.axe_couleur || '#6b7280', objectifs: [] };
+   }
+   groups[key].objectifs.push(obj);
+  });
+  const ordered = [];
+  axes.forEach(a => { if (groups[String(a.id)]) ordered.push(groups[String(a.id)]); });
+  if (groups['sans_axe']) ordered.push(groups['sans_axe']);
+  return ordered;
+ }, [objectifs.data, axes]);
  const [createOpen, setCreateOpen] = useState(false);
  const [editModal, setEditModal] = useState({ open: false, objectif: null });
  const [taskModal, setTaskModal] = useState({ open: false, objectifId: null, resultatsCles: [], defaultResultatCleId: null });
  const [taskPanel, setTaskPanel] = useState({ tache: null, objectifTitre: null });
  const [editKrModal, setEditKrModal] = useState({ open: false, kr: null });
+ const [quickKRModal, setQuickKRModal] = useState({ open: false, objectifId: null });
+ const [quickTaskOpen, setQuickTaskOpen] = useState(false);
 
  const applyFilters = (key, value) => {
  const f = { search, statut: statutFilter, collaborateur_id: collabFilter, periode_id: periodeFilter, axe_objectif_id: axeFilter, type_objectif_id: typeFilter, [key]: value };
@@ -1983,49 +2221,11 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  className="pl-8 pr-3 py-2 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 w-40 transition-all"
  />
  </div>
- <select
- value={periodeFilter}
- onChange={(e) => { setPeriodeFilter(e.target.value); applyFilters('periode_id', e.target.value); }}
- className="bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs px-2.5 py-2 leading-normal pr-7 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 cursor-pointer"
- >
- <option value="">Toutes les périodes</option>
- {periodes.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
- </select>
- <select
- value={collabFilter}
- onChange={(e) => { setCollabFilter(e.target.value); applyFilters('collaborateur_id', e.target.value); }}
- className="bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs px-2.5 py-2 leading-normal pr-7 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 cursor-pointer"
- >
- <option value="">Tous les responsables</option>
- {collaborateurs.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
- </select>
- <select
- value={statutFilter}
- onChange={(e) => { setStatutFilter(e.target.value); applyFilters('statut', e.target.value); }}
- className="bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs px-2.5 py-2 leading-normal pr-7 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 cursor-pointer"
- >
- <option value="">Tous statuts</option>
- <option value="actif">Actif</option>
- <option value="brouillon">Brouillon</option>
- <option value="termine">Terminé</option>
- <option value="annule">Annulé</option>
- </select>
- <select
- value={axeFilter}
- onChange={(e) => { setAxeFilter(e.target.value); applyFilters('axe_objectif_id', e.target.value); }}
- className="bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs px-2.5 py-2 leading-normal pr-7 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 cursor-pointer"
- >
- <option value="">Tous les axes</option>
- {axes.map(a => <option key={a.id} value={a.id}>{a.nom}</option>)}
- </select>
- <select
- value={typeFilter}
- onChange={(e) => { setTypeFilter(e.target.value); applyFilters('type_objectif_id', e.target.value); }}
- className="bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs px-2.5 py-2 leading-normal pr-7 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 cursor-pointer"
- >
- <option value="">Tous types</option>
- {typesObjectifs.map(t => <option key={t.id} value={t.id}>{t.nom}</option>)}
- </select>
+ <SearchableSelect value={periodeFilter} onChange={v=>{setPeriodeFilter(v);applyFilters("periode_id",v)}} nullable nullLabel="Toutes les périodes" placeholder="Toutes les périodes" options={periodes.map(p=>({value:String(p.id),label:p.nom}))} />
+ <SearchableSelect value={collabFilter} onChange={v=>{setCollabFilter(v);applyFilters("collaborateur_id",v)}} nullable nullLabel="Tous les collaborateurs" placeholder="Tous les collaborateurs" options={collaborateurs.map(c=>({value:String(c.id),label:c.prenom+" "+c.nom}))} />
+ <SearchableSelect value={statutFilter} onChange={v=>{setStatutFilter(v);applyFilters("statut",v)}} nullable nullLabel="Tous les statuts" placeholder="Tous les statuts" options={[{value:"brouillon",label:"Brouillon"},{value:"actif",label:"Actif"},{value:"termine",label:"Terminé"},{value:"annule",label:"Annulé"}]} />
+ <SearchableSelect value={axeFilter} onChange={v=>{setAxeFilter(v);applyFilters("axe_objectif_id",v)}} nullable nullLabel="Tous les axes" placeholder="Tous les axes" options={axes.map(a=>({value:String(a.id),label:a.nom}))} />
+ <SearchableSelect value={typeFilter} onChange={v=>{setTypeFilter(v);applyFilters("type_objectif_id",v)}} nullable nullLabel="Tous les types" placeholder="Tous les types" options={typesObjectifs.map(t=>({value:String(t.id),label:t.nom}))} />
  {hasFilters && (
  <button
  onClick={() => { setSearch(''); setStatutFilter(''); setCollabFilter(''); setPeriodeFilter(''); setAxeFilter(''); setTypeFilter(''); router.get(route('objectifs.index'), {}, { preserveState: true, replace: true }); }}
@@ -2067,25 +2267,73 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  </button>
  </div>
 
- {/* ═══ Objectifs hiérarchiques ═══ */}
+ {/* ═══ Barre de raccourcis ═══ */}
+ <div className="flex items-center gap-2 mb-5 flex-wrap">
+  <button
+   onClick={() => router.get(route('parametres.okr.index'))}
+   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 rounded-lg shadow-sm transition-all"
+  >
+   <Plus className="h-3.5 w-3.5" /> Ajouter un axe
+  </button>
+  <button
+   onClick={() => setCreateOpen(true)}
+   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-800 rounded-lg shadow-sm transition-all"
+  >
+   <Plus className="h-3.5 w-3.5" /> Objectif
+  </button>
+  <button
+   onClick={() => setQuickKRModal({ open: true, objectifId: null })}
+   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-800 rounded-lg shadow-sm transition-all"
+  >
+   <Plus className="h-3.5 w-3.5" /> Key Result
+  </button>
+  <button
+   onClick={() => setQuickTaskOpen(true)}
+   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-800 rounded-lg shadow-sm transition-all"
+  >
+   <Plus className="h-3.5 w-3.5" /> Tâche
+  </button>
+ </div>
+
+ {/* ═══ Objectifs groupés par axe ═══ */}
  {objectifs.data.length > 0 ? (
- <div className="space-y-3 ">
- {objectifs.data.map((obj, i) => (
- <ObjectifCard
- key={obj.id}
- obj={obj}
- seuils={seuils}
- handleDelete={handleDelete}
- defaultExpanded={i === 0}
- onEdit={(o) => setEditModal({ open: true, objectif: o })}
- onEditKr={(kr) => setEditKrModal({ open: true, kr })}
- onAddTask={(objId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: null })}
- onAddTaskForKr={(objId, krId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: krId })}
- onViewTask={(tache, krDescription) => setTaskPanel({ tache, objectifTitre: krDescription })}
- auth={auth}
- collaborateurs={collaborateurs}
- />
- ))}
+ <div className="space-y-6">
+  {objectifsParAxe.map((groupe, gi) => (
+  <div key={groupe.id}>
+   {/* ── En-tête de groupe axe ── */}
+   <div className="flex items-center gap-2.5 mb-3">
+   <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: groupe.couleur }} />
+   <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: groupe.couleur }}>
+    {groupe.nom}
+   </span>
+   <span className="text-[10px] text-gray-400 font-medium">
+    — {groupe.objectifs.length} objectif{groupe.objectifs.length > 1 ? 's' : ''}
+   </span>
+   <div className="flex-1 h-px bg-gray-100 dark:bg-dark-800" />
+   </div>
+
+   {/* ── Cartes objectifs du groupe ── */}
+   <div className="space-y-3 pl-5 border-l-2" style={{ borderColor: groupe.couleur + '40' }}>
+   {groupe.objectifs.map((obj, i) => (
+    <ObjectifCard
+    key={obj.id}
+    obj={obj}
+    seuils={seuils}
+    handleDelete={handleDelete}
+    defaultExpanded={gi === 0 && i === 0}
+    onEdit={(o) => setEditModal({ open: true, objectif: o })}
+    onEditKr={(kr) => setEditKrModal({ open: true, kr })}
+    onAddTask={(objId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: null })}
+    onAddKr={(objId) => setQuickKRModal({ open: true, objectifId: objId })}
+    onAddTaskForKr={(objId, krId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: krId })}
+    onViewTask={(tache, krDescription) => setTaskPanel({ tache, objectifTitre: krDescription })}
+    auth={auth}
+    collaborateurs={collaborateurs}
+    />
+   ))}
+   </div>
+  </div>
+  ))}
  </div>
  ) : (
  <EmptyState icon={Target} title="Aucun objectif" description="Il n'y a aucun objectif correspondant à vos critères." action={
@@ -2115,6 +2363,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  defaultCollaborateurId={defaultCollaborateurId}
  axes={axes}
  typesObjectifs={typesObjectifs}
+ typesResultatsCles={typesResultatsCles}
  configuration={configuration}
  auth={auth}
  missions={missions}
@@ -2131,6 +2380,26 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  defaultCollaborateurId={defaultCollaborateurId}
  auth={auth}
  missions={missions}
+ />
+
+ {/* ═══ Modal ajout rapide KR ═══ */}
+ <QuickKRModal
+  open={quickKRModal.open}
+  onClose={() => setQuickKRModal({ open: false, objectifId: null })}
+  defaultObjectifId={quickKRModal.objectifId}
+  objectifs={objectifs.data || []}
+  typesResultatsCles={typesResultatsCles}
+ />
+
+ {/* ═══ Modal ajout rapide tâche ═══ */}
+ <QuickTaskModal
+  open={quickTaskOpen}
+  onClose={() => setQuickTaskOpen(false)}
+  objectifs={objectifs.data || []}
+  collaborateurs={collaborateurs}
+  defaultCollaborateurId={defaultCollaborateurId}
+  auth={auth}
+  missions={missions}
  />
 
  {/* ═══ Modal édition objectif ═══ */}

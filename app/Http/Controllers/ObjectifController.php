@@ -221,11 +221,11 @@ class ObjectifController extends Controller
         return Inertia::render('OKR/Create', [
             'collaborateurs' => $collaborateurs,
             'axes' => AxeObjectif::pourSociete($societeId)->actifs()->ordonne()->get(['id', 'nom', 'couleur']),
-            'periodes' => Periode::pourSociete($societeId)->actives()->get(['id', 'nom']),
+            'periodes' => Periode::pourSociete($societeId)->actives()->get(['id', 'nom', 'date_debut', 'date_fin', 'type']),
             'typesObjectifs' => TypeObjectif::pourSociete($societeId)->get(['id', 'nom', 'niveau']),
             'typesResultatsCles' => TypeResultatCle::pourSociete($societeId)->get(['id', 'nom', 'type_valeur', 'unite']),
-            'statuts' => StatutObjectif::pourSociete($societeId)->ordonne()->get(['id', 'nom', 'couleur']),
             'configuration' => ConfigurationOkr::where('societe_id', $societeId)->first(),
+            'missions' => Mission::pourSociete($societeId)->whereNotIn('statut', ['completed', 'archived'])->get(['id', 'titre', 'client']),
         ]);
     }
 
@@ -248,9 +248,11 @@ class ObjectifController extends Controller
             'resultats_cles.*.description' => 'required|string|max:255',
             'resultats_cles.*.description_detaillee' => 'nullable|string',
             'resultats_cles.*.type_resultat_cle_id' => 'nullable|exists:types_resultats_cles,id',
-            'resultats_cles.*.valeur_cible' => 'nullable|numeric|min:0',
-            'resultats_cles.*.poids' => 'nullable|numeric|min:0',
-            'resultats_cles.*.unite' => 'nullable|string|max:50',
+            'resultats_cles.*.valeur_cible'   => 'nullable|numeric|min:0',
+            'resultats_cles.*.poids'          => 'nullable|numeric|min:0',
+            'resultats_cles.*.unite'          => 'nullable|string|max:50',
+            'resultats_cles.*.mode_calcul'    => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
+            'resultats_cles.*.milestones'     => 'nullable|array',
             'mission_id' => 'nullable|exists:missions,id',
         ]);
 
@@ -293,15 +295,26 @@ class ObjectifController extends Controller
             ]);
 
             foreach ($validated['resultats_cles'] as $resultat) {
+                $modeCalcul = $resultat['mode_calcul'] ?? 'pourcentage';
+                $milestones = ($modeCalcul === 'mensuel' && !empty($resultat['milestones']))
+                    ? $resultat['milestones']
+                    : null;
+                // En mode mensuel, la cible globale = somme des cibles mensuelles
+                $valeurCible = ($modeCalcul === 'mensuel' && !empty($milestones))
+                    ? array_sum(array_column($milestones, 'cible'))
+                    : ($resultat['valeur_cible'] ?? 100);
+
                 ResultatCle::create([
-                    'objectif_id' => $objectif->id,
-                    'description' => $resultat['description'],
-                    'description_detaillee' => $resultat['description_detaillee'] ?? null,
+                    'objectif_id'          => $objectif->id,
+                    'description'          => $resultat['description'],
+                    'description_detaillee'=> $resultat['description_detaillee'] ?? null,
                     'type_resultat_cle_id' => $resultat['type_resultat_cle_id'] ?? null,
-                    'valeur_cible' => $resultat['valeur_cible'] ?? 100,
-                    'poids' => $resultat['poids'] ?? 1,
-                    'unite' => $resultat['unite'] ?? null,
-                    'progression' => 0,
+                    'valeur_cible'         => $valeurCible,
+                    'poids'                => $resultat['poids'] ?? 1,
+                    'unite'                => $resultat['unite'] ?? null,
+                    'mode_calcul'          => $modeCalcul,
+                    'milestones'           => $milestones,
+                    'progression'          => 0,
                 ]);
             }
 
@@ -370,6 +383,8 @@ class ObjectifController extends Controller
                         'nom'        => $r->typeResultatCle->nom,
                         'type_valeur'=> $r->typeResultatCle->type_valeur,
                     ] : null,
+                    'mode_calcul'  => $r->mode_calcul ?? 'pourcentage',
+                    'milestones'   => $r->milestones ?? [],
                     'historique_progressions' => $r->historiqueProgressions->map(fn ($h) => [
                         'id'              => $h->id,
                         'progression'     => $h->progression,
@@ -379,10 +394,17 @@ class ObjectifController extends Controller
                     ]),
                 ])->toArray(),
             ]),
-            'taches'        => $taches,
-            'collaborateurs' => $collaborateurs,
-            'seuils'        => \App\Models\SeuilPerformance::pourSociete($societeId)->ordonne()->get(),
-            'configuration' => ConfigurationOkr::where('societe_id', $societeId)->first(),
+            'taches'             => $taches,
+            'collaborateurs'     => $collaborateurs,
+            'seuils'             => \App\Models\SeuilPerformance::pourSociete($societeId)->ordonne()->get(),
+            'configuration'      => ConfigurationOkr::where('societe_id', $societeId)->first(),
+            'typesResultatsCles' => TypeResultatCle::pourSociete($societeId)->get(['id', 'nom', 'type_valeur', 'unite']),
+            'periodes_detail'    => $objectif->periodes->map(fn ($p) => [
+                'id'         => $p->id,
+                'nom'        => $p->nom,
+                'date_debut' => $p->date_debut?->format('Y-m-d'),
+                'date_fin'   => $p->date_fin?->format('Y-m-d'),
+            ])->toArray(),
         ]);
     }
 
@@ -407,10 +429,12 @@ class ObjectifController extends Controller
             'resultats_cles.*.description' => 'required|string|max:255',
             'resultats_cles.*.description_detaillee' => 'nullable|string',
             'resultats_cles.*.type_resultat_cle_id' => 'nullable|exists:types_resultats_cles,id',
-            'resultats_cles.*.valeur_cible' => 'nullable|numeric|min:0',
-            'resultats_cles.*.poids' => 'nullable|numeric|min:0',
-            'resultats_cles.*.unite' => 'nullable|string|max:50',
-            'resultats_cles.*.progression' => 'nullable|numeric|min:0|max:100',
+            'resultats_cles.*.valeur_cible'   => 'nullable|numeric|min:0',
+            'resultats_cles.*.poids'          => 'nullable|numeric|min:0',
+            'resultats_cles.*.unite'          => 'nullable|string|max:50',
+            'resultats_cles.*.progression'    => 'nullable|numeric|min:0|max:100',
+            'resultats_cles.*.mode_calcul'    => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
+            'resultats_cles.*.milestones'     => 'nullable|array',
             'mission_id' => 'nullable|exists:missions,id',
         ]);
 
@@ -440,27 +464,43 @@ class ObjectifController extends Controller
                     // Update existing KR
                     $kr = ResultatCle::where('id', $krData['id'])->where('objectif_id', $objectif->id)->first();
                     if ($kr) {
+                        $modeCalcul = $krData['mode_calcul'] ?? 'pourcentage';
+                        $milestones = ($modeCalcul === 'mensuel' && !empty($krData['milestones'])) ? $krData['milestones'] : null;
+                        $valeurCible = ($modeCalcul === 'mensuel' && !empty($milestones))
+                            ? array_sum(array_column($milestones, 'cible'))
+                            : ($krData['valeur_cible'] ?? 100);
+
                         $kr->update([
-                            'description' => $krData['description'],
-                            'description_detaillee' => $krData['description_detaillee'] ?? null,
+                            'description'          => $krData['description'],
+                            'description_detaillee'=> $krData['description_detaillee'] ?? null,
                             'type_resultat_cle_id' => $krData['type_resultat_cle_id'] ?? null,
-                            'valeur_cible' => $krData['valeur_cible'] ?? 100,
-                            'poids' => $krData['poids'] ?? 1,
-                            'unite' => $krData['unite'] ?? null,
+                            'valeur_cible'         => $valeurCible,
+                            'poids'                => $krData['poids'] ?? 1,
+                            'unite'                => $krData['unite'] ?? null,
+                            'mode_calcul'          => $modeCalcul,
+                            'milestones'           => $milestones,
                         ]);
                         $existingIds[] = $kr->id;
                     }
                 } else {
+                    $modeCalcul = $krData['mode_calcul'] ?? 'pourcentage';
+                    $milestones = ($modeCalcul === 'mensuel' && !empty($krData['milestones'])) ? $krData['milestones'] : null;
+                    $valeurCible = ($modeCalcul === 'mensuel' && !empty($milestones))
+                        ? array_sum(array_column($milestones, 'cible'))
+                        : ($krData['valeur_cible'] ?? 100);
+
                     // Create new KR
                     $kr = ResultatCle::create([
-                        'objectif_id' => $objectif->id,
-                        'description' => $krData['description'],
-                        'description_detaillee' => $krData['description_detaillee'] ?? null,
+                        'objectif_id'          => $objectif->id,
+                        'description'          => $krData['description'],
+                        'description_detaillee'=> $krData['description_detaillee'] ?? null,
                         'type_resultat_cle_id' => $krData['type_resultat_cle_id'] ?? null,
-                        'valeur_cible' => $krData['valeur_cible'] ?? 100,
-                        'poids' => $krData['poids'] ?? 1,
-                        'unite' => $krData['unite'] ?? null,
-                        'progression' => 0,
+                        'valeur_cible'         => $valeurCible,
+                        'poids'                => $krData['poids'] ?? 1,
+                        'unite'                => $krData['unite'] ?? null,
+                        'mode_calcul'          => $modeCalcul,
+                        'milestones'           => $milestones,
+                        'progression'          => 0,
                     ]);
                     $existingIds[] = $kr->id;
                 }
@@ -489,6 +529,7 @@ class ObjectifController extends Controller
             'resultats.*.progression'      => 'nullable|numeric|min:0|max:100',
             'resultats.*.valeur_actuelle'  => 'nullable|numeric|min:0',
             'resultats.*.justification'    => 'nullable|string',
+            'resultats.*.milestones'       => 'nullable|array',
         ]);
 
         $collaborateurId = $request->user()->collaborateurActuel()?->id;
@@ -506,7 +547,26 @@ class ObjectifController extends Controller
                 $nouvelleProgression = (float) ($data['progression'] ?? $kr->progression);
                 $nouvelleValeurActuelle = isset($data['valeur_actuelle']) ? (float) $data['valeur_actuelle'] : $kr->valeur_actuelle;
 
-                // Calcul automatique selon le type du KR
+                // ── Mode mensuel : recalculer depuis les milestones ──
+                if (($kr->mode_calcul === 'mensuel') && !empty($data['milestones'])) {
+                    $milestones    = $data['milestones'];
+                    $totalCible    = array_sum(array_column($milestones, 'cible'));
+                    $totalActuel   = array_sum(array_column($milestones, 'valeur_actuelle'));
+                    $nouvelleProgression    = $totalCible > 0 ? min(round(($totalActuel / $totalCible) * 100, 2), 100) : 0;
+                    $nouvelleValeurActuelle = $totalActuel;
+
+                    if ((float) $kr->progression !== $nouvelleProgression) {
+                        event(new ProgressionKrMiseAJour($kr, $kr->progression, $nouvelleProgression, $data['justification'] ?? null, $collaborateurId));
+                    }
+                    $kr->update([
+                        'progression'     => $nouvelleProgression,
+                        'valeur_actuelle' => $nouvelleValeurActuelle,
+                        'milestones'      => $milestones,
+                    ]);
+                    continue;
+                }
+
+                // Calcul automatique selon le type du KR (mode standard)
                 if (in_array($typeValeur, ['number', 'currency']) && isset($data['valeur_actuelle'])) {
                     $cible = (float) $kr->valeur_cible;
                     $nouvelleProgression = $cible > 0
@@ -572,11 +632,57 @@ class ObjectifController extends Controller
             'valeur_cible'          => 'nullable|numeric|min:0',
             'poids'                 => 'nullable|numeric|min:0|max:100',
             'unite'                 => 'nullable|string|max:50',
+            'mode_calcul'           => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
+            'milestones'            => 'nullable|array',
         ]);
 
         $resultatCle->update($validated);
 
         return redirect()->back()->with('success', 'Résultat clé mis à jour.');
+    }
+
+    public function storeKr(Request $request, Objectif $objectif)
+    {
+        Gate::authorize('update', $objectif);
+
+        $validated = $request->validate([
+            'description'           => 'required|string|max:255',
+            'description_detaillee' => 'nullable|string',
+            'type_resultat_cle_id'  => 'nullable|exists:types_resultats_cles,id',
+            'valeur_cible'          => 'nullable|numeric|min:0',
+            'poids'                 => 'nullable|numeric|min:0',
+            'unite'                 => 'nullable|string|max:50',
+            'mode_calcul'           => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
+            'milestones'            => 'nullable|array',
+        ]);
+
+        $modeCalcul = $validated['mode_calcul'] ?? 'pourcentage';
+        $milestones = ($modeCalcul === 'mensuel' && !empty($validated['milestones'])) ? $validated['milestones'] : null;
+        $valeurCible = ($modeCalcul === 'mensuel' && !empty($milestones))
+            ? array_sum(array_column($milestones, 'cible'))
+            : ($validated['valeur_cible'] ?? 100);
+
+        ResultatCle::create([
+            'objectif_id'           => $objectif->id,
+            'description'           => $validated['description'],
+            'description_detaillee' => $validated['description_detaillee'] ?? null,
+            'type_resultat_cle_id'  => $validated['type_resultat_cle_id'] ?? null,
+            'valeur_cible'          => $valeurCible,
+            'poids'                 => $validated['poids'] ?? 1,
+            'unite'                 => $validated['unite'] ?? null,
+            'mode_calcul'           => $modeCalcul,
+            'milestones'            => $milestones,
+            'progression'           => 0,
+        ]);
+
+        return redirect()->back()->with('success', 'Résultat clé ajouté.');
+    }
+
+    public function destroyKr(ResultatCle $resultatCle)
+    {
+        Gate::authorize('update', $resultatCle->objectif);
+        $resultatCle->delete();
+        return redirect()->back()->with('success', 'Résultat clé supprimé.');
     }
 }
 

@@ -51,9 +51,10 @@ class OkrService
     public function calculerProgressionKr(\App\Models\ResultatCle $kr): float
     {
         return match ($kr->mode_calcul ?? 'pourcentage') {
-            'boolean' => (float) $kr->progression >= 100 ? 100 : 0,
+            'boolean'   => (float) $kr->progression >= 100 ? 100 : 0,
             'milestone' => $this->calculerProgressionMilestone($kr),
-            default => (float) $kr->progression,
+            'mensuel'   => $this->calculerProgressionMensuelle($kr),
+            default     => (float) $kr->progression,
         };
     }
 
@@ -67,10 +68,27 @@ class OkrService
             return (float) $kr->progression;
         }
 
-        $total = count($milestones);
+        $total    = count($milestones);
         $atteints = collect($milestones)->where('atteint', true)->count();
 
         return $total > 0 ? round(($atteints / $total) * 100, 2) : 0;
+    }
+
+    /**
+     * Calcule la progression d'un KR en mode ventilation mensuelle.
+     * progression = somme(valeur_actuelle) / somme(cible) * 100
+     */
+    private function calculerProgressionMensuelle(\App\Models\ResultatCle $kr): float
+    {
+        $milestones = $kr->milestones;
+        if (empty($milestones) || !is_array($milestones)) {
+            return (float) $kr->progression;
+        }
+
+        $totalCible  = collect($milestones)->sum(fn ($m) => (float) ($m['cible'] ?? 0));
+        $totalActuel = collect($milestones)->sum(fn ($m) => (float) ($m['valeur_actuelle'] ?? 0));
+
+        return $totalCible > 0 ? min(round(($totalActuel / $totalCible) * 100, 2), 100) : 0;
     }
 
     /**

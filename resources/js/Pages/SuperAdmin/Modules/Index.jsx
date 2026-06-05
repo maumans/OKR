@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { router } from '@inertiajs/react';
 import SuperAdminLayout from '../Layout';
 import {
@@ -127,10 +128,7 @@ function ModuleModal({ module, onClose }) {
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-[11px] font-semibold text-slate-500 uppercase">Catégorie *</label>
-                            <select value={form.categorie} onChange={e => set('categorie', e.target.value)}
-                                className="w-full mt-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                                {CATEGORIE_OPTIONS.map(c => <option key={c}>{c}</option>)}
-                            </select>
+                            <SearchableSelect value={form.categorie} onChange={v => set("categorie", v)} options={CATEGORIE_OPTIONS.map(o => ({ value: o.value || o, label: o.label || o }))} />
                         </div>
                         <div>
                             <label className="text-[11px] font-semibold text-slate-500 uppercase">Icône (emoji)</label>

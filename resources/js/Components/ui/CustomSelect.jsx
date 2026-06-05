@@ -1,7 +1,6 @@
-import { useState, useRef, Fragment } from 'react';
-import { createPortal } from 'react-dom';
-import { Listbox, Transition } from '@headlessui/react';
-import { Check, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
+import { ChevronDown, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function CustomSelect({
@@ -13,102 +12,145 @@ export function CustomSelect({
     className,
     disabled = false,
     size = 'md',
+    nullable = false,
+    nullLabel = '— Aucun —',
 }) {
-    const wrapperRef = useRef(null);
-    const [portalStyle, setPortalStyle] = useState({ position: 'fixed', top: 0, left: 0, width: 0, zIndex: 9999 });
-    const selectedOption = options.find((opt) => String(opt.value) === String(value));
+    const [open, setOpen] = useState(false);
 
-    const updatePosition = () => {
-        if (!wrapperRef.current) return;
-        const rect = wrapperRef.current.getBoundingClientRect();
-        const estimatedHeight = Math.min(280, options.length * 36 + 8);
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const openAbove = spaceBelow < estimatedHeight && rect.top > estimatedHeight;
+    const isSmall    = size === 'sm';
+    const allOptions = nullable ? [{ value: '', label: nullLabel }, ...options] : options;
+    const selected   = allOptions.find(o => String(o.value) === String(value ?? ''));
+    const hasValue   = selected != null && selected.value !== '';
 
-        setPortalStyle({
-            position: 'fixed',
-            left: rect.left,
-            width: rect.width,
-            zIndex: 9999,
-            ...(openAbove
-                ? { bottom: window.innerHeight - rect.top + 4 }
-                : { top: rect.bottom + 4 }),
-        });
+    const pick = (val) => { onChange(val); setOpen(false); };
+
+    const handleOpenChange = (v) => {
+        if (disabled) return;
+        setOpen(v);
     };
 
-    const isSmall = size === 'sm';
+    /* ── Classes du trigger ─────────────────────────────────────── */
+    const triggerCls = cn(
+        'flex items-center w-full rounded-xl border bg-white dark:bg-dark-800',
+        'cursor-pointer transition-all duration-200 select-none text-left',
+        isSmall ? 'h-8 px-3' : 'h-10 px-3.5',
+        open
+            ? 'border-primary-500 ring-2 ring-primary-500/20 outline-none'
+            : error
+                ? 'border-red-400 ring-2 ring-red-400/20'
+                : 'border-gray-200 dark:border-dark-600 hover:border-gray-300 dark:hover:border-dark-500',
+        disabled && 'opacity-50 cursor-not-allowed pointer-events-none bg-gray-50 dark:bg-dark-900'
+    );
 
     return (
-        <div className={cn("relative", className)}>
-            <Listbox value={value} onChange={onChange} disabled={disabled}>
-                <div ref={wrapperRef} className="relative">
-                    {/* ── Trigger ── */}
-                    <Listbox.Button
-                        onClick={updatePosition}
-                        className={cn(
-                            "relative w-full flex items-center justify-between gap-2 rounded-xl border bg-white dark:bg-dark-800 transition-all duration-200 cursor-pointer text-left",
-                            isSmall ? "h-8 px-3 text-xs" : "h-10 px-3.5 text-sm",
-                            error
-                                ? "border-red-400 focus:outline-none focus:ring-2 focus:ring-red-400/25"
-                                : "border-gray-200 dark:border-dark-600 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500",
-                            disabled && "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-dark-900"
-                        )}
+        <div className={cn('relative', className)}>
+            <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+                <PopoverPrimitive.Trigger asChild>
+                    <button
+                        type="button"
+                        className={triggerCls}
+                        disabled={disabled}
+                        aria-expanded={open}
+                        aria-haspopup="listbox"
                     >
-                        <span className={cn("block truncate", selectedOption ? "text-gray-900 dark:text-gray-100" : "text-gray-400")}>
-                            {selectedOption ? selectedOption.label : placeholder}
+                        <span className={cn(
+                            'flex-1 truncate',
+                            isSmall ? 'text-xs' : 'text-sm',
+                            hasValue ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400'
+                        )}>
+                            {hasValue ? selected.label : placeholder}
                         </span>
-                        <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" aria-hidden="true" />
-                    </Listbox.Button>
 
-                    {/* ── Dropdown via portal ── */}
-                    {createPortal(
-                        <Transition
-                            as={Fragment}
-                            leave="transition ease-in duration-100"
-                            leaveFrom="opacity-100 translate-y-0"
-                            leaveTo="opacity-0 -translate-y-1"
-                        >
-                            <Listbox.Options
-                                style={portalStyle}
-                                className="overflow-hidden rounded-xl border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 shadow-xl shadow-black/10 dark:shadow-black/30 focus:outline-none"
-                            >
-                                <div className="max-h-60 overflow-y-auto py-1">
-                                    {options.length === 0 ? (
-                                        <div className="py-6 text-center text-xs text-gray-400">
-                                            Aucune option
-                                        </div>
-                                    ) : (
-                                        options.map((option) => (
-                                            <Listbox.Option
-                                                key={option.value}
-                                                value={option.value}
-                                                className={({ active }) => cn(
-                                                    "mx-1 px-3 py-2 rounded-lg cursor-pointer flex items-center justify-between gap-2 transition-colors",
-                                                    active
-                                                        ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
-                                                        : "text-gray-800 dark:text-gray-200"
-                                                )}
-                                            >
-                                                {({ selected }) => (
-                                                    <>
-                                                        <span className={cn("block truncate text-sm", selected ? "font-semibold" : "font-normal")}>
-                                                            {option.label}
-                                                        </span>
-                                                        {selected && (
-                                                            <Check className="h-3.5 w-3.5 shrink-0 text-primary-500" />
-                                                        )}
-                                                    </>
-                                                )}
-                                            </Listbox.Option>
-                                        ))
-                                    )}
-                                </div>
-                            </Listbox.Options>
-                        </Transition>,
-                        document.body
-                    )}
-                </div>
-            </Listbox>
+                        <span className={cn(
+                            'flex items-center gap-0.5 self-stretch shrink-0',
+                            'border-l border-gray-100 dark:border-dark-700',
+                            'bg-gray-50 dark:bg-dark-900/50',
+                            isSmall ? 'px-1.5' : 'px-2'
+                        )}>
+                            {nullable && value !== '' && value != null && (
+                                <span
+                                    role="button"
+                                    tabIndex={-1}
+                                    onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onChange(''); }}
+                                    className="p-0.5 rounded text-gray-300 hover:text-gray-500 transition-colors"
+                                >
+                                    <X className="h-3 w-3" />
+                                </span>
+                            )}
+                            <ChevronDown className={cn(
+                                'text-gray-400 transition-transform duration-200 shrink-0',
+                                isSmall ? 'h-3.5 w-3.5' : 'h-[15px] w-[15px]',
+                                open && 'rotate-180'
+                            )} />
+                        </span>
+                    </button>
+                </PopoverPrimitive.Trigger>
+
+                <PopoverPrimitive.Portal>
+                    <PopoverPrimitive.Content
+                        align="start"
+                        sideOffset={4}
+                        avoidCollisions
+                        collisionPadding={8}
+                        style={{ minWidth: 'var(--radix-popover-trigger-width)' }}
+                        className={cn(
+                            'z-[9999] overflow-hidden',
+                            'rounded-xl border border-gray-200 dark:border-dark-600',
+                            'bg-white dark:bg-dark-800',
+                            'shadow-[0_0_0_1px_rgba(0,0,0,.08),0_4px_6px_-1px_rgba(0,0,0,.08),0_12px_20px_-4px_rgba(0,0,0,.1)]',
+                            'data-[state=open]:animate-in data-[state=closed]:animate-out',
+                            'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+                            'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+                            'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
+                        )}
+                        onCloseAutoFocus={(e) => e.preventDefault()}
+                    >
+                        <div className="max-h-60 overflow-y-auto overscroll-contain py-1 px-1">
+                            {allOptions.length === 0 ? (
+                                <div className="py-6 text-center text-xs text-gray-400">Aucune option</div>
+                            ) : allOptions.map((opt) => {
+                                const isSelected = String(opt.value) === String(value ?? '');
+                                const isNull     = opt.value === '';
+
+                                if (isNull) return (
+                                    <div key="__null__">
+                                        <button
+                                            type="button"
+                                            onPointerDown={(e) => { e.preventDefault(); pick(''); }}
+                                            className="w-full text-left px-3 py-2 text-xs italic text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-lg transition-colors"
+                                        >
+                                            {opt.label}
+                                        </button>
+                                        {allOptions.length > 1 && (
+                                            <div className="mx-2 my-0.5 h-px bg-gray-100 dark:bg-dark-700" />
+                                        )}
+                                    </div>
+                                );
+
+                                return (
+                                    <button
+                                        key={String(opt.value)}
+                                        type="button"
+                                        onPointerDown={(e) => { e.preventDefault(); pick(opt.value); }}
+                                        className={cn(
+                                            'w-full text-left flex items-center justify-between gap-2',
+                                            'px-3 py-2 rounded-lg transition-colors',
+                                            isSmall ? 'text-xs' : 'text-sm',
+                                            isSelected
+                                                ? 'text-primary-600 dark:text-primary-400 font-medium'
+                                                : 'text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-700'
+                                        )}
+                                    >
+                                        <span className="truncate">{opt.label}</span>
+                                        {isSelected && !isNull && <Check className="h-3.5 w-3.5 shrink-0 text-primary-500" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </PopoverPrimitive.Content>
+                </PopoverPrimitive.Portal>
+            </PopoverPrimitive.Root>
+
             {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
         </div>
     );

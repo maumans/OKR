@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, Link, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import AppLayout from '@/Layouts/AppLayout';
@@ -41,15 +41,54 @@ function getSeuilColor(progression, seuils) {
     return seuil?.couleur || null;
 }
 
-export default function OKRShow({ objectif, seuils = [], configuration, taches = [], collaborateurs = [] }) {
+export default function OKRShow({ objectif, seuils = [], configuration, taches = [], collaborateurs = [], typesResultatsCles = [], periodes_detail = [] }) {
     const devise = usePage().props.auth?.societe?.devise;
     const isPondere = configuration?.mode_calcul === 'pondere';
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isAddKrOpen, setIsAddKrOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
-    
+
     // Historique Modal
     const [historyOpen, setHistoryOpen] = useState(false);
     const [selectedKrForHistory, setSelectedKrForHistory] = useState(null);
+
+    // Mois disponibles depuis les périodes de l'objectif
+    const moisPeriode = useMemo(() => {
+        const mois = [];
+        for (const p of periodes_detail) {
+            if (!p.date_debut || !p.date_fin) continue;
+            let cur = new Date(p.date_debut + 'T00:00:00');
+            const end = new Date(p.date_fin + 'T00:00:00');
+            while (cur <= end) {
+                const key = cur.toISOString().slice(0, 7);
+                const lab = cur.toLocaleDateString('fr-FR', { month: 'short' });
+                if (!mois.find(m => m.mois === key)) {
+                    mois.push({ mois: key, label: lab.charAt(0).toUpperCase() + lab.slice(1, 4) + '.', cible: 0, valeur_actuelle: 0 });
+                }
+                cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+            }
+        }
+        return mois;
+    }, [periodes_detail]);
+
+    // Formulaire ajout KR
+    const {
+        data: krData, setData: setKrData,
+        post: postKr, processing: processingKr,
+        errors: krErrors, reset: resetKr,
+    } = useForm({
+        description: '', description_detaillee: '', type_resultat_cle_id: '',
+        valeur_cible: 100, poids: 1, unite: '',
+        mode_calcul: 'pourcentage', milestones: [],
+    });
+
+    const submitAddKr = (e) => {
+        e.preventDefault();
+        postKr(route('objectifs.kr.store', objectif.id), {
+            preserveScroll: true,
+            onSuccess: () => { setIsAddKrOpen(false); resetKr(); toast.success('Résultat clé ajouté !'); },
+        });
+    };
 
     const openHistory = (kr) => {
         setSelectedKrForHistory(kr);
@@ -61,6 +100,8 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
             id: r.id,
             progression: r.progression,
             valeur_actuelle: r.valeur_actuelle ?? 0,
+            mode_calcul: r.mode_calcul ?? 'pourcentage',
+            milestones: r.milestones ?? [],
         }))
     });
 
@@ -99,6 +140,24 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
     const handleBooleanToggle = (index, checked) => {
         const newResultats = [...data.resultats];
         newResultats[index].progression = checked ? 100 : 0;
+        setData('resultats', newResultats);
+    };
+
+    const handleMilestoneChange = (krIndex, milestoneIndex, value) => {
+        const newResultats = [...data.resultats];
+        const newMilestones = [...(newResultats[krIndex].milestones || [])];
+        newMilestones[milestoneIndex] = { ...newMilestones[milestoneIndex], valeur_actuelle: value || 0 };
+
+        const totalCible  = newMilestones.reduce((s, m) => s + (Number(m.cible) || 0), 0);
+        const totalActuel = newMilestones.reduce((s, m) => s + (Number(m.valeur_actuelle) || 0), 0);
+        const progression = totalCible > 0 ? Math.min(Math.round((totalActuel / totalCible) * 100 * 10) / 10, 100) : 0;
+
+        newResultats[krIndex] = {
+            ...newResultats[krIndex],
+            milestones: newMilestones,
+            valeur_actuelle: totalActuel,
+            progression,
+        };
         setData('resultats', newResultats);
     };
 
@@ -211,9 +270,14 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between pb-4">
                                 <CardTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-secondary-500" /> Résultats Clés</CardTitle>
-                                {objectif.statut === 'actif' && (
-                                    <Button size="sm" onClick={handleSaveProgress} disabled={processing}><Save className="h-4 w-4 mr-2" /> Enregistrer</Button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => setIsAddKrOpen(true)}>
+                                        <Plus className="h-4 w-4 mr-1" /> Ajouter un KR
+                                    </Button>
+                                    {objectif.statut === 'actif' && (
+                                        <Button size="sm" onClick={handleSaveProgress} disabled={processing}><Save className="h-4 w-4 mr-2" /> Enregistrer</Button>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 {objectif.resultats_cles.map((resultat, index) => {
@@ -223,6 +287,9 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                     const isBoolean = typeValeur === 'boolean';
                                     const currentProgression = data.resultats[index].progression;
                                     const currentValeurActuelle = data.resultats[index].valeur_actuelle;
+                                    const currentModeCalcul = data.resultats[index].mode_calcul ?? 'pourcentage';
+                                    const currentMilestones = data.resultats[index].milestones ?? [];
+                                    const isMensuel = currentModeCalcul === 'mensuel' && currentMilestones.length > 0;
                                     const isEditable = objectif.statut === 'actif';
 
                                     return (
@@ -263,8 +330,53 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                                 </span>
                                             </div>
 
-                                            {/* ── Input selon le type ── */}
-                                            {isEditable && (
+                                            {/* ── Ventilation mensuelle ── */}
+                                            {isMensuel && (
+                                                <div className="mt-3 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/20">
+                                                    <p className="text-[10px] uppercase tracking-wider text-blue-500 font-semibold mb-2 flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" /> Progression mensuelle
+                                                    </p>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        {currentMilestones.map((m, mi) => {
+                                                            const pct = Number(m.cible) > 0
+                                                                ? Math.round((Number(m.valeur_actuelle) / Number(m.cible)) * 100)
+                                                                : 0;
+                                                            return (
+                                                                <div key={m.mois} className="flex flex-col gap-1">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300">{m.label}</span>
+                                                                        <span className="text-[10px] text-gray-400">{pct}%</span>
+                                                                    </div>
+                                                                    {isEditable ? (
+                                                                        <NumberInput
+                                                                            value={m.valeur_actuelle}
+                                                                            onChange={v => handleMilestoneChange(index, mi, v)}
+                                                                            decimals={0}
+                                                                            suffix={resultat.unite || undefined}
+                                                                        />
+                                                                    ) : (
+                                                                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                                                            {formatNumber(m.valeur_actuelle)}{resultat.unite ? ` ${resultat.unite}` : ''}
+                                                                        </p>
+                                                                    )}
+                                                                    <p className="text-[10px] text-gray-400">
+                                                                        /{formatNumber(Number(m.cible))}{resultat.unite ? ` ${resultat.unite}` : ''}
+                                                                    </p>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <p className="text-xs text-gray-400 mt-2">
+                                                        Cumulé : {formatNumber(currentMilestones.reduce((s, m) => s + (Number(m.valeur_actuelle) || 0), 0))}
+                                                        {' / '}{formatNumber(currentMilestones.reduce((s, m) => s + (Number(m.cible) || 0), 0))}
+                                                        {resultat.unite ? ` ${resultat.unite}` : ''}
+                                                        {' · '}<span className="font-semibold" style={{ color: getSeuilColor(currentProgression, seuils) || undefined }}>{Math.round(currentProgression)}%</span>
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* ── Input selon le type (mode standard) ── */}
+                                            {isEditable && !isMensuel && (
                                                 <div className="mt-2">
                                                     {isBoolean ? (
                                                         /* Toggle Oui / Non */
@@ -472,7 +584,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                             <div>
                                 <Label>Description</Label>
                                 <textarea
-                                    className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:ring-offset-dark-900 dark:placeholder:text-gray-400 dark:focus-visible:ring-primary-500 mt-1.5"
+                                    className="w-full rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 hover:border-gray-300 dark:hover:border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-colors duration-150 resize-none min-h-[80px]"
                                     value={taskData.description}
                                     onChange={e => setTaskData('description', e.target.value)}
                                 />
@@ -573,12 +685,179 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                 </DialogContent>
             </Dialog>
 
-            <TaskDetailPanel 
+            <TaskDetailPanel
                 tache={selectedTask}
                 onClose={() => setSelectedTask(null)}
                 krDescription={selectedTask && objectif.resultats_cles ? objectif.resultats_cles.find(r => r.id === selectedTask.resultat_cle_id)?.description : ''}
                 collaborateurs={collaborateurs}
             />
+
+            {/* ── Modal Ajouter un KR ─────────────────────────────── */}
+            <Dialog open={isAddKrOpen} onOpenChange={v => { if (!processingKr) setIsAddKrOpen(v); }}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden p-0 flex flex-col">
+                    <div className="px-6 pt-6 pb-4 shrink-0 border-b border-gray-100 dark:border-dark-700">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <CheckCircle2 className="h-5 w-5 text-secondary-500" />
+                                Ajouter un Résultat Clé
+                            </DialogTitle>
+                        </DialogHeader>
+                    </div>
+                    <form onSubmit={submitAddKr} className="flex flex-col flex-1 min-h-0">
+                        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
+                            {/* Description */}
+                            <div>
+                                <Label>Titre du KR *</Label>
+                                <Input
+                                    value={krData.description}
+                                    onChange={e => setKrData('description', e.target.value)}
+                                    error={krErrors.description}
+                                    placeholder="Ex : Signer 5 nouveaux clients..."
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label>Description détaillée</Label>
+                                <textarea
+                                    value={krData.description_detaillee}
+                                    onChange={e => setKrData('description_detaillee', e.target.value)}
+                                    placeholder="Contexte, méthode de mesure, définition de done..."
+                                    rows={2}
+                                    className="mt-1 w-full rounded-md border-gray-300 dark:border-dark-700 bg-white dark:bg-dark-900 text-sm focus:border-primary-500 focus:ring-primary-500 min-h-[56px]"
+                                />
+                            </div>
+
+                            {/* Type + Cible + Unité */}
+                            <div className="grid grid-cols-2 gap-3">
+                                {typesResultatsCles.length > 0 && (
+                                    <div>
+                                        <Label>Type</Label>
+                                        <Select
+                                            value={krData.type_resultat_cle_id}
+                                            onChange={e => {
+                                                const type = typesResultatsCles.find(t => t.id === Number(e.target.value));
+                                                setKrData('type_resultat_cle_id', e.target.value);
+                                                if (type?.unite) setKrData('unite', type.unite);
+                                                if (type?.type_valeur === 'boolean') setKrData('valeur_cible', 1);
+                                            }}
+                                            className="mt-1"
+                                        >
+                                            <option value="">— Type —</option>
+                                            {typesResultatsCles.map(t => (
+                                                <option key={t.id} value={t.id}>{t.nom}</option>
+                                            ))}
+                                        </Select>
+                                    </div>
+                                )}
+                                <div>
+                                    <Label>Unité</Label>
+                                    <Select
+                                        value={krData.unite}
+                                        onChange={e => setKrData('unite', e.target.value)}
+                                        className="mt-1"
+                                    >
+                                        <option value="">— Choisir —</option>
+                                        {[...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => (
+                                            <option key={u} value={u}>{u}</option>
+                                        ))}
+                                    </Select>
+                                </div>
+                            </div>
+
+                            {/* Cible + Poids */}
+                            {krData.mode_calcul !== 'mensuel' && (
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1">
+                                        <Label>Cible</Label>
+                                        <NumberInput
+                                            value={krData.valeur_cible}
+                                            onChange={v => setKrData('valeur_cible', v)}
+                                            decimals={0}
+                                            suffix={krData.unite || undefined}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    {isPondere && (
+                                        <div className="w-28">
+                                            <Label>Poids</Label>
+                                            <NumberInput
+                                                value={krData.poids}
+                                                onChange={v => setKrData('poids', v)}
+                                                decimals={2}
+                                                className="mt-1"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Toggle ventilation mensuelle */}
+                            {moisPeriode.length >= 2 && (
+                                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={krData.mode_calcul === 'mensuel'}
+                                        onChange={e => {
+                                            const on = e.target.checked;
+                                            setKrData('mode_calcul', on ? 'mensuel' : 'pourcentage');
+                                            setKrData('milestones', on ? moisPeriode.map(m => ({ ...m, cible: 0 })) : []);
+                                        }}
+                                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                    />
+                                    <Calendar className="h-4 w-4 text-primary-500" />
+                                    Ventilation mensuelle
+                                    {moisPeriode.length > 0 && (
+                                        <span className="text-xs text-gray-400">
+                                            ({moisPeriode.map(m => m.label).join(', ')})
+                                        </span>
+                                    )}
+                                </label>
+                            )}
+
+                            {/* Champs par mois */}
+                            {krData.mode_calcul === 'mensuel' && (
+                                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 space-y-2">
+                                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">Cibles mensuelles</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(krData.milestones || []).map((m, mi) => (
+                                            <div key={m.mois} className="flex items-center gap-1.5 bg-white dark:bg-dark-800 rounded-lg px-2.5 py-1.5 border border-blue-200 dark:border-blue-500/30">
+                                                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 w-8 shrink-0">{m.label}</span>
+                                                <NumberInput
+                                                    value={m.cible}
+                                                    onChange={v => {
+                                                        const ms = [...(krData.milestones || [])];
+                                                        ms[mi] = { ...ms[mi], cible: v || 0 };
+                                                        setKrData('milestones', ms);
+                                                    }}
+                                                    className="w-24"
+                                                    decimals={0}
+                                                    suffix={krData.unite || undefined}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-blue-500">
+                                        Total : {(krData.milestones || []).reduce((s, m) => s + (Number(m.cible) || 0), 0).toLocaleString('fr-FR')} {krData.unite}
+                                    </p>
+                                    {isPondere && (
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <Label className="text-xs">Poids</Label>
+                                            <NumberInput value={krData.poids} onChange={v => setKrData('poids', v)} decimals={2} className="w-28" />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 shrink-0 flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => setIsAddKrOpen(false)}>Annuler</Button>
+                            <Button type="submit" disabled={processingKr}>
+                                {processingKr ? 'Enregistrement...' : 'Ajouter le KR'}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

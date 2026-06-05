@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import AppLayout from '@/Layouts/AppLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -310,14 +311,7 @@ export default function MatriceIndex({ quadrants, stats, periodes = [], collabor
  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1 flex items-center gap-1">
  <Filter className="h-3 w-3" /> Filtres
  </span>
- <select
- value={collabFilter}
- onChange={(e) => { setCollabFilter(e.target.value); applyFilters('collaborateur_id', e.target.value); }}
- className="bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs px-2.5 py-1.5 pr-7 text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/30 focus:border-fuchsia-500 cursor-pointer"
- >
- <option value="">Tous les collaborateurs</option>
- {collaborateurs.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
- </select>
+ <SearchableSelect value={collabFilter} onChange={v => applyFilters("collaborateur_id", v)} options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + " " + c.nom }))} nullable nullLabel="Tous les collaborateurs" placeholder="Tous les collaborateurs" />
  {hasFilters && (
  <button
  onClick={() => {

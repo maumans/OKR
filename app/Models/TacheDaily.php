@@ -24,6 +24,7 @@ class TacheDaily extends Model
         'priorite',
         'type_tache',
         'categorie',
+        'categorie_autre',
         'temps_estime',
         'temps_reel',
         'score',
