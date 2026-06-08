@@ -973,7 +973,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
         <AppLayout title="Prospection">
             <div className="flex gap-0">
                 {/* ── Sidebar interne */}
-                <aside className="w-44 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5">
+                <aside className="w-44 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5 sticky top-[72px] self-start">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Prospection</p>
                     <nav className="space-y-0.5">
                         {SIDEBAR_VIEWS.map(v => (

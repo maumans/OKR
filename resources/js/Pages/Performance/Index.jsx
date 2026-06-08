@@ -1200,8 +1200,8 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
             <div className="flex gap-4" style={{ minHeight: 'calc(100vh - 220px)' }}>
 
                 {/* ── Sidebar module ─────────────────────────────── */}
-                <aside className="w-44 shrink-0">
-                    <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-200 dark:border-dark-700 overflow-hidden sticky top-4">
+                <aside className="w-44 shrink-0 sticky top-[72px] self-start">
+                    <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-200 dark:border-dark-700 overflow-hidden">
                         <div className="px-4 py-4 border-b border-gray-100 dark:border-dark-800">
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-5">Module</p>
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Performance</p>
