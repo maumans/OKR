@@ -970,11 +970,11 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
     const listProps = { prospects, clients, onEdit: setEditDeal, onDelete: handleDelete, deviseCode };
 
     return (
-        <AppLayout title="Mini CRM">
+        <AppLayout title="Prospection">
             <div className="flex gap-0">
                 {/* ── Sidebar interne */}
                 <aside className="w-44 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mini CRM</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Prospection</p>
                     <nav className="space-y-0.5">
                         {SIDEBAR_VIEWS.map(v => (
                             <button key={v.key} onClick={() => setActiveView(v.key)}
@@ -1003,7 +1003,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                             <Briefcase className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">Mini CRM</h1>
+                            <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">Prospection</h1>
                             <p className="text-[11px] text-gray-400">
                                 Pipeline commercial · Deals · Clients · Kanban
                             </p>
