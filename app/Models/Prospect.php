@@ -14,10 +14,14 @@ class Prospect extends Model
     protected $fillable = [
         'societe_id',
         'collaborateur_id',
+        'client_id',
+        'titre',
         'nom',
         'contact',
         'secteur',
         'valeur',
+        'probabilite',
+        'type_deal',
         'statut',
         'prochain_rdv',
         'date_premier_contact',
@@ -30,17 +34,23 @@ class Prospect extends Model
     protected function casts(): array
     {
         return [
-            'prochain_rdv' => 'date',
+            'prochain_rdv'         => 'date',
             'date_premier_contact' => 'datetime',
-            'date_conversion' => 'datetime',
-            'valeur' => 'decimal:2',
-            'montant_final' => 'decimal:2',
+            'date_conversion'      => 'datetime',
+            'valeur'               => 'decimal:2',
+            'montant_final'        => 'decimal:2',
+            'probabilite'          => 'integer',
         ];
     }
 
     public function collaborateur()
     {
         return $this->belongsTo(Collaborateur::class);
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public function actionsCommerciales(): HasMany

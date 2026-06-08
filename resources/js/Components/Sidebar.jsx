@@ -22,6 +22,7 @@ import {
     CalendarCheck,
     ListChecks,
     User,
+    ClipboardCheck,
 } from 'lucide-react';
 import { UserAvatar } from '@/Components/ui/Avatar';
 import { useTheme } from '@/hooks/useTheme';
@@ -29,7 +30,7 @@ import { useTheme } from '@/hooks/useTheme';
 const ICON_MAP = {
     LayoutDashboard, Users, Target, CheckSquare, TrendingUp, Award,
     Settings, PenTool, Grid3X3, GraduationCap, Briefcase, Upload,
-    History, BarChart3, Gift, CalendarCheck, ListChecks, User,
+    History, BarChart3, Gift, CalendarCheck, ListChecks, User, ClipboardCheck,
 };
 
 const navigation = [
@@ -45,6 +46,7 @@ const navigation = [
         items: [
             { name: 'Objectifs (OKR)', href: 'objectifs.index', icon: Target, moduleCode: 'okr' },
             { name: 'Objectifs individuels', href: 'individuels.index', icon: User, moduleCode: 'individuels' },
+            { name: 'Performance', href: 'performance.index', icon: ClipboardCheck, moduleCode: 'performance' },
             { name: 'Tâches', href: 'taches.index', icon: CheckSquare, moduleCode: 'taches' },
             { name: 'Matrice Eisenhower', href: 'matrice.index', icon: Grid3X3, moduleCode: 'matrice' },
             { name: 'Daily (Bilan)', href: 'daily.index', icon: PenTool, moduleCode: 'daily' },

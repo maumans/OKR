@@ -15,6 +15,7 @@ import {
  Search, Plus, Target, Eye, Trash2, Pencil, Copy,
  ChevronDown, ChevronRight, CheckSquare, CheckCircle2, Check, X, Filter,
  Paperclip, Download, FileText, FileImage, FileArchive, File,
+ ChevronsUp, ChevronsDown,
 } from 'lucide-react';
 import {
  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -1632,8 +1633,10 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
 }
 
 // ─── Composant KR expandable (niveau 2) ─────────────────────
-function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, objectifId, defaultExpanded = false, auth, objCollabId, collaborateurs = [] }) {
+function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, objectifId, defaultExpanded = false, auth, objCollabId, collaborateurs = [], collapseAll = 0, expandAll = 0 }) {
  const [expanded, setExpanded] = useState(defaultExpanded);
+ useEffect(() => { if (collapseAll > 0) setExpanded(false); }, [collapseAll]);
+ useEffect(() => { if (expandAll > 0) setExpanded(true); }, [expandAll]);
  const krColor = getSeuilColor(kr.progression, seuils) || krBarColors[krIdx % krBarColors.length];
  const krTaches = kr.taches || [];
  const krTerminees = krTaches.filter(t => t.statut === 'termine').length;
@@ -1819,8 +1822,10 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
 }
 
 // ─── Composant carte objectif (expandable, niveau 1) ─────────
-function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAddTask, onAddKr, onViewTask, onAddTaskForKr, onEdit, onEditKr, auth, collaborateurs = [] }) {
+function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAddTask, onAddKr, onViewTask, onAddTaskForKr, onEdit, onEditKr, auth, collaborateurs = [], collapseAll = 0, expandAll = 0 }) {
  const [expanded, setExpanded] = useState(defaultExpanded);
+ useEffect(() => { if (collapseAll > 0) setExpanded(false); }, [collapseAll]);
+ useEffect(() => { if (expandAll > 0) setExpanded(true); }, [expandAll]);
  const progColor = getSeuilColor(obj.progression_globale, seuils) || '#3b82f6';
  const tachesTerminees = obj.taches_terminees || 0;
  const totalTaches = obj.taches_count || 0;
@@ -1943,6 +1948,8 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
  auth={auth}
  objCollabId={obj.collaborateur_id}
  collaborateurs={collaborateurs}
+ collapseAll={collapseAll}
+ expandAll={expandAll}
  />
  ))}
  </div>
@@ -2140,10 +2147,20 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  const devise = auth?.societe?.devise;
  const [search, setSearch] = useState(filters?.search || '');
  const [statutFilter, setStatutFilter] = useState(filters?.statut || '');
- const [collabFilter, setCollabFilter] = useState(filters?.collaborateur_id || '');
- const [periodeFilter, setPeriodeFilter] = useState(filters?.periode_id || '');
- const [axeFilter, setAxeFilter] = useState(filters?.axe_objectif_id || '');
- const [typeFilter, setTypeFilter] = useState(filters?.type_objectif_id || '');
+ const [collabFilter, setCollabFilter] = useState(filters?.collaborateur_id ? String(filters.collaborateur_id) : '');
+ const [periodeFilter, setPeriodeFilter] = useState(filters?.periode_id ? String(filters.periode_id) : '');
+ const [axeFilter, setAxeFilter] = useState(filters?.axe_objectif_id ? String(filters.axe_objectif_id) : '');
+ const [typeFilter, setTypeFilter] = useState(filters?.type_objectif_id ? String(filters.type_objectif_id) : '');
+
+ // Sync state from props after server redirects (ex: Effacer → redirect vers période courante)
+ useEffect(() => {
+  setSearch(filters?.search || '');
+  setStatutFilter(filters?.statut || '');
+  setCollabFilter(filters?.collaborateur_id ? String(filters.collaborateur_id) : '');
+  setPeriodeFilter(filters?.periode_id ? String(filters.periode_id) : '');
+  setAxeFilter(filters?.axe_objectif_id ? String(filters.axe_objectif_id) : '');
+  setTypeFilter(filters?.type_objectif_id ? String(filters.type_objectif_id) : '');
+ }, [filters?.search, filters?.statut, filters?.collaborateur_id, filters?.periode_id, filters?.axe_objectif_id, filters?.type_objectif_id]);
 
  // Regroupement des objectifs par axe (ordre des axes configurés, sans axe en dernier)
  const objectifsParAxe = useMemo(() => {
@@ -2160,6 +2177,14 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
   if (groups['sans_axe']) ordered.push(groups['sans_axe']);
   return ordered;
  }, [objectifs.data, axes]);
+ const [collapseAll, setCollapseAll] = useState(0);
+ const [expandAll, setExpandAll] = useState(0);
+ const [collapsedAxes, setCollapsedAxes] = useState(new Set());
+ const toggleAxe = (id) => setCollapsedAxes(prev => {
+  const next = new Set(prev);
+  next.has(id) ? next.delete(id) : next.add(id);
+  return next;
+ });
  const [createOpen, setCreateOpen] = useState(false);
  const [editModal, setEditModal] = useState({ open: false, objectif: null });
  const [taskModal, setTaskModal] = useState({ open: false, objectifId: null, resultatsCles: [], defaultResultatCleId: null });
@@ -2167,11 +2192,18 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  const [editKrModal, setEditKrModal] = useState({ open: false, kr: null });
  const [quickKRModal, setQuickKRModal] = useState({ open: false, objectifId: null });
  const [quickTaskOpen, setQuickTaskOpen] = useState(false);
+ const searchTimerRef = useRef(null);
 
  const applyFilters = (key, value) => {
  const f = { search, statut: statutFilter, collaborateur_id: collabFilter, periode_id: periodeFilter, axe_objectif_id: axeFilter, type_objectif_id: typeFilter, [key]: value };
  Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
  router.get(route('objectifs.index'), f, { preserveState: true, replace: true });
+ };
+
+ const handleSearchChange = (value) => {
+  setSearch(value);
+  if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+  searchTimerRef.current = setTimeout(() => applyFilters('search', value), 300);
  };
 
  const handleDelete = (id) => {
@@ -2217,7 +2249,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  type="text"
  placeholder="Rechercher..."
  value={search}
- onChange={(e) => { setSearch(e.target.value); applyFilters('search', e.target.value); }}
+ onChange={(e) => handleSearchChange(e.target.value)}
  className="pl-8 pr-3 py-2 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 w-40 transition-all"
  />
  </div>
@@ -2228,7 +2260,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  <SearchableSelect value={typeFilter} onChange={v=>{setTypeFilter(v);applyFilters("type_objectif_id",v)}} nullable nullLabel="Tous les types" placeholder="Tous les types" options={typesObjectifs.map(t=>({value:String(t.id),label:t.nom}))} />
  {hasFilters && (
  <button
- onClick={() => { setSearch(''); setStatutFilter(''); setCollabFilter(''); setPeriodeFilter(''); setAxeFilter(''); setTypeFilter(''); router.get(route('objectifs.index'), {}, { preserveState: true, replace: true }); }}
+ onClick={() => { setSearch(''); setStatutFilter(''); setCollabFilter(''); setPeriodeFilter(''); setAxeFilter(''); setTypeFilter(''); if (searchTimerRef.current) clearTimeout(searchTimerRef.current); router.get(route('objectifs.index'), {}, { preserveState: true, replace: true }); }}
  className="flex items-center gap-1 text-[11px] text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
  >
  <X className="h-3 w-3" /> Effacer
@@ -2293,47 +2325,86 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
   >
    <Plus className="h-3.5 w-3.5" /> Tâche
   </button>
+
+  {/* Séparateur */}
+  <div className="h-5 w-px bg-gray-200 dark:bg-dark-700 mx-1" />
+
+  <button
+   onClick={() => { setCollapseAll(v => v + 1); setCollapsedAxes(new Set(objectifsParAxe.map(g => g.id))); }}
+   title="Tout replier"
+   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-800 rounded-lg shadow-sm transition-all"
+  >
+   <ChevronsUp className="h-3.5 w-3.5" /> Replier
+  </button>
+  <button
+   onClick={() => { setExpandAll(v => v + 1); setCollapsedAxes(new Set()); }}
+   title="Tout déplier"
+   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-800 rounded-lg shadow-sm transition-all"
+  >
+   <ChevronsDown className="h-3.5 w-3.5" /> Déplier
+  </button>
  </div>
 
  {/* ═══ Objectifs groupés par axe ═══ */}
  {objectifs.data.length > 0 ? (
  <div className="space-y-6">
-  {objectifsParAxe.map((groupe, gi) => (
+  {objectifsParAxe.map((groupe, gi) => {
+   const isCollapsed = collapsedAxes.has(groupe.id);
+   return (
   <div key={groupe.id}>
-   {/* ── En-tête de groupe axe ── */}
-   <div className="flex items-center gap-2.5 mb-3">
+   {/* ── En-tête de groupe axe (cliquable pour plier/déplier) ── */}
+   <button
+    onClick={() => toggleAxe(groupe.id)}
+    className="flex items-center gap-2.5 mb-3 w-full text-left group"
+   >
+   <ChevronRight className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-90'}`} />
    <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: groupe.couleur }} />
-   <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: groupe.couleur }}>
+   <span className="text-[11px] font-bold uppercase tracking-widest group-hover:underline" style={{ color: groupe.couleur }}>
     {groupe.nom}
    </span>
    <span className="text-[10px] text-gray-400 font-medium">
     — {groupe.objectifs.length} objectif{groupe.objectifs.length > 1 ? 's' : ''}
    </span>
    <div className="flex-1 h-px bg-gray-100 dark:bg-dark-800" />
-   </div>
+   </button>
 
    {/* ── Cartes objectifs du groupe ── */}
-   <div className="space-y-3 pl-5 border-l-2" style={{ borderColor: groupe.couleur + '40' }}>
-   {groupe.objectifs.map((obj, i) => (
-    <ObjectifCard
-    key={obj.id}
-    obj={obj}
-    seuils={seuils}
-    handleDelete={handleDelete}
-    defaultExpanded={gi === 0 && i === 0}
-    onEdit={(o) => setEditModal({ open: true, objectif: o })}
-    onEditKr={(kr) => setEditKrModal({ open: true, kr })}
-    onAddTask={(objId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: null })}
-    onAddKr={(objId) => setQuickKRModal({ open: true, objectifId: objId })}
-    onAddTaskForKr={(objId, krId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: krId })}
-    onViewTask={(tache, krDescription) => setTaskPanel({ tache, objectifTitre: krDescription })}
-    auth={auth}
-    collaborateurs={collaborateurs}
-    />
-   ))}
-   </div>
+   <AnimatePresence initial={false}>
+   {!isCollapsed && (
+    <motion.div
+     initial={{ height: 0, opacity: 0 }}
+     animate={{ height: 'auto', opacity: 1 }}
+     exit={{ height: 0, opacity: 0 }}
+     transition={{ duration: 0.2, ease: 'easeInOut' }}
+     style={{ overflow: 'hidden' }}
+    >
+    <div className="space-y-3 pl-5 border-l-2" style={{ borderColor: groupe.couleur + '40' }}>
+    {groupe.objectifs.map((obj, i) => (
+     <ObjectifCard
+     key={obj.id}
+     obj={obj}
+     seuils={seuils}
+     handleDelete={handleDelete}
+     defaultExpanded={gi === 0 && i === 0}
+     onEdit={(o) => setEditModal({ open: true, objectif: o })}
+     onEditKr={(kr) => setEditKrModal({ open: true, kr })}
+     onAddTask={(objId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: null })}
+     onAddKr={(objId) => setQuickKRModal({ open: true, objectifId: objId })}
+     onAddTaskForKr={(objId, krId) => setTaskModal({ open: true, objectifId: objId, resultatsCles: obj.resultats_cles || [], defaultResultatCleId: krId })}
+     onViewTask={(tache, krDescription) => setTaskPanel({ tache, objectifTitre: krDescription })}
+     auth={auth}
+     collaborateurs={collaborateurs}
+     collapseAll={collapseAll}
+     expandAll={expandAll}
+     />
+    ))}
+    </div>
+    </motion.div>
+   )}
+   </AnimatePresence>
   </div>
-  ))}
+  );
+  })}
  </div>
  ) : (
  <EmptyState icon={Target} title="Aucun objectif" description="Il n'y a aucun objectif correspondant à vos critères." action={

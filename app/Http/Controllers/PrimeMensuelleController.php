@@ -5,13 +5,17 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdatePrimeMensuelleRequest;
 use App\Models\Collaborateur;
 use App\Models\PrimeMensuelle;
+use App\Services\NotificationService;
 use App\Services\SyntheseService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class PrimeMensuelleController extends Controller
 {
-    public function __construct(private SyntheseService $syntheseService) {}
+    public function __construct(
+        private SyntheseService $syntheseService,
+        private NotificationService $notifService,
+    ) {}
 
     /**
      * Créer ou mettre à jour la prime mensuelle d'un collaborateur.
@@ -83,6 +87,18 @@ class PrimeMensuelleController extends Controller
             'validee_par_user_id' => auth()->id(),
             'validee_le'          => now(),
         ]);
+
+        if ($primeAcquise && $collaborateur->user_id) {
+            $montantFormate = number_format($prime->montant_max, 0, ',', ' ');
+            $this->notifService->notifierUser(
+                $collaborateur->societe_id,
+                $collaborateur->user_id,
+                'prime_validee',
+                "Prime validée : {$montantFormate} €",
+                "Votre prime du mois de {$mois} a été validée. Score : {$scoreGlobal}%",
+                ['url' => '/synthese']
+            );
+        }
 
         return redirect()->back()->with('success', '✏️ Prime validée.');
     }

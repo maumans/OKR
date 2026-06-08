@@ -3,7 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Module;
+use App\Models\Societe;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class ModuleSeeder extends Seeder
 {
@@ -61,6 +63,17 @@ class ModuleSeeder extends Seeder
                 'couleur'     => '#f59e0b',
                 'ordre'       => 40,
                 'routes'      => ['daily.*'],
+            ],
+            [
+                'code'        => 'performance',
+                'nom'         => 'Performance',
+                'description' => 'Fiches de performance, workflow de validation et cycles d\'évaluation annuels.',
+                'categorie'   => 'MANAGEMENT',
+                'icone'       => 'ClipboardCheck',
+                'couleur'     => '#8b5cf6',
+                'ordre'       => 45,
+                'routes'      => ['performance.*'],
+                'dependances' => ['okr'],
             ],
             [
                 'code'        => 'matrice',
@@ -182,6 +195,33 @@ class ModuleSeeder extends Seeder
                     'description' => null,
                 ], $data)
             );
+        }
+
+        // Synchronise les modules manquants sur les sociétés existantes
+        // Un module absent de societe_module est invisible même s'il existe dans modules
+        if (!Schema::hasTable('societe_module') || !Schema::hasTable('societes')) {
+            return;
+        }
+
+        $allModules = Module::where('actif', true)->get();
+        $societes   = Societe::all();
+        $now        = now();
+
+        foreach ($societes as $societe) {
+            $modulesActifs = $societe->modules()->pluck('modules.id')->toArray();
+            foreach ($allModules as $module) {
+                if (!in_array($module->id, $modulesActifs)) {
+                    $societe->modules()->attach($module->id, [
+                        'actif'               => $module->est_core,
+                        'active_le'           => $module->est_core ? $now : null,
+                        'desactive_le'        => null,
+                        'active_par_user_id'  => null,
+                        'parametres'          => null,
+                        'created_at'          => $now,
+                        'updated_at'          => $now,
+                    ]);
+                }
+            }
         }
     }
 }

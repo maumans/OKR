@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { router, usePage, Link } from '@inertiajs/react';
 import { Bell, Check, CheckCheck, Trash2, Package, AlertTriangle, TrendingUp, Award, Info, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -127,7 +127,11 @@ export default function NotificationBell({ variant = 'light' }) {
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-dark-800">
-                            <div className="flex items-center gap-2">
+                            <Link
+                                href={route('notifications.page')}
+                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                onClick={() => setOpen(false)}
+                            >
                                 <Bell className="h-4 w-4 text-primary-500" />
                                 <span className="text-[13px] font-semibold text-gray-900 dark:text-white">Notifications</span>
                                 {count > 0 && (
@@ -135,7 +139,7 @@ export default function NotificationBell({ variant = 'light' }) {
                                         {count} non lue{count > 1 ? 's' : ''}
                                     </span>
                                 )}
-                            </div>
+                            </Link>
                             {count > 0 && (
                                 <button onClick={markAllRead}
                                     className="flex items-center gap-1 text-[11px] text-primary-500 hover:text-primary-600 font-medium transition-colors">
@@ -157,6 +161,17 @@ export default function NotificationBell({ variant = 'light' }) {
                                     <NotifItem key={notif.id} notif={notif} onRead={markRead} onDelete={deleteNotif} />
                                 ))
                             )}
+                        </div>
+
+                        {/* Footer — lien vers le centre */}
+                        <div className="border-t border-gray-100 dark:border-dark-800 px-4 py-2.5">
+                            <Link
+                                href={route('notifications.page')}
+                                className="block text-center text-[12px] text-primary-500 hover:text-primary-600 font-medium transition-colors"
+                                onClick={() => setOpen(false)}
+                            >
+                                Voir toutes les notifications →
+                            </Link>
                         </div>
                     </motion.div>
                 )}

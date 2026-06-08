@@ -3,7 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Users, Target, CheckSquare, TrendingUp,
     Award, Settings, Settings2, PenTool, GraduationCap, BarChart3,
-    LogOut, User, Briefcase, Grid3X3, Gift, Sun, Moon, Upload,
+    LogOut, User, Briefcase, Grid3X3, Gift, Sun, Moon, Upload, ClipboardCheck,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { UserAvatar } from '@/Components/ui/Avatar';
@@ -15,6 +15,7 @@ import NotificationBell from '@/Components/NotificationBell';
 const ALL_NAV_ITEMS = [
     { name: 'OKR',           href: 'objectifs.index',   color: 'bg-blue-500',    textColor: 'text-blue-500',    moduleCode: 'okr' },
     { name: 'Objectifs individuels',   href: 'individuels.index',  color: 'bg-rose-500',    textColor: 'text-rose-500',    moduleCode: 'individuels' },
+    { name: 'Performance',   href: 'performance.index',  color: 'bg-violet-600',  textColor: 'text-violet-600',  moduleCode: 'performance' },
     { name: 'Daily',         href: 'daily.index',        color: 'bg-violet-500',  textColor: 'text-violet-500',  moduleCode: 'daily' },
     { name: 'Prospection',   href: 'prospects.index',    color: 'bg-green-500',   textColor: 'text-green-500',   moduleCode: 'prospection' },
     //{ name: 'LMS',           href: 'formations.index',   color: 'bg-orange-500',  textColor: 'text-orange-500',  moduleCode: 'lms' },

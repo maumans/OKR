@@ -49,7 +49,7 @@ class ProspectionService
     public function getValeurPipeline(int $societeId): float
     {
         return Prospect::where('societe_id', $societeId)
-            ->whereIn('statut', ['contacte', 'qualifie', 'proposition', 'negocie'])
+            ->whereIn('statut', ['decouverte', 'proposition', 'negociation'])
             ->sum('valeur');
     }
 

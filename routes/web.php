@@ -9,6 +9,7 @@ use App\Http\Controllers\ObjectifController;
 use App\Http\Controllers\TacheController;
 use App\Http\Controllers\BilanJournalierController;
 use App\Http\Controllers\ProspectController;
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\IncentiveController;
 use App\Http\Controllers\ParametreOkrController;
 use App\Http\Controllers\EisenhowerController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Parametres\ModuleSocieteController;
 use App\Http\Controllers\SyntheseController;
 use App\Http\Controllers\PrimeMensuelleController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PerformanceController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -40,6 +42,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
 
     // ─── Notifications in-app ─────────────────────────────────
     Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/centre', [NotificationController::class, 'page'])->name('page');
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
@@ -88,6 +91,16 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
         Route::put('/individuels/kr/{resultatCle}/progression', [IndividuelController::class, 'updateKrProgression'])->name('individuels.kr.progression');
     });
 
+    // ─── Performance ─────────────────────────────────────────
+    Route::middleware('module:performance')->group(function () {
+        Route::get('/performance', [PerformanceController::class, 'index'])->name('performance.index');
+        Route::post('/performance', [PerformanceController::class, 'store'])->name('performance.store');
+        Route::put('/performance/{fiche}', [PerformanceController::class, 'update'])->name('performance.update');
+        Route::post('/performance/{fiche}/avancer', [PerformanceController::class, 'avancerWorkflow'])->name('performance.avancer');
+        Route::post('/performance/{fiche}/cloturer', [PerformanceController::class, 'cloturerFinale'])->name('performance.cloturer');
+        Route::delete('/performance/{fiche}', [PerformanceController::class, 'destroy'])->name('performance.destroy');
+    });
+
     // ─── Tâches ──────────────────────────────────────────────
     Route::middleware('module:taches')->group(function () {
         Route::get('/taches', [TacheController::class, 'index'])->name('taches.index');
@@ -121,6 +134,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
         Route::put('/prospects/{prospect}/status', [ProspectController::class, 'updateStatus'])->name('prospects.status');
         Route::post('/prospects/{prospect}/actions', [ProspectController::class, 'storeAction'])->name('prospects.actions.store');
         Route::delete('/prospects/{prospect}', [ProspectController::class, 'destroy'])->name('prospects.destroy');
+
+        Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
+        Route::put('/clients/{client}', [ClientController::class, 'update'])->name('clients.update');
+        Route::delete('/clients/{client}', [ClientController::class, 'destroy'])->name('clients.destroy');
     });
 
     // ─── Formations (LMS) ────────────────────────────────────

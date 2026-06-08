@@ -5,13 +5,41 @@ namespace App\Http\Controllers;
 use App\Models\NotificationApp;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class NotificationController extends Controller
 {
     public function __construct(private readonly NotificationService $service) {}
 
     /**
-     * Liste paginée des notifications de l'utilisateur courant.
+     * Page centre de notifications (Inertia).
+     */
+    public function page(Request $request)
+    {
+        $user      = $request->user();
+        $societeId = session('societe_id');
+        $type      = $request->get('type', 'toutes');
+
+        $query = NotificationApp::where('societe_id', $societeId)
+            ->pourUser($user->id)
+            ->latest();
+
+        if ($type === 'non_lues') {
+            $query->nonLues();
+        } elseif ($type && $type !== 'toutes') {
+            $query->where('type', $type);
+        }
+
+        $notifications = $query->paginate(20)->through(fn ($n) => $this->format($n));
+
+        return Inertia::render('Notifications/Index', [
+            'notifications' => $notifications,
+            'activeType'    => $type,
+        ]);
+    }
+
+    /**
+     * Liste paginée JSON des notifications de l'utilisateur courant.
      */
     public function index(Request $request)
     {

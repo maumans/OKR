@@ -386,6 +386,27 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - [x] **Cartes prospect enrichies** : affichage de la `source` (avec icône TrendingUp) et du compteur d'`actions_count` (via `withCount('actionsCommerciales')` dans `ProspectController`).
 - [x] **Modal prospect** : `valeur` remplacé par `<NumberInput>` (fin du bug locale française) ; `Commercial assigné` remplacé par `<SearchableSelect>` ; `preserveState: true` sur `put` et `post` ; titre dynamique "Modifier le prospect" / "Ajouter un prospect" ; erreurs de validation visibles sous chaque champ ; bouton "Enregistrement…" pendant la requête.
 
+### Phase 4h : Module Performance (Juin 2026) ✅
+- [x] **Tables** : `fiches_performance` (scores /5 par dimension, poids, score_global, workflow statut, commentaires, validated_at) ; `historique_workflow_performance` (journal horodaté) ; colonnes `grade` et `practice` ajoutées à `collaborateurs`.
+- [x] **Modèles** : `FichePerformance` (trait `BelongsToSociete`, méthode `recalculerScoreGlobal()`, méthode statique `normaliserScore()`, constante `TRANSITIONS`) ; `HistoriqueWorkflowPerformance`.
+- [x] **Règle métier scores** : score_global = Σ(score_dimension × poids_dimension), arrondi à 1 décimale. Poids par défaut : Commercial 50%, Delivery 25%, Développement 15%, Comportemental 10%.
+- [x] **Normalisation OKR → /5** : ≥100%→5, 80-99%→4, 60-79%→3, 40-59%→2, <40%→1 (méthode `normaliserScore()` sur `FichePerformance`, prête pour le Chantier 0).
+- [x] **Workflow 4 étapes** : `brouillon` → `en_revision` → `attente_drh` → `confirme`. Limite de 3 allers-retours collaborateur. Fiche confirmée verrouillée.
+- [x] **Controller** `PerformanceController` : 5 routes (index, store, update, avancerWorkflow, destroy). Contrainte UNIQUE(collaborateur_id, cycle).
+- [x] **Page React** `Performance/Index.jsx` — module complet :
+  - **Sidebar interne** 5 vues : Fiches individuelles, Workflow validation, Cycle annuel, Mid-Year Review, Évaluation finale.
+  - **Stats header** : 5 indicateurs (Total, Brouillon, En révision, Attente DRH, Confirmées).
+  - **Grille de FicheCard** : avatar couleur selon score, scores /5 par dimension avec barres colorées, badge statut, score global /5.
+  - **Collaborateurs sans fiche** : cards dashed avec bouton "Créer la fiche".
+  - **EditScoresPanel** : slide-over Framer Motion — 3 onglets (Scores, Commentaires, Historique), preview temps réel du score global, boutons de transition workflow, suppression en brouillon.
+  - **CreateFicheModal** : Dialog Radix, SearchableSelect collaborateur, CustomSelect type_cycle.
+  - **VueWorkflow** : tableau des fiches en attente d'action.
+  - **VueCycleAnnuel** : timeline visuelle des 5 jalons du cycle hybride avec indicateur du jalon courant.
+  - Bouton "Synchroniser OKR → Performance" préparé (désactivé jusqu'au Chantier 0).
+- [x] **Module enregistré** dans `ModuleSeeder` (code `performance`, catégorie MANAGEMENT, ordre 45, dépend de `okr`).
+- [x] **Navigation** : Sidebar "Performance" (ClipboardCheck) dans le groupe MANAGEMENT.
+- [x] **Seeder de démo** `PerformanceSeeder` : 4 fiches cycle "Q3 2026" alignées avec la maquette Laawol (scores Gando Diallo 2.4/5, Amadou Bailo 3.0/5, etc.) + champs grade/practice mis à jour.
+
 ### Phase 5 : LMS et Reporting ⏳
 - [ ] Module LMS : Formations et modules d'apprentissage (page placeholder, modèles et migration existants).
 - [ ] Module Reporting : Synthèses et graphiques avancés (page placeholder).
@@ -697,7 +718,11 @@ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
 | `societe_module` | Pivot modules × sociétés (actif, active_le, desactive_le, active_par_user_id, parametres) |
 | `audit_logs` | Journal d'audit (user_id, societe_id, action, description, donnees JSON, ip, user_agent) |
 | `abonnements` | Abonnements SaaS par société (plan starter/pro/enterprise, prix_mensuel, limite_utilisateurs, statut) |
+| `fiches_performance` | Fiches de performance (collaborateur, cycle, statut workflow, 4 scores /5, poids, score_global, commentaires, validated_at) |
+| `historique_workflow_performance` | Journal horodaté des transitions de workflow (de_statut, vers_statut, user, commentaire) |
 
 ---
 
-*Dernière mise à jour : 5 Juin 2026 — Refonte Module Missions → Projets & Delivery (sidebar navigation, workflow DIR, NPS, stats header, édition inline livrables) + enrichissement Module Prospection (scores commerciaux, actions_count, fix NumberInput valeur, preserveState) + corrections bugs (type="number" locale française, URL validation, text-right NumberInput)*
+*Dernière mise à jour : 8 Juin 2026 — Module Performance (Phase 4h) : fiches de performance 4 dimensions, workflow 4 étapes, cycle annuel hybride, seeder démo Laawol*
+
+*Précédente mise à jour : 5 Juin 2026 — Refonte Module Missions → Projets & Delivery (sidebar navigation, workflow DIR, NPS, stats header, édition inline livrables) + enrichissement Module Prospection (scores commerciaux, actions_count, fix NumberInput valeur, preserveState) + corrections bugs (type="number" locale française, URL validation, text-right NumberInput)*

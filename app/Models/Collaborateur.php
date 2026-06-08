@@ -21,6 +21,8 @@ class Collaborateur extends Model
         'nom',
         'prenom',
         'poste',
+        'grade',
+        'practice',
         'actif',
     ];
 
@@ -76,6 +78,11 @@ class Collaborateur extends Model
     public function tachesDaily(): HasMany
     {
         return $this->hasMany(TacheDaily::class);
+    }
+
+    public function fichesPerformance(): HasMany
+    {
+        return $this->hasMany(FichePerformance::class);
     }
 
     // ─── Scopes ────────────────────────────────────────────

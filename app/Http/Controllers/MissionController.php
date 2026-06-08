@@ -118,6 +118,17 @@ class MissionController extends Controller
                 'type'            => 'status',
                 'content'         => "Statut changé : {$oldStatut} → {$validated['statut']}",
             ]);
+
+            if ($validated['statut'] === 'on_hold') {
+                $notifService = app(NotificationService::class);
+                $notifService->notifierResponsables(
+                    $mission->societe_id,
+                    'mission_critique',
+                    "Projet bloqué : {$mission->titre}",
+                    "Le projet a été mis en pause (on hold).",
+                    ['mission_id' => $mission->id, 'url' => '/missions']
+                );
+            }
         }
 
         return redirect()->back()->with('success', 'Mission mise à jour.');
