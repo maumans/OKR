@@ -127,10 +127,8 @@ export default function AppLayout({ title, children }) {
                 <Toaster position="top-right" richColors closeButton duration={3000} />
                 <BandeauImpersonation impersonation={impersonation} />
                 <TopbarNav />
-                <main className="px-4 sm:px-6 py-5">
-                    <div className="max-w-5xl mx-auto w-full">
-                        {children}
-                    </div>
+                <main className="px-4 sm:px-8 py-5 w-full">
+                    {children}
                 </main>
             </div>
         );

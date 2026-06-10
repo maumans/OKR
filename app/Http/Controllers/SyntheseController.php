@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Collaborateur;
+use App\Models\FichePerformance;
+use App\Models\Objectif;
+use App\Models\Prospect;
 use App\Models\SeuilPerformance;
 use App\Models\Synthese;
 use App\Services\SyntheseService;
@@ -150,6 +153,84 @@ class SyntheseController extends Controller
 
         return Inertia::render('Synthese/Historique', [
             'syntheses' => $syntheses,
+        ]);
+    }
+
+    /**
+     * Vue consolidée : OKR + CRM + Performance par collaborateur.
+     */
+    public function consolidation(Request $request)
+    {
+        $societeId = session('societe_id');
+
+        $collaborateurs = Collaborateur::where('societe_id', $societeId)
+            ->actifs()
+            ->orderBy('nom')
+            ->get();
+
+        $donnees = $collaborateurs->map(function (Collaborateur $c) use ($societeId) {
+            // ── CRM ─────────────────────────────────────────────────────────────
+            $deals = Prospect::where('societe_id', $societeId)
+                ->where('collaborateur_id', $c->id);
+
+            $caSigné     = (float) (clone $deals)->where('statut', 'gagne')->sum('montant_final');
+            $pipeline    = (float) (clone $deals)->whereIn('statut', ['decouverte', 'proposition', 'negociation'])
+                ->selectRaw('SUM(valeur * probabilite / 100) as total')
+                ->value('total') ?? 0;
+            $dealsActifs = (clone $deals)->whereIn('statut', ['decouverte', 'proposition', 'negociation'])->count();
+            $dealsGagnes = (clone $deals)->where('statut', 'gagne')->count();
+
+            // ── OKR ─────────────────────────────────────────────────────────────
+            $objectifs = Objectif::where('societe_id', $societeId)
+                ->where('collaborateur_id', $c->id)
+                ->where('statut', 'actif')
+                ->with('resultatsCles')
+                ->get();
+
+            $progressionOkr = $objectifs->count() > 0
+                ? round($objectifs->avg(fn ($o) => (float) ($o->progression_globale ?? 0)), 1)
+                : null;
+
+            // ── Performance ──────────────────────────────────────────────────────
+            $fiche = FichePerformance::where('societe_id', $societeId)
+                ->where('collaborateur_id', $c->id)
+                ->orderByDesc('created_at')
+                ->first();
+
+            return [
+                'collaborateur' => [
+                    'id'       => $c->id,
+                    'prenom'   => $c->prenom,
+                    'nom'      => $c->nom,
+                    'poste'    => $c->poste,
+                    'practice' => $c->practice,
+                    'grade'    => $c->grade,
+                ],
+                'crm' => [
+                    'ca_signe'     => $caSigné,
+                    'pipeline'     => $pipeline,
+                    'deals_actifs' => $dealsActifs,
+                    'deals_gagnes' => $dealsGagnes,
+                ],
+                'okr' => [
+                    'nb_objectifs'    => $objectifs->count(),
+                    'progression_moy' => $progressionOkr,
+                ],
+                'performance' => $fiche ? [
+                    'id'           => $fiche->id,
+                    'cycle'        => $fiche->cycle,
+                    'statut'       => $fiche->statut,
+                    'score_global' => $fiche->score_global,
+                    'appreciation' => $fiche->appreciation,
+                    'verrouille'   => $fiche->verrouille,
+                    'final_done'   => $fiche->final_done,
+                    'final_prime'  => $fiche->final_prime_calculee,
+                ] : null,
+            ];
+        });
+
+        return Inertia::render('Synthese/Consolidation', [
+            'donnees' => $donnees->values(),
         ]);
     }
 

@@ -19,6 +19,8 @@ class ResultatCle extends Model
         'description',
         'description_detaillee',
         'mode_calcul',
+        'source_crm',
+        'source_crm_filtre',
         'milestones',
         'progression',
         'justification',
@@ -31,11 +33,13 @@ class ResultatCle extends Model
     protected function casts(): array
     {
         return [
-            'progression' => 'decimal:2',
-            'valeur_cible' => 'decimal:2',
-            'valeur_actuelle' => 'decimal:2',
-            'poids' => 'decimal:2',
-            'milestones' => 'array',
+            'progression'       => 'decimal:2',
+            'valeur_cible'      => 'decimal:2',
+            'valeur_actuelle'   => 'decimal:2',
+            'poids'             => 'decimal:2',
+            'milestones'        => 'array',
+            'source_crm'        => 'boolean',
+            'source_crm_filtre' => 'array',
         ];
     }
 

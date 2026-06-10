@@ -194,24 +194,8 @@ class BilanJournalierController extends Controller
             'collaborateur_id'  => 'nullable|exists:collaborateurs,id',
         ]);
 
-        // Déterminer le collaborateur cible
+        // Le Daily est personnel : on ne peut créer des tâches que pour soi-même
         $targetCollabId = $currentCollab->id;
-        $demandeCibleDifferente = !empty($validated['collaborateur_id'])
-            && (int)$validated['collaborateur_id'] !== $currentCollab->id;
-
-        if ($demandeCibleDifferente) {
-            if (!$currentCollab->estResponsable()) {
-                abort(403, 'Vous ne pouvez créer une tâche que pour vous-même.');
-            }
-            // Manager : uniquement pour son département
-            if ($currentCollab->estManager() && !$currentCollab->aAccesGlobal()) {
-                $cible = Collaborateur::find($validated['collaborateur_id']);
-                if (!$cible || $cible->departement_id !== $currentCollab->departement_id) {
-                    abort(403, 'Vous ne pouvez créer une tâche que pour un collaborateur de votre département.');
-                }
-            }
-            $targetCollabId = (int)$validated['collaborateur_id'];
-        }
 
         TacheDaily::create([
             'societe_id'       => session('societe_id'),
@@ -241,8 +225,8 @@ class BilanJournalierController extends Controller
         }
 
         $currentCollabId = $request->user()->collaborateurActuel()->id;
-        if ($tacheDaily->collaborateur_id !== $currentCollabId && !$request->user()->estResponsable()) {
-            abort(403, 'Vous n\'êtes pas autorisé à modifier cette tâche.');
+        if ($tacheDaily->collaborateur_id !== $currentCollabId) {
+            abort(403, 'Vous ne pouvez modifier que vos propres tâches Daily.');
         }
 
         $validated = $request->validate([
@@ -267,8 +251,8 @@ class BilanJournalierController extends Controller
         }
 
         $currentCollabId = $request->user()->collaborateurActuel()->id;
-        if ($tacheDaily->collaborateur_id !== $currentCollabId && !$request->user()->estResponsable()) {
-            abort(403, 'Vous n\'êtes pas autorisé à modifier cette tâche.');
+        if ($tacheDaily->collaborateur_id !== $currentCollabId) {
+            abort(403, 'Vous ne pouvez modifier que vos propres tâches Daily.');
         }
 
         $validated = $request->validate([
@@ -309,8 +293,8 @@ class BilanJournalierController extends Controller
         }
 
         $currentCollabId = $request->user()->collaborateurActuel()->id;
-        if ($tacheDaily->collaborateur_id !== $currentCollabId && !$request->user()->estResponsable()) {
-            abort(403, 'Vous n\'êtes pas autorisé à supprimer cette tâche.');
+        if ($tacheDaily->collaborateur_id !== $currentCollabId) {
+            abort(403, 'Vous ne pouvez supprimer que vos propres tâches Daily.');
         }
 
         $collabId = $tacheDaily->collaborateur_id;

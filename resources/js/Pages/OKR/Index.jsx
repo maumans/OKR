@@ -1541,6 +1541,8 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  valeur_cible: kr.valeur_cible ?? 100,
  poids: kr.poids ?? 1,
  unite: kr.unite || '',
+ source_crm: kr.source_crm ?? false,
+ source_crm_type_deal: kr.source_crm_filtre?.type_deal || '',
  });
  setError('');
  }
@@ -1560,6 +1562,10 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  valeur_cible: form.valeur_cible || 100,
  poids: form.poids || 1,
  unite: form.unite || null,
+ source_crm: form.source_crm ?? false,
+ source_crm_filtre: form.source_crm
+   ? { type_deal: form.source_crm_type_deal || null }
+   : null,
  }, {
  preserveScroll: true,
  preserveState: true,
@@ -1568,61 +1574,81 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  });
  };
 
- const inputCls = "w-full px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500";
+ const inputCls = "mt-1 w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500";
 
  return (
  <Dialog open={open} onOpenChange={(v) => { if (!v) { setError(''); onClose(); } }}>
  <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden">
- <form onSubmit={handleSubmit}>
- <div className="p-5 pb-4">
+ <form onSubmit={handleSubmit} className="flex flex-col">
+ <div className="px-5 pt-5 pb-4 space-y-3">
  <DialogHeader>
- <DialogTitle className="text-sm flex items-center gap-2">
- <Pencil className="h-3.5 w-3.5 text-primary-500" /> Modifier le résultat clé
- </DialogTitle>
+ <DialogTitle className="text-sm">Modifier le résultat clé</DialogTitle>
  </DialogHeader>
  {error && (
- <div className="mt-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg">
+ <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg">
  <p className="text-[11px] text-red-600 dark:text-red-400">{error}</p>
  </div>
  )}
- <div className="mt-3 space-y-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description *</label>
  <input type="text" value={form.description || ''} onChange={e => setF('description', e.target.value)}
- autoFocus className={`mt-1 ${inputCls}`} placeholder="Description du résultat clé..." />
+ autoFocus className={inputCls} placeholder="Description du résultat clé..." />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description détaillée</label>
  <textarea value={form.description_detaillee || ''} onChange={e => setF('description_detaillee', e.target.value)}
- rows={2} className={`mt-1 ${inputCls} resize-none`} placeholder="Contexte, critères de succès..." />
+ rows={2} className={`${inputCls} resize-none`} placeholder="Contexte, critères de succès..." />
  </div>
  {typesResultatsCles.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type de KR</label>
- <SearchableSelect value={form.type_resultat_cle_id||""} onChange={v=>setForm(prev=>({...prev,type_resultat_cle_id:v}))} size="sm" className="w-28" nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
+ <div className="mt-1">
+ <SearchableSelect value={form.type_resultat_cle_id||""} onChange={v=>setForm(prev=>({...prev,type_resultat_cle_id:v}))} nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
+ </div>
  </div>
  )}
- <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+ <div className="grid grid-cols-3 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cible</label>
  <input type="number" value={form.valeur_cible ?? ''} onChange={e => setF('valeur_cible', e.target.value)}
- className={`mt-1 ${inputCls}`} placeholder="100" min="0" />
+ className={inputCls} placeholder="100" min="0" />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Poids</label>
  <input type="number" value={form.poids ?? ''} onChange={e => setF('poids', e.target.value)}
- className={`mt-1 ${inputCls}`} placeholder="1" min="0" max="100" step="0.1" />
+ className={inputCls} placeholder="1" min="0" max="100" step="0.1" />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unité</label>
- <SearchableSelect value={form.unite||""} onChange={v=>setForm(prev=>({...prev,unite:v}))} size="sm" className="w-28" nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t=>t.unite).map(t=>t.unite))].map(u=>({value:u,label:u}))} />
+ <div className="mt-1">
+ <SearchableSelect value={form.unite||""} onChange={v=>setForm(prev=>({...prev,unite:v}))} nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t=>t.unite).map(t=>t.unite))].map(u=>({value:u,label:u}))} />
  </div>
  </div>
  </div>
+ {/* Source CRM */}
+ <div className="space-y-2">
+ <label className="flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer select-none w-fit">
+ <input type="checkbox" checked={!!form.source_crm} onChange={e => setF('source_crm', e.target.checked)}
+ className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+ Alimenter depuis le CRM (deals gagnés)
+ </label>
+ {form.source_crm && (
+ <div className="flex items-center gap-1.5 ml-5">
+ <span className="text-[10px] text-gray-400">Type de deal</span>
+ <select value={form.source_crm_type_deal || ''} onChange={e => setF('source_crm_type_deal', e.target.value)}
+ className="px-2 py-1 text-sm bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+ <option value="">Tous les types</option>
+ <option value="nouveau_client">Nouveau client</option>
+ <option value="upsell">Upsell</option>
+ <option value="renouvellement">Renouvellement</option>
+ </select>
  </div>
- <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
- <button type="button" onClick={onClose} className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 transition-all">Annuler</button>
- <button type="submit" disabled={submitting} className="px-4 py-1 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-all disabled:opacity-50">
+ )}
+ </div>
+ </div>
+ <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+ <button type="button" onClick={onClose} className="px-4 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 transition-all">Annuler</button>
+ <button type="submit" disabled={submitting} className="px-5 py-1.5 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg shadow-sm transition-all disabled:opacity-50">
  {submitting ? 'Enregistrement...' : 'Enregistrer'}
  </button>
  </div>
@@ -1660,6 +1686,9 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
  <div className="relative flex items-center justify-between h-full px-3">
  <span className="text-[11px] font-semibold truncate z-10" style={{ color: krColor }}>{kr.description}</span>
  <div className="flex items-center gap-2 shrink-0 z-10">
+ {kr.source_crm && (
+ <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-400">CRM</span>
+ )}
  <span className="text-[10px] text-gray-400 dark:text-gray-500">
  {krTerminees}/{krTaches.length} tâches
  </span>

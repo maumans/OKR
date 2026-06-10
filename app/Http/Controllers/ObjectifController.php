@@ -106,8 +106,11 @@ class ObjectifController extends Controller
                     'description_detaillee' => $r->description_detaillee,
                     'progression' => $r->progression,
                     'valeur_cible' => $r->valeur_cible,
+                    'valeur_actuelle' => $r->valeur_actuelle,
                     'unite' => $r->unite,
                     'poids' => $r->poids,
+                    'source_crm' => (bool) $r->source_crm,
+                    'source_crm_filtre' => $r->source_crm_filtre,
                     'type_nom' => $r->typeResultatCle?->nom,
                     'type_resultat_cle_id' => $r->type_resultat_cle_id,
                     'taches' => $r->taches->map(fn ($t) => [
@@ -251,8 +254,10 @@ class ObjectifController extends Controller
             'resultats_cles.*.valeur_cible'   => 'nullable|numeric|min:0',
             'resultats_cles.*.poids'          => 'nullable|numeric|min:0',
             'resultats_cles.*.unite'          => 'nullable|string|max:50',
-            'resultats_cles.*.mode_calcul'    => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
-            'resultats_cles.*.milestones'     => 'nullable|array',
+            'resultats_cles.*.mode_calcul'       => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
+            'resultats_cles.*.milestones'        => 'nullable|array',
+            'resultats_cles.*.source_crm'        => 'nullable|boolean',
+            'resultats_cles.*.source_crm_filtre' => 'nullable|array',
             'mission_id' => 'nullable|exists:missions,id',
         ]);
 
@@ -314,6 +319,8 @@ class ObjectifController extends Controller
                     'unite'                => $resultat['unite'] ?? null,
                     'mode_calcul'          => $modeCalcul,
                     'milestones'           => $milestones,
+                    'source_crm'           => $resultat['source_crm'] ?? false,
+                    'source_crm_filtre'    => $resultat['source_crm_filtre'] ?? null,
                     'progression'          => 0,
                 ]);
             }
@@ -383,8 +390,10 @@ class ObjectifController extends Controller
                         'nom'        => $r->typeResultatCle->nom,
                         'type_valeur'=> $r->typeResultatCle->type_valeur,
                     ] : null,
-                    'mode_calcul'  => $r->mode_calcul ?? 'pourcentage',
-                    'milestones'   => $r->milestones ?? [],
+                    'mode_calcul'       => $r->mode_calcul ?? 'pourcentage',
+                    'milestones'        => $r->milestones ?? [],
+                    'source_crm'        => (bool) $r->source_crm,
+                    'source_crm_filtre' => $r->source_crm_filtre,
                     'historique_progressions' => $r->historiqueProgressions->map(fn ($h) => [
                         'id'              => $h->id,
                         'progression'     => $h->progression,
@@ -433,8 +442,10 @@ class ObjectifController extends Controller
             'resultats_cles.*.poids'          => 'nullable|numeric|min:0',
             'resultats_cles.*.unite'          => 'nullable|string|max:50',
             'resultats_cles.*.progression'    => 'nullable|numeric|min:0|max:100',
-            'resultats_cles.*.mode_calcul'    => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
-            'resultats_cles.*.milestones'     => 'nullable|array',
+            'resultats_cles.*.mode_calcul'         => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
+            'resultats_cles.*.milestones'          => 'nullable|array',
+            'resultats_cles.*.source_crm'          => 'nullable|boolean',
+            'resultats_cles.*.source_crm_filtre'   => 'nullable|array',
             'mission_id' => 'nullable|exists:missions,id',
         ]);
 
@@ -479,6 +490,8 @@ class ObjectifController extends Controller
                             'unite'                => $krData['unite'] ?? null,
                             'mode_calcul'          => $modeCalcul,
                             'milestones'           => $milestones,
+                            'source_crm'           => $krData['source_crm'] ?? false,
+                            'source_crm_filtre'    => $krData['source_crm_filtre'] ?? null,
                         ]);
                         $existingIds[] = $kr->id;
                     }
@@ -500,6 +513,8 @@ class ObjectifController extends Controller
                         'unite'                => $krData['unite'] ?? null,
                         'mode_calcul'          => $modeCalcul,
                         'milestones'           => $milestones,
+                        'source_crm'           => $krData['source_crm'] ?? false,
+                        'source_crm_filtre'    => $krData['source_crm_filtre'] ?? null,
                         'progression'          => 0,
                     ]);
                     $existingIds[] = $kr->id;
@@ -634,6 +649,8 @@ class ObjectifController extends Controller
             'unite'                 => 'nullable|string|max:50',
             'mode_calcul'           => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
             'milestones'            => 'nullable|array',
+            'source_crm'            => 'nullable|boolean',
+            'source_crm_filtre'     => 'nullable|array',
         ]);
 
         $resultatCle->update($validated);

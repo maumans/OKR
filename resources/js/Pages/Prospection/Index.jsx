@@ -40,7 +40,7 @@ const SIDEBAR_VIEWS = [
     { key: 'clients',  label: 'Clients',               icon: Building2 },
     { key: 'nouveaux', label: 'Nouveaux clients',      icon: UserPlus },
     { key: 'upsells',  label: 'Upsells',               icon: TrendingUp },
-    { key: 'stats',    label: 'Stats & Consolidation', icon: BarChart3 },
+    { key: 'stats',    label: 'Stats',                 icon: BarChart3 },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -59,7 +59,6 @@ function CollabAvatar({ prenom, nom, cls = 'h-7 w-7' }) {
 
 // ── Deal Card ──────────────────────────────────────────────────────────────
 function DealCard({ deal, onEdit, onDelete, onStatusChange, deviseCode }) {
-    const col  = KANBAN_COLS.find(c => c.key === deal.statut);
     const tDef = TYPE_DEAL[deal.type_deal] || TYPE_DEAL.nouveau_client;
 
     return (
@@ -424,7 +423,10 @@ function PipelineParCollab({ data, deviseCode }) {
     if (!data?.length) return null;
     return (
         <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700 p-4 mb-4">
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Pipeline par responsable</h3>
+            <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pipeline par responsable</h3>
+                <span className="text-[10px] text-gray-400">CA signé / opportunité totale</span>
+            </div>
             <div className="space-y-2.5">
                 {data.map(c => (
                     <div key={c.id} className="flex items-center gap-2">
@@ -433,15 +435,26 @@ function PipelineParCollab({ data, deviseCode }) {
                             {c.prenom}
                         </span>
                         <div className="flex-1 h-1.5 bg-gray-100 dark:bg-dark-700 rounded-full overflow-hidden min-w-0">
-                            <div className="h-full bg-primary-500 rounded-full transition-all"
-                                style={{ width: `${Math.min(c.taux, 100)}%` }} />
+                            {/* Segment vert = CA signé, segment bleu = pipeline restant */}
+                            <div className="h-full flex">
+                                <div className="h-full bg-emerald-500 transition-all"
+                                    style={{ width: c.objectif > 0 ? `${Math.min(100, (c.ca_signe / c.objectif) * 100)}%` : '100%' }} />
+                                {c.pipeline_brut > 0 && (
+                                    <div className="h-full bg-primary-300 transition-all"
+                                        style={{ width: c.objectif > 0 ? `${Math.min(100, (c.pipeline_brut / c.objectif) * 100)}%` : '0%' }} />
+                                )}
+                            </div>
                         </div>
                         <span className="text-[11px] font-bold text-gray-500 w-9 text-right shrink-0">{c.taux}%</span>
-                        <span className="text-[10px] text-gray-400 shrink-0 hidden xl:block truncate max-w-[180px]">
-                            {fmt(c.ca_signe)} / {fmt(c.objectif)} {deviseCode}
+                        <span className="text-[10px] text-gray-400 shrink-0 hidden xl:block truncate max-w-[200px]">
+                            {fmt(c.ca_signe)}{c.pipeline_brut > 0 ? ` + ${fmt(c.pipeline)}` : ''} {deviseCode}
                         </span>
                     </div>
                 ))}
+            </div>
+            <div className="flex items-center gap-4 mt-3 pt-2 border-t border-gray-50 dark:border-dark-800">
+                <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-emerald-500" /><span className="text-[10px] text-gray-400">CA signé</span></div>
+                <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-primary-300" /><span className="text-[10px] text-gray-400">Pipeline pondéré</span></div>
             </div>
         </div>
     );
@@ -656,7 +669,7 @@ function VueKanban({ prospects, stats, pipelineParCollab, collaborateurs, client
     return (
         <div>
             {/* ── KPI Stats ── */}
-            <div className="grid grid-cols-2 xl:grid-cols-5 gap-2 mb-5">
+            <div className="grid grid-cols-2 xl:grid-cols-5 gap-2 mb-3">
                 {[
                     { lbl: 'CA signé',          val: `${fmt(stats.ca_signe)} ${deviseCode}`,              cls: 'text-emerald-600 dark:text-emerald-400' },
                     { lbl: 'Pipeline pondéré',  val: `${fmt(stats.pipeline_previsionnel)} ${deviseCode}`, cls: 'text-primary-600 dark:text-primary-400' },
@@ -670,6 +683,13 @@ function VueKanban({ prospects, stats, pipelineParCollab, collaborateurs, client
                     </div>
                 ))}
             </div>
+            {/* ── Alerte deals sans valeur ── */}
+            {stats.deals_sans_valeur > 0 && (
+                <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 text-[11px]">
+                    <span className="font-bold">⚠</span>
+                    {stats.deals_sans_valeur} deal{stats.deals_sans_valeur > 1 ? 's' : ''} actif{stats.deals_sans_valeur > 1 ? 's' : ''} sans valeur estimée — le pipeline pondéré est sous-estimé.
+                </div>
+            )}
 
             {/* ── Pipeline par responsable ── */}
             <PipelineParCollab data={pipelineParCollab} deviseCode={deviseCode} />
@@ -858,7 +878,7 @@ function VueStats({ prospects, stats, deviseCode }) {
             <div className="grid grid-cols-2 xl:grid-cols-5 gap-2">
                 {[
                     { lbl: 'CA signé',         val: `${fmt(stats.ca_signe)} ${deviseCode}`,              icon: Award,      cls: 'text-emerald-600' },
-                    { lbl: 'Pipeline pondéré', val: `${fmt(stats.pipeline_previsionnel)} ${deviseCode}`, icon: Target,     cls: 'text-primary-600' },
+                    { lbl: 'Pipeline pondéré', val: `${fmt(stats.pipeline_previsionnel)} ${deviseCode}`, icon: Target,     cls: stats.pipeline_previsionnel === 0 && stats.deals_actifs > 0 ? 'text-amber-500' : 'text-primary-600' },
                     { lbl: 'Deals actifs',      val: stats.deals_actifs,                                  icon: Briefcase,  cls: 'text-blue-600' },
                     { lbl: 'Nvx clients',      val: stats.nouveaux_clients,                               icon: Users,      cls: 'text-violet-600' },
                     { lbl: 'Upsells signés',   val: stats.upsells,                                        icon: TrendingUp, cls: 'text-amber-600' },
@@ -872,6 +892,12 @@ function VueStats({ prospects, stats, deviseCode }) {
                     </div>
                 ))}
             </div>
+            {stats.deals_sans_valeur > 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 text-[11px]">
+                    <span className="font-bold">⚠</span>
+                    {stats.deals_sans_valeur} deal{stats.deals_sans_valeur > 1 ? 's' : ''} actif{stats.deals_sans_valeur > 1 ? 's' : ''} sans valeur estimée — pipeline pondéré sous-estimé.
+                </div>
+            )}
 
             <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700 p-5">
                 <h3 className="text-[12px] font-bold text-gray-600 dark:text-gray-300 mb-4">Entonnoir de conversion</h3>
@@ -970,11 +996,11 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
     const listProps = { prospects, clients, onEdit: setEditDeal, onDelete: handleDelete, deviseCode };
 
     return (
-        <AppLayout title="Prospection">
+        <AppLayout title="CRM">
             <div className="flex gap-0">
                 {/* ── Sidebar interne */}
-                <aside className="w-44 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5 sticky top-[72px] self-start">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Prospection</p>
+                <aside className="w-44 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5 sticky top-20 self-start z-10 bg-gray-50 dark:bg-dark-950">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">CRM</p>
                     <nav className="space-y-0.5">
                         {SIDEBAR_VIEWS.map(v => (
                             <button key={v.key} onClick={() => setActiveView(v.key)}
@@ -1003,7 +1029,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                             <Briefcase className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">Prospection</h1>
+                            <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">CRM</h1>
                             <p className="text-[11px] text-gray-400">
                                 Pipeline commercial · Deals · Clients · Kanban
                             </p>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useForm, router, Link, usePage } from '@inertiajs/react';
+import { useForm, router, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/Badge';
 import { motion } from 'framer-motion';
@@ -136,9 +136,9 @@ export default function DailyBilan({
  tachesDuJour = [], historique = [], tachesOkr = {},
  typesTaches = [], missions = [], scoreJour = 0, currentDate, isOwn,
 }) {
- const { auth } = usePage().props;
- const canManage = auth?.collaborateur?.isResponsable; // admin, directeur, manager
- const canAct = isOwn || canManage;
+ // Le Daily est personnel : seul le propriétaire peut modifier ses tâches et son bilan.
+ // Les admins/managers peuvent consulter le Daily des autres, mais pas le modifier.
+ const canAct = isOwn;
 
  const [showHistory, setShowHistory] = useState(false);
  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);

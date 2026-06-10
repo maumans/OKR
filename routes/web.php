@@ -98,6 +98,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
         Route::put('/performance/{fiche}', [PerformanceController::class, 'update'])->name('performance.update');
         Route::post('/performance/{fiche}/avancer', [PerformanceController::class, 'avancerWorkflow'])->name('performance.avancer');
         Route::post('/performance/{fiche}/cloturer', [PerformanceController::class, 'cloturerFinale'])->name('performance.cloturer');
+        Route::post('/performance/{fiche}/sync-okr', [PerformanceController::class, 'syncOkr'])->name('performance.sync-okr');
         Route::delete('/performance/{fiche}', [PerformanceController::class, 'destroy'])->name('performance.destroy');
     });
 
@@ -193,6 +194,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     // ─── Synthèse mensuelle (primes) ─────────────────────────
     Route::middleware('module:synthese')->prefix('synthese')->name('synthese.')->group(function () {
         Route::get('/', [SyntheseController::class, 'index'])->name('index');
+        Route::get('/consolidation', [SyntheseController::class, 'consolidation'])->name('consolidation');
         Route::get('/historique', [SyntheseController::class, 'historique'])->name('historique');
         Route::get('/{mois}/export', [SyntheseController::class, 'export'])->name('export');
         Route::post('/{mois}/cloturer', [SyntheseController::class, 'cloturer'])->name('cloturer');

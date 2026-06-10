@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Prospect;
 use App\Models\Societe;
 use App\Models\User;
+use App\Observers\ProspectObserver;
 use App\Observers\SocieteObserver;
 use App\Observers\UserObserver;
 use Illuminate\Support\Facades\Event;
@@ -30,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
         // ─── Observers ──────────────────────────────────────────
         Societe::observe(SocieteObserver::class);
         User::observe(UserObserver::class);
+        Prospect::observe(ProspectObserver::class);
 
         // ─── Event → Listener mapping ──────────────────────────
         Event::listen(

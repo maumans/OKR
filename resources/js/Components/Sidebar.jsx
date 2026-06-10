@@ -56,7 +56,7 @@ const navigation = [
         name: 'BUSINESS',
         items: [
             { name: 'Missions / Projets', href: 'missions.index', icon: Briefcase, moduleCode: 'missions' },
-            { name: 'Prospection', href: 'prospects.index', icon: TrendingUp, moduleCode: 'prospection' },
+            { name: 'CRM', href: 'prospects.index', icon: TrendingUp, moduleCode: 'prospection' },
             { name: 'Incentives', href: 'incentives.index', icon: Award, moduleCode: 'incentives' },
         ]
     },
@@ -70,6 +70,7 @@ const navigation = [
         name: 'ANALYTIQUE',
         items: [
             { name: 'Synthèse mensuelle', href: 'synthese.index', icon: BarChart3, moduleCode: 'synthese' },
+            { name: 'Consolidation', href: 'synthese.consolidation', icon: BarChart3, moduleCode: 'synthese' },
             { name: 'Historique synthèses', href: 'synthese.historique', icon: History, moduleCode: 'synthese' },
             { name: 'Reporting & Analytique', href: 'syntheses.index', icon: BarChart3, moduleCode: 'reporting' },
         ]

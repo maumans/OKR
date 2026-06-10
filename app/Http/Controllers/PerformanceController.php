@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Collaborateur;
 use App\Models\FichePerformance;
 use App\Models\HistoriqueWorkflowPerformance;
+use App\Models\Objectif;
+use App\Services\OkrPerformanceSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -73,11 +75,24 @@ class PerformanceController extends Controller
             'revision_demandee' => $fiches->where('statut', 'revision_demandee')->count(),
         ];
 
+        // Objectifs disponibles pour la liaison OKR → Performance (par collaborateur)
+        $objectifs = Objectif::pourSociete($societeId)
+            ->where('statut', 'actif')
+            ->orderBy('titre')
+            ->get()
+            ->map(fn ($o) => [
+                'id'               => $o->id,
+                'titre'            => $o->titre,
+                'collaborateur_id' => $o->collaborateur_id,
+                'axe'              => $o->axe,
+            ]);
+
         return Inertia::render('Performance/Index', [
             'fiches'         => $fiches,
             'collaborateurs' => $collaborateurs,
             'cycles'         => $cycles,
             'stats'          => $stats,
+            'objectifs'      => $objectifs,
         ]);
     }
 
@@ -254,6 +269,27 @@ class PerformanceController extends Controller
         ]);
 
         return back()->with('success', 'Évaluation finale clôturée avec succès.');
+    }
+
+    public function syncOkr(Request $request, FichePerformance $fiche, OkrPerformanceSyncService $syncService): RedirectResponse
+    {
+        if ($fiche->verrouille) {
+            abort(403, 'Cette fiche est verrouillée.');
+        }
+
+        $details = $syncService->syncFiche($fiche);
+
+        $dims = array_filter($details);
+        if (empty($dims)) {
+            return back()->withErrors(['sync' => 'Aucun objectif OKR lié (Commercial ou Delivery). Configurez les liens OKR dans la fiche d\'abord.']);
+        }
+
+        $messages = [];
+        foreach ($dims as $dim => $d) {
+            $messages[] = ucfirst($dim) . " : {$d['progression']}% → {$d['score_auto']}/5";
+        }
+
+        return back()->with('success', 'Scores synchronisés depuis les OKR · ' . implode(' · ', $messages));
     }
 
     public function destroy(FichePerformance $fiche): RedirectResponse

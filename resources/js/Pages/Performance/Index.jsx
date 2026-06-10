@@ -14,7 +14,7 @@ import {
     ClipboardCheck, Plus, X, ChevronRight, GitBranch, Calendar,
     RefreshCw, Trophy, CheckCircle2,
     Briefcase, Search, RotateCcw, Trash2,
-    TrendingUp, Download, BookOpen, Star, CheckSquare,
+    TrendingUp, Download, BookOpen, Star, CheckSquare, BarChart3,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -376,7 +376,7 @@ function HistoriqueWorkflow({ fiche }) {
 
 // ─── EditScoresPanel (slide-over "Voir la fiche") ─────────────────────────────
 
-function EditScoresPanel({ fiche, onClose }) {
+function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
     const SCORE_OPTIONS = [
         { value: '', label: '—' },
         { value: '1', label: '1/5' },
@@ -402,6 +402,8 @@ function EditScoresPanel({ fiche, onClose }) {
             f[`commentaire_manager_${d.key}`]         = fiche[`commentaire_manager_${d.key}`] || '';
             f[`commentaire_collaborateur_${d.key}`]   = fiche[`commentaire_collaborateur_${d.key}`] || '';
         });
+        f.objectif_okr_id_commercial = fiche.objectif_okr_id_commercial?.toString() || '';
+        f.objectif_okr_id_delivery   = fiche.objectif_okr_id_delivery?.toString() || '';
         return f;
     };
 
@@ -410,6 +412,12 @@ function EditScoresPanel({ fiche, onClose }) {
     const [errors, setErrors]           = useState({});
     const [saving, setSaving]           = useState(false);
     const [advancing, setAdvancing]     = useState(false);
+    const [syncing, setSyncing]         = useState(false);
+
+    // OKR actifs du collaborateur
+    const okrOptions = objectifs
+        .filter(o => o.collaborateur_id === fiche.collaborateur_id)
+        .map(o => ({ value: String(o.id), label: o.titre + (o.axe ? ` · ${o.axe}` : '') }));
 
     const isLocked = fiche.verrouille;
     const previewScore = calcScoreGlobal({
@@ -462,6 +470,16 @@ function EditScoresPanel({ fiche, onClose }) {
         router.delete(route('performance.destroy', fiche.id), { preserveState: false, onSuccess: onClose });
     };
 
+    const handleSyncOkr = () => {
+        if (!confirm('Synchroniser les scores Commercial et Delivery depuis les OKR liés ?')) return;
+        setSyncing(true);
+        router.post(route('performance.sync-okr', fiche.id), {}, {
+            preserveState: true, preserveScroll: true,
+            onError: (errs) => { setErrors(errs); setSyncing(false); },
+            onSuccess: () => setSyncing(false),
+        });
+    };
+
     const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
     const collab = fiche.collaborateur;
 
@@ -482,9 +500,18 @@ function EditScoresPanel({ fiche, onClose }) {
                         <StatutBadge statut={fiche.statut} />
                     </div>
                 </div>
-                <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white">
-                    <X className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                    {!isLocked && okrOptions.length > 0 && (
+                        <button onClick={handleSyncOkr} disabled={syncing}
+                            className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-semibold transition-colors disabled:opacity-60">
+                            <TrendingUp className="h-3 w-3" />
+                            {syncing ? 'Sync…' : 'Sync OKR'}
+                        </button>
+                    )}
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white">
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
             </div>
 
             {/* Corps scrollable */}
@@ -552,17 +579,33 @@ function EditScoresPanel({ fiche, onClose }) {
                                     disabled={isLocked}
                                     className="text-[12px] h-8 text-gray-400"
                                 />
-                                {/* Score auto OKR */}
-                                {scoreAuto !== null && scoreAuto !== undefined ? (
-                                    <div className="flex items-center gap-1.5 text-[11px] text-teal-600 dark:text-teal-400">
-                                        <TrendingUp className="h-3 w-3" />
-                                        Alimenté par OKR · Score auto : <strong>{scoreAuto}/5</strong>
+                                {/* OKR lié (Commercial et Delivery seulement) */}
+                                {(d.key === 'commercial' || d.key === 'delivery') && (
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp className="h-3 w-3 text-teal-500 shrink-0" />
+                                        <SearchableSelect
+                                            value={form[`objectif_okr_id_${d.key}`]}
+                                            onChange={v => set(`objectif_okr_id_${d.key}`, v)}
+                                            options={[{ value: '', label: '— Aucun OKR lié —' }, ...okrOptions]}
+                                            placeholder="Lier un OKR…"
+                                            disabled={isLocked}
+                                            className="flex-1 text-[11px]"
+                                        />
+                                        {scoreAuto !== null && scoreAuto !== undefined && (
+                                            <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 shrink-0 bg-teal-50 dark:bg-teal-500/10 px-2 py-0.5 rounded-full">
+                                                Auto : {scoreAuto}/5
+                                            </span>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                                        <TrendingUp className="h-3 w-3" />
-                                        Score auto OKR — disponible Chantier 0
-                                    </div>
+                                )}
+                                {/* Score auto OKR (dimensions sans lien OKR) */}
+                                {d.key !== 'commercial' && d.key !== 'delivery' && (
+                                    scoreAuto !== null && scoreAuto !== undefined ? (
+                                        <div className="flex items-center gap-1.5 text-[11px] text-teal-600 dark:text-teal-400">
+                                            <TrendingUp className="h-3 w-3" />
+                                            Alimenté par OKR · Score auto : <strong>{scoreAuto}/5</strong>
+                                        </div>
+                                    ) : null
                                 )}
                             </div>
 
@@ -1092,7 +1135,7 @@ function VueCycleAnnuel() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats }) {
+export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats, objectifs = [] }) {
     const { flash } = usePage().props;
 
     const [activeView, setActiveView]         = useState('fiches');
@@ -1159,18 +1202,11 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
                     </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                    <div className="group relative">
-                        <Button variant="outline" size="sm" disabled className="opacity-60 cursor-not-allowed">
-                            <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
-                            <span className="hidden lg:inline">Synchroniser OKR → Performance</span>
-                            <span className="lg:hidden">Sync OKR</span>
-                        </Button>
-                        <div className="absolute right-0 top-full mt-1.5 z-20 hidden group-hover:block pointer-events-none">
-                            <div className="bg-gray-900 text-white text-[11px] px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-lg">
-                                Disponible — Chantier 0
-                            </div>
-                        </div>
-                    </div>
+                    <Button variant="outline" size="sm" onClick={() => router.visit(route('synthese.consolidation'))}>
+                        <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                        <span className="hidden lg:inline">Vue consolidée</span>
+                        <span className="lg:hidden">Consolidation</span>
+                    </Button>
                     <Button variant="outline" size="sm" disabled className="opacity-60 cursor-not-allowed">
                         <Download className="h-3.5 w-3.5 mr-1.5" />
                         <span className="hidden sm:inline">Export</span>
@@ -1200,7 +1236,7 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
             <div className="flex gap-4" style={{ minHeight: 'calc(100vh - 220px)' }}>
 
                 {/* ── Sidebar module ─────────────────────────────── */}
-                <aside className="w-44 shrink-0 sticky top-[72px] self-start">
+                <aside className="w-44 shrink-0 sticky top-20 self-start z-10">
                     <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-200 dark:border-dark-700 overflow-hidden">
                         <div className="px-4 py-4 border-b border-gray-100 dark:border-dark-800">
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-5">Module</p>
@@ -1503,6 +1539,7 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
                             key="panel"
                             fiche={displayedFiche}
                             onClose={() => setSelectedFiche(null)}
+                            objectifs={objectifs}
                         />
                     </>
                 )}

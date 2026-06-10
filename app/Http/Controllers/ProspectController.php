@@ -61,18 +61,33 @@ class ProspectController extends Controller
         $allDeals = Prospect::where('societe_id', $societeId)
             ->get(['statut', 'type_deal', 'valeur', 'probabilite', 'montant_final', 'collaborateur_id']);
 
-        $caSigne        = $allDeals->where('statut', 'gagne')->sum('montant_final');
-        $dealsActifs    = $allDeals->whereIn('statut', self::ACTIF_STATUTS)->count();
-        $nouveauxClients = $allDeals->where('statut', 'gagne')->where('type_deal', 'nouveau_client')->count();
-        $upsells        = $allDeals->where('statut', 'gagne')->where('type_deal', 'upsell')->count();
+        // CA signé = somme montant_final des deals gagnés (fallback sur valeur si montant_final absent)
+        $caSigne = $allDeals->where('statut', 'gagne')
+            ->sum(fn ($p) => (float) ($p->montant_final ?? $p->valeur ?? 0));
 
+        $dealsActifs     = $allDeals->whereIn('statut', self::ACTIF_STATUTS)->count();
+        $nouveauxClients = $allDeals->where('statut', 'gagne')->where('type_deal', 'nouveau_client')->count();
+        $upsells         = $allDeals->where('statut', 'gagne')->where('type_deal', 'upsell')->count();
+
+        // Pipeline pondéré = SUM(valeur × probabilité) pour deals actifs
         $pipelinePrevisif = $allDeals->whereIn('statut', self::ACTIF_STATUTS)
             ->sum(fn ($p) => (float) ($p->valeur ?? 0) * ((int) ($p->probabilite ?? 0) / 100));
+
+        // Pipeline brut = SUM(valeur) pour deals actifs (avant pondération)
+        $pipelineBrut = $allDeals->whereIn('statut', self::ACTIF_STATUTS)
+            ->sum(fn ($p) => (float) ($p->valeur ?? 0));
+
+        // Deals actifs sans valeur estimée → alerte qualité données
+        $dealsSansValeur = $allDeals->whereIn('statut', self::ACTIF_STATUTS)
+            ->filter(fn ($p) => $p->valeur === null || $p->valeur == 0)
+            ->count();
 
         $stats = [
             'ca_signe'               => (float) $caSigne,
             'pipeline_previsionnel'  => (int) round((float) $pipelinePrevisif),
+            'pipeline_brut'          => (float) $pipelineBrut,
             'deals_actifs'           => $dealsActifs,
+            'deals_sans_valeur'      => $dealsSansValeur,
             'nouveaux_clients'       => $nouveauxClients,
             'upsells'                => $upsells,
         ];
@@ -80,20 +95,32 @@ class ProspectController extends Controller
         // ── Pipeline par responsable
         $pipelineParCollab = $collaborateurs->map(function ($collab) use ($allDeals) {
             $dealsCollab = $allDeals->where('collaborateur_id', $collab->id);
-            $caSigne     = (float) $dealsCollab->where('statut', 'gagne')->sum('montant_final');
-            $pipeline    = (float) $dealsCollab->whereIn('statut', self::ACTIF_STATUTS)
+
+            // CA signé (avec fallback valeur si montant_final absent)
+            $caSigne  = (float) $dealsCollab->where('statut', 'gagne')
+                ->sum(fn ($p) => (float) ($p->montant_final ?? $p->valeur ?? 0));
+
+            // Pipeline pondéré des deals actifs
+            $pipeline = (float) $dealsCollab->whereIn('statut', self::ACTIF_STATUTS)
                 ->sum(fn ($p) => (float) ($p->valeur ?? 0) * ((int) ($p->probabilite ?? 0) / 100));
-            $objectif    = (float) $dealsCollab->sum('valeur');
-            $taux        = $objectif > 0 ? min(100, (int) round(($caSigne / $objectif) * 100)) : 0;
+
+            // Pipeline brut des deals actifs (avant pondération)
+            $pipelineBrut = (float) $dealsCollab->whereIn('statut', self::ACTIF_STATUTS)
+                ->sum(fn ($p) => (float) ($p->valeur ?? 0));
+
+            // Opportunité totale = CA déjà signé + pipeline brut restant
+            $objectif = $caSigne + $pipelineBrut;
+            $taux     = $objectif > 0 ? min(100, (int) round(($caSigne / $objectif) * 100)) : ($caSigne > 0 ? 100 : 0);
 
             return [
-                'id'       => $collab->id,
-                'prenom'   => $collab->prenom,
-                'nom'      => $collab->nom,
-                'ca_signe' => $caSigne,
-                'pipeline' => (int) round($pipeline),
-                'objectif' => $objectif,
-                'taux'     => $taux,
+                'id'            => $collab->id,
+                'prenom'        => $collab->prenom,
+                'nom'           => $collab->nom,
+                'ca_signe'      => $caSigne,
+                'pipeline'      => (int) round($pipeline),
+                'pipeline_brut' => (int) round($pipelineBrut),
+                'objectif'      => $objectif,
+                'taux'          => $taux,
             ];
         })->filter(fn ($c) => $c['objectif'] > 0 || $c['ca_signe'] > 0)->values();
 

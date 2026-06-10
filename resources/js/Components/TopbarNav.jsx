@@ -17,7 +17,7 @@ const ALL_NAV_ITEMS = [
     { name: 'Objectifs individuels',   href: 'individuels.index',  color: 'bg-rose-500',    textColor: 'text-rose-500',    moduleCode: 'individuels' },
     { name: 'Performance',   href: 'performance.index',  color: 'bg-violet-600',  textColor: 'text-violet-600',  moduleCode: 'performance' },
     { name: 'Daily',         href: 'daily.index',        color: 'bg-violet-500',  textColor: 'text-violet-500',  moduleCode: 'daily' },
-    { name: 'Prospection',   href: 'prospects.index',    color: 'bg-green-500',   textColor: 'text-green-500',   moduleCode: 'prospection' },
+    { name: 'CRM',   href: 'prospects.index',    color: 'bg-green-500',   textColor: 'text-green-500',   moduleCode: 'prospection' },
     //{ name: 'LMS',           href: 'formations.index',   color: 'bg-orange-500',  textColor: 'text-orange-500',  moduleCode: 'lms' },
     { name: 'Missions',      href: 'missions.index',     color: 'bg-sky-500',     textColor: 'text-sky-500',     moduleCode: 'missions' },
     //{ name: 'Incentives',    href: 'incentives.index',   color: 'bg-pink-500',    textColor: 'text-pink-500',    moduleCode: 'incentives' },
