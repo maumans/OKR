@@ -230,15 +230,36 @@ function scoreColorBg(score) {
     return 'bg-red-500';
 }
 
+// ─── Cycles prédéfinis (générés sur 2 ans glissants) ────────────────────────
+
+function genererCycles() {
+    const anneeActuelle = new Date().getFullYear();
+    const cycles = [];
+    for (const annee of [anneeActuelle - 1, anneeActuelle, anneeActuelle + 1]) {
+        cycles.push(
+            { value: `Q1 ${annee}`, label: `Q1 ${annee} (Jan–Mar)`,  type: 'trimestriel', debut: `${annee}-01-01`, fin: `${annee}-03-31` },
+            { value: `Q2 ${annee}`, label: `Q2 ${annee} (Avr–Juin)`, type: 'trimestriel', debut: `${annee}-04-01`, fin: `${annee}-06-30` },
+            { value: `Q3 ${annee}`, label: `Q3 ${annee} (Juil–Sep)`, type: 'trimestriel', debut: `${annee}-07-01`, fin: `${annee}-09-30` },
+            { value: `Q4 ${annee}`, label: `Q4 ${annee} (Oct–Déc)`,  type: 'trimestriel', debut: `${annee}-10-01`, fin: `${annee}-12-31` },
+            { value: `Annuel ${annee}`, label: `Annuel ${annee}`,     type: 'annuel',      debut: `${annee}-01-01`, fin: `${annee}-12-31` },
+        );
+    }
+    return cycles;
+}
+
+const CYCLES_PREDEFINIS = genererCycles();
+
 // ─── CreateFicheModal ─────────────────────────────────────────────────────────
 
 function CreateFicheModal({ open, onClose, collaborateurs, fichesExistantes, defaultCollab }) {
+    const cycleParDefaut = CYCLES_PREDEFINIS.find(c => c.value === `Q3 ${new Date().getFullYear()}`) || CYCLES_PREDEFINIS[0];
+
     const [form, setForm] = useState({
         collaborateur_id: defaultCollab?.id?.toString() || '',
-        cycle: 'Q3 2026',
-        type_cycle: 'trimestriel',
-        periode_debut: '',
-        periode_fin: '',
+        cycle:        cycleParDefaut.value,
+        type_cycle:   cycleParDefaut.type,
+        periode_debut: cycleParDefaut.debut,
+        periode_fin:   cycleParDefaut.fin,
     });
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
@@ -257,6 +278,17 @@ function CreateFicheModal({ open, onClose, collaborateurs, fichesExistantes, def
         label: `${c.prenom} ${c.nom} — ${c.poste || ''}`,
     }));
 
+    const handleCycleChange = (val) => {
+        const meta = CYCLES_PREDEFINIS.find(c => c.value === val);
+        setForm(p => ({
+            ...p,
+            cycle:         val,
+            type_cycle:    meta?.type  || p.type_cycle,
+            periode_debut: meta?.debut || p.periode_debut,
+            periode_fin:   meta?.fin   || p.periode_fin,
+        }));
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         setLoading(true);
@@ -267,6 +299,9 @@ function CreateFicheModal({ open, onClose, collaborateurs, fichesExistantes, def
             onSuccess: () => { onClose(); setLoading(false); setErrors({}); },
         });
     };
+
+    const cycleDejaExiste = form.collaborateur_id &&
+        cyclesDejaPris[form.collaborateur_id]?.has(form.cycle);
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -287,20 +322,15 @@ function CreateFicheModal({ open, onClose, collaborateurs, fichesExistantes, def
                     </div>
                     <div>
                         <Label>Cycle *</Label>
-                        <Input
-                            value={form.cycle}
-                            onChange={e => setForm(p => ({ ...p, cycle: e.target.value }))}
-                            placeholder="ex : Q3 2026, Annuel 2026"
-                        />
-                        {errors.cycle && <p className="text-xs text-red-500 mt-1">{errors.cycle}</p>}
-                    </div>
-                    <div>
-                        <Label>Type de cycle *</Label>
                         <CustomSelect
-                            value={form.type_cycle}
-                            onChange={v => setForm(p => ({ ...p, type_cycle: v }))}
-                            options={TYPES_CYCLE}
+                            value={form.cycle}
+                            onChange={handleCycleChange}
+                            options={CYCLES_PREDEFINIS.map(c => ({ value: c.value, label: c.label }))}
+                            error={errors.cycle}
                         />
+                        {cycleDejaExiste && (
+                            <p className="text-xs text-red-500 mt-1">Une fiche existe déjà pour ce collaborateur sur ce cycle.</p>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -314,9 +344,6 @@ function CreateFicheModal({ open, onClose, collaborateurs, fichesExistantes, def
                                 onChange={e => setForm(p => ({ ...p, periode_fin: e.target.value }))} />
                         </div>
                     </div>
-                    {errors.collaborateur_id && (
-                        <p className="text-xs text-red-500">{errors.collaborateur_id}</p>
-                    )}
                     <div className="flex justify-end gap-2 pt-2">
                         <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
                         <Button type="submit" disabled={loading}>
