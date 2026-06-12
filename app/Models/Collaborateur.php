@@ -107,6 +107,11 @@ class Collaborateur extends Model
         return $query->whereHas('roles', fn ($q) => $q->where('code', 'directeur'));
     }
 
+    public function scopeDrh(Builder $query): Builder
+    {
+        return $query->whereHas('roles', fn ($q) => $q->where('code', 'drh'));
+    }
+
     public function scopeDansDepartement(Builder $query, int $departementId): Builder
     {
         return $query->where('departement_id', $departementId);
@@ -145,6 +150,11 @@ class Collaborateur extends Model
     public function estCollaborateur(): bool
     {
         return $this->hasRole('collaborateur');
+    }
+
+    public function estDrh(): bool
+    {
+        return $this->hasRole('drh');
     }
 
     /** Admin ou Directeur : accès à toute la société */

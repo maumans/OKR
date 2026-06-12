@@ -20,6 +20,7 @@ class AxeObjectif extends Model
         'couleur',
         'ordre',
         'actif',
+        'categorie_performance',
     ];
 
     protected function casts(): array

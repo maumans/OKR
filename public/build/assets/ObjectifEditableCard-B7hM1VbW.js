@@ -1,0 +1,1 @@
+import{t as e}from"./ObjectifEditableCard-BnPg_HQv.js";export{e as default};

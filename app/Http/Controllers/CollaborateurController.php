@@ -52,6 +52,7 @@ class CollaborateurController extends Controller
             'admins'        => (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'admin'))->count(),
             'directeurs'    => (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'directeur'))->count(),
             'managers'      => (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'manager'))->count(),
+            'drh'           => (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'drh'))->count(),
             'collaborateurs'=> (clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'collaborateur'))->count(),
         ];
 
@@ -83,7 +84,7 @@ class CollaborateurController extends Controller
             'email'          => 'required|email|unique:users,email',
             'poste'          => 'nullable|string|max:255',
             'roles'          => 'required|array|min:1',
-            'roles.*'        => 'in:admin,directeur,manager,collaborateur',
+            'roles.*'        => 'in:admin,directeur,manager,drh,collaborateur',
             'departement_id' => 'nullable|exists:departements,id',
         ]);
 
@@ -169,7 +170,7 @@ class CollaborateurController extends Controller
             'email'          => ['required', 'email', Rule::unique('users', 'email')->ignore($collaborateur->user_id)],
             'poste'          => 'nullable|string|max:255',
             'roles'          => 'required|array|min:1',
-            'roles.*'        => 'in:admin,directeur,manager,collaborateur',
+            'roles.*'        => 'in:admin,directeur,manager,drh,collaborateur',
             'departement_id' => 'nullable|exists:departements,id',
             'actif'          => 'boolean',
         ]);
@@ -198,6 +199,14 @@ class CollaborateurController extends Controller
                 'name'  => "{$validated['prenom']} {$validated['nom']}",
                 'email' => $validated['email'],
             ]);
+        } else {
+            // Le collaborateur n'avait pas de compte User (import, seeder…) → on en crée un
+            $user = User::create([
+                'name'     => "{$validated['prenom']} {$validated['nom']}",
+                'email'    => $validated['email'],
+                'password' => Hash::make('Addvalis2026!'),
+            ]);
+            $collaborateur->update(['user_id' => $user->id]);
         }
 
         return redirect()

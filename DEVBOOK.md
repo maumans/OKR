@@ -407,6 +407,158 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 - [x] **Navigation** : Sidebar "Performance" (ClipboardCheck) dans le groupe MANAGEMENT.
 - [x] **Seeder de démo** `PerformanceSeeder` : 4 fiches cycle "Q3 2026" alignées avec la maquette Laawol (scores Gando Diallo 2.4/5, Amadou Bailo 3.0/5, etc.) + champs grade/practice mis à jour.
 
+### Phase 4h-bis : Workflow Performance réel + Rôle DRH (11 Juin 2026) ✅
+
+**Contexte** : Le workflow de validation des fiches de performance était simulé (n'importe quel utilisateur pouvait valider toutes les étapes). Refonte pour que chaque transition soit gardée par le bon rôle.
+
+#### Rôle DRH
+- [x] **Migration** `2026_06_11_000001_add_drh_role` : insère `{code:'drh', nom:'DRH', ordre:25}` dans la table `roles` (idempotent via `if !exists`).
+- [x] **`Collaborateur` model** : `estDrh(): bool` (helper), `scopeDrh(Builder $query)` (scope Eloquent).
+- [x] **`HandleInertiaRequests`** : expose `isDRH => $collaborateur->estDrh()` dans le tableau `auth.collaborateur` partagé à tous les composants React.
+
+#### Backend — Role-gating réel dans `avancerWorkflow()`
+- [x] **`PerformanceController::avancerWorkflow()`** (refactorisé) :
+  - Récupère le collaborateur actuel via `$request->user()->collaborateurActuel()`.
+  - Calcule 3 booléens : `$estGestionnaire` (admin|directeur|manager), `$estCollaborateurEvalue` (id === fiche.collaborateur_id), `$estDrh` (drh|admin).
+  - Utilise un `match ($transitionKey)` pour autoriser/refuser chaque transition par rôle :
+    | Transition | Rôle requis |
+    |---|---|
+    | `brouillon → en_revision` | Gestionnaire |
+    | `revision_demandee → brouillon` | Gestionnaire |
+    | `revision_demandee → en_revision` | Gestionnaire |
+    | `en_revision → attente_drh` | Gestionnaire |
+    | `en_revision → brouillon` | Gestionnaire |
+    | `en_revision → revision_demandee` | Collaborateur évalué (lui-même) |
+    | `attente_drh → confirme` | DRH |
+    | `attente_drh → revision_demandee` | DRH |
+  - Renvoie `back()->withErrors(['vers_statut' => '...'])` si le rôle ne correspond pas.
+
+#### Frontend — `Performance/Index.jsx` rôle-aware
+- [x] **`EditScoresPanel`** accepte maintenant `auth` en prop (passé depuis `PerformanceIndex`).
+- [x] **Calcul des rôles** dans `EditScoresPanel` :
+  ```js
+  const isGest   = myCollab?.isAdmin || myCollab?.isDirecteur || myCollab?.isManager;
+  const isDRH    = myCollab?.isDRH || myCollab?.isAdmin;
+  const isEvalue = myCollab?.id === fiche.collaborateur_id;
+  ```
+- [x] **`WORKFLOW_TRANSITIONS` filtré par rôle** : la constante `ALL_TRANSITIONS` définit toutes les transitions possibles avec un champ `roles: 'gest'|'drh'|'evalue'`. Le `Object.fromEntries().filter()` ne garde que les transitions du rôle de l'utilisateur courant.
+- [x] **Champs score/commentaire désactivés par rôle** :
+  - `score_manager_*` et `commentaire_manager_*` : `disabled={!canEditManagerFields}` (gestionnaire uniquement).
+  - `score_collab_*` et `commentaire_collaborateur_*` : `disabled={!canEditCollabFields}` (collaborateur évalué en `en_revision` uniquement).
+- [x] **Footer contextuel** :
+  - Bandeau amber quand collaborateur évalué en `en_revision` (invite à remplir l'auto-évaluation).
+  - Bandeau bleu quand DRH en `attente_drh` (invite à approuver ou renvoyer).
+  - Bouton "Enregistrer" visible uniquement si `canEditManagerFields || canEditCollabFields`.
+  - Bouton poubelle visible uniquement pour le gestionnaire en `brouillon`.
+
+### Phase 4g-bis : Actions commerciales frontend — CRM Prospection (11 Juin 2026) ✅
+
+**Contexte** : Le backend des actions commerciales était intact (`ActionCommerciale`, route `prospects.actions.store`) mais toute l'interface avait été supprimée lors d'un refactoring.
+
+- [x] **`ProspectController::index()`** : eager load `actionsCommerciales` + mapping `actions` (type, description, date_action, durée, résultat) + `actions_count` dans chaque prospect sérialisé.
+- [x] **Constante `ACTION_TYPES`** : 5 types (appel/email/réunion/note/relance) avec label, icône Lucide, et couleur badge CSS.
+- [x] **Composant `ActionModal`** : Dialog (max-w-md) — type (select), description (textarea), date, durée (NumberInput), résultat (textarea). Soumission `router.post(route('prospects.actions.store', deal.id), data, { preserveState: true })`.
+- [x] **Composant `DealDetailPanel`** : Dialog (max-w-lg) — résumé deal (valeur, probabilité, statut, type, responsable) + timeline chronologique des actions (icône type + date + description + durée + résultat). Bouton "Ajouter une action" → ouvre `ActionModal` pour le même deal.
+- [x] **Badge actions** sur `DealCard` : `Clock + N actions` affiché si `deal.actions_count > 0`.
+- [x] **Items dropdown** sur `DealCard` et `VueListe` : "Voir les actions" → `DealDetailPanel` ; "Ajouter une action" → `ActionModal`.
+- [x] **États** dans `ProspectionIndex` : `actionDeal` et `detailDeal` — pilotent l'ouverture des modaux.
+- [x] Build `npm run build` : succès sans erreur.
+
+### Phase 4i : Rôle DRH visible dans le module Équipe (11 Juin 2026) ✅
+
+**Contexte** : Le rôle `drh` existait en base (migration Phase 4h-bis) mais toutes les listes de rôles dans l'interface Équipe étaient codées en dur sans lui. Résultat : impossible d'assigner le rôle DRH depuis l'UI, et les collaborateurs DRH n'affichaient aucun badge.
+
+#### Backend
+- [x] **`CollaborateurController::index()`** : stat card `drh` ajoutée — `(clone $baseQuery)->whereHas('roles', fn ($q) => $q->where('code', 'drh'))->count()`.
+- [x] **`CollaborateurController::store()` et `update()`** : `'roles.*' => 'in:admin,directeur,manager,drh,collaborateur'` — `drh` manquait, ce qui provoquait un échec silencieux de validation quand la case DRH était cochée.
+
+#### Frontend — 4 fichiers mis à jour
+- [x] **`Collaborateurs/Create.jsx`** :
+  - `ROLES_DISPONIBLES` : entrée `{ value: 'drh', label: 'DRH', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300', dot: 'bg-teal-500' }` ajoutée.
+  - `rolesDisponibles()` : filtre `r.value !== 'drh'` pour les non-gestionnaires globaux (seul Admin/Dir/DRH peut assigner ce rôle).
+- [x] **`Collaborateurs/Edit.jsx`** : mêmes changements que `Create.jsx`.
+- [x] **`Collaborateurs/Index.jsx`** :
+  - `ROLE_CONFIG` : entrée `drh: { label: 'DRH', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300', dot: 'bg-teal-500' }`.
+  - Stat cards : remplacement "Directeurs" par "Managers" (card bleue) + nouvelle card teal "DRH".
+  - Filter pills : ajout `{ value: 'drh', label: 'DRH' }` dans la liste de filtres.
+- [x] **`Collaborateurs/Show.jsx`** : `roleColors` : `drh: 'info'` ; `roleLabels` : `drh: 'DRH'`.
+
+---
+
+### Phase 4j : Fix email collaborateur sans compte User (11 Juin 2026) ✅
+
+**Contexte** : Certains collaborateurs créés par import ou seeder n'avaient pas de `user_id`. Lors de la mise à jour (`update()`), la branche `if ($collaborateur->user) { ... }` était ignorée → l'email n'était jamais sauvegardé ni un compte créé.
+
+- [x] **`CollaborateurController::update()`** : ajout de la branche `else` :
+  ```php
+  } else {
+      $user = User::create([
+          'name'     => "{$validated['prenom']} {$validated['nom']}",
+          'email'    => $validated['email'],
+          'password' => Hash::make('Addvalis2026!'),
+      ]);
+      $collaborateur->update(['user_id' => $user->id]);
+  }
+  ```
+  Le collaborateur reçoit un compte avec mot de passe par défaut `Addvalis2026!` (à changer à la première connexion).
+
+---
+
+### Phase 4k : Synchronisation OKR → Performance opérationnelle (11 Juin 2026) ✅
+
+**Contexte** : Le backend de sync était déjà complet (`OkrPerformanceSyncService`, route `performance.sync`, `OkrService::calculerProgressionObjectif()`). Trois problèmes frontend bloquaient l'usage réel :
+1. Form state stale après sync — `useState` ne se réinitialise pas quand les props Inertia changent.
+2. Options OKR trop restrictives — seuls les OKRs du collaborateur propre apparaissaient, mais souvent il n'en a pas.
+3. UX pauvre — pas de visualisation de la progression dans le sélecteur OKR.
+
+#### Backend — `PerformanceController::index()`
+- [x] Eager load des résultats clés sur les objectifs : `->with(['resultatsCles', 'collaborateur:id,nom,prenom'])`.
+- [x] Enrichissement du mapping objectifs : `'collaborateur_nom' => $obj->collaborateur?->prenom.' '.$obj->collaborateur?->nom`, `'progression' => $obj->resultatsCles->avg('progression') ?? 0` (moyenne des KRs).
+- [x] Exposition de `'peutVoirTout' => $peutVoirTout` dans `Inertia::render()` pour conditionner l'affichage frontend.
+
+#### Frontend — `Performance/Index.jsx`
+- [x] **`useEffect` anti-staleness** : watch sur `fiche.score_commercial`, `fiche.score_delivery`, `fiche.score_developpement`, `fiche.score_comportemental`, `fiche.objectif_okr_id_commercial`, `fiche.objectif_okr_id_delivery` → réinitialise uniquement les champs score/OKR du form quand les props Inertia se rafraîchissent après une sync.
+- [x] **`okrOptions` élargi** (`useMemo`) : OKRs propres au collaborateur listés en premier avec `Progression X%`, puis OKRs du reste de la société prefixés `[Nom collab]`. Plus de risque de liste vide.
+- [x] **Bouton "Synchroniser OKR → Performance"** : condition changée de `okrOptions.length > 0 && isGest` → `!isLocked && isGest` (toujours visible pour un gestionnaire sur une fiche non verrouillée).
+- [x] **Section OKR dans dimension card** : barre de progression live `X% → Y/5` (normalisation visuelle), texte d'aide `"Synchroniser pour recalculer automatiquement"`, champ désactivé si `!canEditManagerFields`.
+
+---
+
+### Phase 4l : Visibilité role-based du module Performance (11 Juin 2026) ✅
+
+**Contexte** : Tous les utilisateurs voyaient toutes les fiches de performance de la société, quelle que soit leur position dans la hiérarchie.
+
+#### Backend — `PerformanceController::index()`
+- [x] **Filtre par rôle** :
+  ```php
+  $peutVoirTout = $collab && ($collab->estAdmin() || $collab->estDirecteur() || $collab->estDrh());
+
+  $fichesQuery = FichePerformance::pourSociete($societeId)
+      ->with(['collaborateur', 'manager', 'historiqueWorkflow.user'])
+      ->when(! $peutVoirTout && $collab?->estManager(), fn ($q) =>
+          $q->where(fn ($sub) =>
+              $sub->where('manager_id', $collab->id)
+                  ->orWhere('collaborateur_id', $collab->id)
+          )
+      )
+      ->when(! $peutVoirTout && ! $collab?->estManager(), fn ($q) =>
+          $q->where('collaborateur_id', $collab?->id)
+      )
+      ->orderBy('cycle', 'desc')->orderBy('created_at', 'desc');
+  ```
+  | Rôle | Fiches visibles |
+  |---|---|
+  | Admin / Directeur / DRH | Toutes les fiches de la société |
+  | Manager | Fiches de son équipe + sa propre fiche |
+  | Collaborateur | Uniquement sa propre fiche |
+- [x] **`$collaborateurs`** filtré selon le même rôle (pour le sélecteur "Créer une fiche") : manager → son département, collaborateur → lui seul.
+
+#### Frontend — `Performance/Index.jsx`
+- [x] **Prop `peutVoirTout`** acceptée dans `PerformanceIndex` (défaut `false`).
+- [x] **"Nouvelle fiche" / cards dashed "sans fiche" / "Créer la première fiche"** : conditionnés à `peutVoirTout || auth?.collaborateur?.isManager` — un collaborateur simple ne peut pas créer de fiche lui-même.
+
+---
+
 ### Phase 5 : LMS et Reporting ⏳
 - [ ] Module LMS : Formations et modules d'apprentissage (page placeholder, modèles et migration existants).
 - [ ] Module Reporting : Synthèses et graphiques avancés (page placeholder).
@@ -723,6 +875,6 @@ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
 
 ---
 
-*Dernière mise à jour : 8 Juin 2026 — Module Performance (Phase 4h) : fiches de performance 4 dimensions, workflow 4 étapes, cycle annuel hybride, seeder démo Laawol*
+*Dernière mise à jour : 11 Juin 2026 — Rôle DRH visible dans Équipe (4 fichiers frontend + stats controller) ; fix email collaborateur sans User ; sync OKR → Performance opérationnelle (useEffect anti-staleness, okrOptions élargi, progression live, bouton Sync toujours visible) ; visibilité role-based module Performance (admin/dir/DRH tout, manager équipe, collab sa fiche)*
 
 *Précédente mise à jour : 5 Juin 2026 — Refonte Module Missions → Projets & Delivery (sidebar navigation, workflow DIR, NPS, stats header, édition inline livrables) + enrichissement Module Prospection (scores commerciaux, actions_count, fix NumberInput valeur, preserveState) + corrections bugs (type="number" locale française, URL validation, text-right NumberInput)*

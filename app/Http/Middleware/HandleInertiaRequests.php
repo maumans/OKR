@@ -58,6 +58,7 @@ class HandleInertiaRequests extends Middleware
                     'isAdmin'         => $collaborateur->estAdmin(),
                     'isDirecteur'     => $collaborateur->estDirecteur(),
                     'isManager'       => $collaborateur->estManager(),
+                    'isDRH'           => $collaborateur->estDrh(),
                     'aAccesGlobal'    => $collaborateur->aAccesGlobal(),
                 ] : null,
                 'societe' => $societe ? [

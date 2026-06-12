@@ -1,1 +1,0 @@
-import{t as e}from"./CollaborateurMappingList-6nM5cbyi.js";export{e as default};

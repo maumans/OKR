@@ -173,7 +173,9 @@ class SyntheseController extends Controller
             $deals = Prospect::where('societe_id', $societeId)
                 ->where('collaborateur_id', $c->id);
 
-            $caSigné     = (float) (clone $deals)->where('statut', 'gagne')->sum('montant_final');
+            $caSigné     = (float) (clone $deals)->where('statut', 'gagne')
+                ->selectRaw('SUM(COALESCE(montant_final, valeur, 0)) as total')
+                ->value('total') ?? 0;
             $pipeline    = (float) (clone $deals)->whereIn('statut', ['decouverte', 'proposition', 'negociation'])
                 ->selectRaw('SUM(valeur * probabilite / 100) as total')
                 ->value('total') ?? 0;

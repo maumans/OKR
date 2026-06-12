@@ -10,7 +10,7 @@ import {
     LayoutGrid, List, UserPlus, TrendingUp, BarChart3,
     Briefcase, Plus, Search, RefreshCw, MoreVertical,
     Pencil, Trash2, Users, Target, Award, Building2,
-    ChevronRight,
+    ChevronRight, Phone, Mail, FileText, Clock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -43,6 +43,14 @@ const SIDEBAR_VIEWS = [
     { key: 'stats',    label: 'Stats',                 icon: BarChart3 },
 ];
 
+const ACTION_TYPES = {
+    appel:    { label: 'Appel',    icon: Phone,      cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+    email:    { label: 'Email',    icon: Mail,        cls: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' },
+    reunion:  { label: 'Réunion',  icon: Users,       cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+    note:     { label: 'Note',     icon: FileText,    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+    relance:  { label: 'Relance',  icon: RefreshCw,   cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' },
+};
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 const fmt = (v) => new Intl.NumberFormat('fr-FR').format(Math.round(Number(v) || 0));
 
@@ -57,8 +65,164 @@ function CollabAvatar({ prenom, nom, cls = 'h-7 w-7' }) {
     );
 }
 
+// ── Action Modal ───────────────────────────────────────────────────────────
+function ActionModal({ open, onClose, deal }) {
+    const today = new Date().toISOString().split('T')[0];
+    const [form, setForm] = useState({ type: 'appel', description: '', date_action: today, duree: '', resultat: '' });
+    const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+    const submit = () => {
+        router.post(route('prospects.actions.store', deal.id), {
+            ...form,
+            duree: form.duree !== '' ? parseInt(form.duree) : null,
+        }, {
+            preserveState: true,
+            onSuccess: () => { onClose(); toast.success('Action enregistrée.'); },
+        });
+    };
+
+    const iCls = 'mt-1 w-full px-3 py-2 text-[12px] border border-gray-200 dark:border-dark-700 rounded-lg bg-white dark:bg-dark-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30';
+    const lCls = 'text-[10px] font-bold text-gray-400 uppercase tracking-wider';
+
+    return (
+        <Dialog open={open} onOpenChange={v => !v && onClose()}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="text-[15px]">
+                        Nouvelle action — {deal?.titre || deal?.nom}
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 py-1">
+                    <div>
+                        <label className={lCls}>Type</label>
+                        <select value={form.type} onChange={e => setF('type', e.target.value)} className={iCls}>
+                            {Object.entries(ACTION_TYPES).map(([k, def]) => (
+                                <option key={k} value={k}>{def.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className={lCls}>Description</label>
+                        <textarea value={form.description} onChange={e => setF('description', e.target.value)}
+                            rows={2} placeholder="Détails de l'action..."
+                            className={iCls + ' resize-none'} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className={lCls}>Date</label>
+                            <input type="date" value={form.date_action} onChange={e => setF('date_action', e.target.value)} className={iCls} />
+                        </div>
+                        <div>
+                            <label className={lCls}>Durée (min)</label>
+                            <NumberInput value={form.duree} onChange={v => setF('duree', v)}
+                                placeholder="30" min={0} className={iCls} />
+                        </div>
+                    </div>
+                    <div>
+                        <label className={lCls}>Résultat</label>
+                        <textarea value={form.resultat} onChange={e => setF('resultat', e.target.value)}
+                            rows={2} placeholder="Résultat / suite à donner..."
+                            className={iCls + ' resize-none'} />
+                    </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                    <Button variant="ghost" onClick={onClose}>Annuler</Button>
+                    <Button onClick={submit}>Enregistrer</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// ── Deal Detail Panel ──────────────────────────────────────────────────────
+function DealDetailPanel({ open, onClose, deal, onAddAction }) {
+    if (!deal) return null;
+    const col = KANBAN_COLS.find(c => c.key === deal.statut);
+    const tDef = TYPE_DEAL[deal.type_deal] || TYPE_DEAL.nouveau_client;
+
+    return (
+        <Dialog open={open} onOpenChange={v => !v && onClose()}>
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle className="text-[15px]">
+                        {deal.titre || deal.nom}
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-1">
+                    <div className="grid grid-cols-2 gap-2 text-[12px]">
+                        <div className="bg-gray-50 dark:bg-dark-800 rounded-lg p-2.5">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Valeur</p>
+                            <p className="font-bold text-gray-800 dark:text-gray-200">{fmt(deal.valeur)}</p>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-dark-800 rounded-lg p-2.5">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Probabilité</p>
+                            <p className="font-bold text-gray-800 dark:text-gray-200">{deal.probabilite}%</p>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-dark-800 rounded-lg p-2.5">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Étape</p>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: (col?.color || '#6b7280') + '20', color: col?.color || '#6b7280' }}>
+                                {col?.label || deal.statut}
+                            </span>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-dark-800 rounded-lg p-2.5">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Type</p>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tDef.cls}`}>{tDef.label}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Historique — {(deal.actions || []).length} action{(deal.actions || []).length !== 1 ? 's' : ''}
+                            </h3>
+                            <Button size="sm" onClick={onAddAction} className="h-7 text-[11px] px-2.5 gap-1">
+                                <Plus className="h-3 w-3" /> Ajouter
+                            </Button>
+                        </div>
+                        {(deal.actions || []).length === 0 ? (
+                            <p className="text-[12px] text-gray-400 italic text-center py-4">Aucune action enregistrée</p>
+                        ) : (
+                            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                {(deal.actions || []).map(action => {
+                                    const aDef = ACTION_TYPES[action.type] || ACTION_TYPES.note;
+                                    const AIcon = aDef.icon;
+                                    return (
+                                        <div key={action.id} className="flex gap-2.5 p-2.5 bg-gray-50 dark:bg-dark-800 rounded-lg">
+                                            <span className={`inline-flex items-center justify-center h-7 w-7 rounded-full shrink-0 ${aDef.cls}`}>
+                                                <AIcon className="h-3.5 w-3.5" />
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">{aDef.label}</span>
+                                                    <span className="text-[10px] text-gray-400">{action.date_action}</span>
+                                                    {action.duree && (
+                                                        <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                                                            <Clock className="h-3 w-3" />{action.duree} min
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {action.description && (
+                                                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">{action.description}</p>
+                                                )}
+                                                {action.resultat && (
+                                                    <p className="text-[11px] text-gray-500 italic mt-0.5">→ {action.resultat}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // ── Deal Card ──────────────────────────────────────────────────────────────
-function DealCard({ deal, onEdit, onDelete, onStatusChange, deviseCode }) {
+function DealCard({ deal, onEdit, onDelete, onStatusChange, onDetail, onAction, deviseCode }) {
     const tDef = TYPE_DEAL[deal.type_deal] || TYPE_DEAL.nouveau_client;
 
     return (
@@ -99,6 +263,13 @@ function DealCard({ deal, onEdit, onDelete, onStatusChange, deviseCode }) {
                             </DropdownMenuItem>
                         ))}
                         <div className="my-1 border-t border-gray-100 dark:border-dark-700" />
+                        <DropdownMenuItem onClick={() => onDetail(deal)}>
+                            <Clock className="h-3.5 w-3.5 mr-2" /> Voir les actions
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAction(deal)}>
+                            <Plus className="h-3.5 w-3.5 mr-2" /> Ajouter une action
+                        </DropdownMenuItem>
+                        <div className="my-1 border-t border-gray-100 dark:border-dark-700" />
                         <DropdownMenuItem onClick={() => onDelete(deal.id)} className="text-red-500 focus:text-red-600">
                             <Trash2 className="h-3.5 w-3.5 mr-2" /> Supprimer
                         </DropdownMenuItem>
@@ -129,12 +300,19 @@ function DealCard({ deal, onEdit, onDelete, onStatusChange, deviseCode }) {
                     {deal.note}
                 </p>
             )}
+            {/* Actions badge */}
+            {deal.actions_count > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-50 dark:border-dark-800 flex items-center gap-1 text-[10px] text-gray-400">
+                    <Clock className="h-3 w-3" />
+                    {deal.actions_count} action{deal.actions_count > 1 ? 's' : ''}
+                </div>
+            )}
         </div>
     );
 }
 
 // ── Kanban Column ──────────────────────────────────────────────────────────
-function KanbanColumn({ col, deals, onEdit, onDelete, onStatusChange, deviseCode }) {
+function KanbanColumn({ col, deals, onEdit, onDelete, onStatusChange, onDetail, onAction, deviseCode }) {
     const total = deals.reduce((s, d) => s + (Number(d.valeur) || 0), 0);
     return (
         <div className="flex flex-col min-w-[210px] flex-1">
@@ -156,7 +334,7 @@ function KanbanColumn({ col, deals, onEdit, onDelete, onStatusChange, deviseCode
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 6 }}
                             transition={{ duration: 0.15 }}>
-                            <DealCard deal={deal} onEdit={onEdit} onDelete={onDelete} onStatusChange={onStatusChange} deviseCode={deviseCode} />
+                            <DealCard deal={deal} onEdit={onEdit} onDelete={onDelete} onStatusChange={onStatusChange} onDetail={onDetail} onAction={onAction} deviseCode={deviseCode} />
                         </motion.div>
                     ))}
                 </AnimatePresence>
@@ -651,7 +829,7 @@ function VueClients({ clients, prospects, onEdit, onDelete, onNew, onNewDeal, de
 }
 
 // ── Vue Kanban ─────────────────────────────────────────────────────────────
-function VueKanban({ prospects, stats, pipelineParCollab, collaborateurs, clients, collabFilter, setCollabFilter, clientFilter, setClientFilter, deviseCode, onEdit, onDelete, onStatusChange, onNew }) {
+function VueKanban({ prospects, stats, pipelineParCollab, collaborateurs, clients, collabFilter, setCollabFilter, clientFilter, setClientFilter, deviseCode, onEdit, onDelete, onStatusChange, onDetail, onAction, onNew }) {
     const filtered = useMemo(() => {
         let list = prospects;
         if (collabFilter) list = list.filter(p => String(p.collaborateur_id) === collabFilter);
@@ -744,7 +922,8 @@ function VueKanban({ prospects, stats, pipelineParCollab, collaborateurs, client
             <div className="flex gap-3 overflow-x-auto pb-4">
                 {KANBAN_COLS.map(col => (
                     <KanbanColumn key={col.key} col={col} deals={byCol[col.key] || []}
-                        onEdit={onEdit} onDelete={onDelete} onStatusChange={onStatusChange} deviseCode={deviseCode} />
+                        onEdit={onEdit} onDelete={onDelete} onStatusChange={onStatusChange}
+                        onDetail={onDetail} onAction={onAction} deviseCode={deviseCode} />
                 ))}
             </div>
         </div>
@@ -752,7 +931,7 @@ function VueKanban({ prospects, stats, pipelineParCollab, collaborateurs, client
 }
 
 // ── Vue Liste ──────────────────────────────────────────────────────────────
-function VueListe({ prospects, clients, onEdit, onDelete, deviseCode, typeDealFilter = null, title = 'Liste des deals' }) {
+function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, deviseCode, typeDealFilter = null, title = 'Liste des deals' }) {
     const [search, setSearch] = useState('');
     const [clientFilter, setClientFilter] = useState('');
 
@@ -794,7 +973,7 @@ function VueListe({ prospects, clients, onEdit, onDelete, deviseCode, typeDealFi
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-800">
-                            {['Deal', 'Client', 'Valeur', 'Proba', 'Responsable', 'Étape', 'Type', ''].map(h => (
+                            {['Deal', 'Client', 'Valeur', 'Proba', 'Responsable', 'Étape', 'Type', 'Actions', ''].map(h => (
                                 <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide">{h}</th>
                             ))}
                         </tr>
@@ -836,6 +1015,13 @@ function VueListe({ prospects, clients, onEdit, onDelete, deviseCode, typeDealFi
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tDef.cls}`}>{tDef.label}</span>
                                     </td>
                                     <td className="px-4 py-2.5">
+                                        {deal.actions_count > 0 && (
+                                            <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                                                <Clock className="h-3.5 w-3.5" />{deal.actions_count}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-2.5">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-700">
@@ -846,6 +1032,14 @@ function VueListe({ prospects, clients, onEdit, onDelete, deviseCode, typeDealFi
                                                 <DropdownMenuItem onClick={() => onEdit(deal)}>
                                                     <Pencil className="h-3.5 w-3.5 mr-2" /> Modifier
                                                 </DropdownMenuItem>
+                                                <div className="my-1 border-t border-gray-100 dark:border-dark-700" />
+                                                <DropdownMenuItem onClick={() => onDetail(deal)}>
+                                                    <Clock className="h-3.5 w-3.5 mr-2" /> Voir les actions
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => onAction(deal)}>
+                                                    <Plus className="h-3.5 w-3.5 mr-2" /> Ajouter une action
+                                                </DropdownMenuItem>
+                                                <div className="my-1 border-t border-gray-100 dark:border-dark-700" />
                                                 <DropdownMenuItem onClick={() => onDelete(deal.id)} className="text-red-500">
                                                     <Trash2 className="h-3.5 w-3.5 mr-2" /> Supprimer
                                                 </DropdownMenuItem>
@@ -857,7 +1051,7 @@ function VueListe({ prospects, clients, onEdit, onDelete, deviseCode, typeDealFi
                         })}
                         {shown.length === 0 && (
                             <tr>
-                                <td colSpan={8} className="text-center py-10 text-[12px] text-gray-400">
+                                <td colSpan={9} className="text-center py-10 text-[12px] text-gray-400">
                                     Aucun deal trouvé
                                 </td>
                             </tr>
@@ -957,6 +1151,8 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
     const [createDefaults, setCreateDefaults] = useState(null); // pour pré-sélectionner un client
     const [editDeal, setEditDeal] = useState(null);
     const [clientModal, setClientModal] = useState(null); // null | 'create' | client-object
+    const [actionDeal, setActionDeal] = useState(null);
+    const [detailDeal, setDetailDeal] = useState(null);
 
     const openCreate = (defaults = null) => {
         setCreateDefaults(defaults);
@@ -993,7 +1189,7 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
         setActiveView('kanban');
     };
 
-    const listProps = { prospects, clients, onEdit: setEditDeal, onDelete: handleDelete, deviseCode };
+    const listProps = { prospects, clients, onEdit: setEditDeal, onDelete: handleDelete, onDetail: setDetailDeal, onAction: setActionDeal, deviseCode };
 
     return (
         <AppLayout title="CRM">
@@ -1045,7 +1241,8 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                             clientFilter={clientFilter} setClientFilter={setClientFilter}
                             deviseCode={deviseCode}
                             onEdit={setEditDeal} onDelete={handleDelete}
-                            onStatusChange={handleStatusChange} onNew={() => openCreate()} />
+                            onStatusChange={handleStatusChange} onNew={() => openCreate()}
+                            onDetail={setDetailDeal} onAction={setActionDeal} />
                     )}
                     {activeView === 'liste' && (
                         <VueListe {...listProps} title="Liste des deals" />
@@ -1069,6 +1266,18 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                     )}
                 </div>
             </div>
+
+            <ActionModal
+                open={!!actionDeal}
+                onClose={() => setActionDeal(null)}
+                deal={actionDeal}
+            />
+            <DealDetailPanel
+                open={!!detailDeal}
+                onClose={() => setDetailDeal(null)}
+                deal={detailDeal}
+                onAddAction={() => { setActionDeal(detailDeal); setDetailDeal(null); }}
+            />
 
             {/* ── Deal modals */}
             <DealModal key={`create-${createKey}`} open={createOpen} onClose={() => setCreateOpen(false)}

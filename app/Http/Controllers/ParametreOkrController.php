@@ -41,10 +41,11 @@ class ParametreOkrController extends Controller implements HasMiddleware
     public function storeAxe(Request $request)
     {
         $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'description' => 'nullable|string|max:500',
-            'couleur' => 'required|string|max:7',
-            'ordre' => 'nullable|integer',
+            'nom'                    => 'required|string|max:255',
+            'description'            => 'nullable|string|max:500',
+            'couleur'                => 'required|string|max:7',
+            'ordre'                  => 'nullable|integer',
+            'categorie_performance'  => 'nullable|in:commercial,delivery',
         ]);
 
         AxeObjectif::create($validated);
@@ -57,11 +58,12 @@ class ParametreOkrController extends Controller implements HasMiddleware
         $this->authorizeSociete($axe);
 
         $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'description' => 'nullable|string|max:500',
-            'couleur' => 'required|string|max:7',
-            'ordre' => 'nullable|integer',
-            'actif' => 'boolean',
+            'nom'                    => 'required|string|max:255',
+            'description'            => 'nullable|string|max:500',
+            'couleur'                => 'required|string|max:7',
+            'ordre'                  => 'nullable|integer',
+            'actif'                  => 'boolean',
+            'categorie_performance'  => 'nullable|in:commercial,delivery',
         ]);
 
         $axe->update($validated);

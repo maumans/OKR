@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Collaborateur;
 use App\Models\FichePerformance;
 use App\Models\HistoriqueWorkflowPerformance;
-use App\Models\Objectif;
 use App\Services\OkrPerformanceSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,16 +16,39 @@ class PerformanceController extends Controller
     public function index(Request $request): Response
     {
         $societeId = session('societe_id');
+        $collab    = $request->user()->collaborateurActuel();
 
-        $fiches = FichePerformance::pourSociete($societeId)
+        // ── Visibilité des fiches selon le rôle ────────────────────────────────
+        // Admin / Directeur / DRH → toutes les fiches
+        // Manager              → fiches des collaborateurs qu'il manage (manager_id)
+        // Collaborateur simple → uniquement sa propre fiche
+        $peutVoirTout = $collab && (
+            $collab->estAdmin() ||
+            $collab->estDirecteur() ||
+            $collab->estDrh()
+        );
+
+        $fichesQuery = FichePerformance::pourSociete($societeId)
             ->with([
                 'collaborateur',
                 'manager',
                 'historiqueWorkflow.user',
             ])
+            ->when(! $peutVoirTout && $collab?->estManager(), fn ($q) =>
+                // Le manager voit ses propres fiches + celles qu'il manage
+                $q->where(fn ($sub) =>
+                    $sub->where('manager_id', $collab->id)
+                        ->orWhere('collaborateur_id', $collab->id)
+                )
+            )
+            ->when(! $peutVoirTout && ! $collab?->estManager(), fn ($q) =>
+                // Collaborateur simple : uniquement sa fiche
+                $q->where('collaborateur_id', $collab?->id)
+            )
             ->orderBy('cycle', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->get()
+            ->orderBy('created_at', 'desc');
+
+        $fiches = $fichesQuery->get()
             ->map(fn ($f) => array_merge($f->toArray(), [
                 'collaborateur' => $f->collaborateur ? [
                     'id'       => $f->collaborateur->id,
@@ -53,6 +75,13 @@ class PerformanceController extends Controller
 
         $collaborateurs = Collaborateur::pourSociete($societeId)
             ->actifs()
+            // Manager → uniquement son équipe ; collaborateur simple → lui seul
+            ->when(! $peutVoirTout && $collab?->estManager() && $collab->departement_id,
+                fn ($q) => $q->where('departement_id', $collab->departement_id)
+            )
+            ->when(! $peutVoirTout && ! $collab?->estManager(),
+                fn ($q) => $q->where('id', $collab?->id)
+            )
             ->orderBy('nom')
             ->get()
             ->map(fn ($c) => [
@@ -75,24 +104,12 @@ class PerformanceController extends Controller
             'revision_demandee' => $fiches->where('statut', 'revision_demandee')->count(),
         ];
 
-        // Objectifs disponibles pour la liaison OKR → Performance (par collaborateur)
-        $objectifs = Objectif::pourSociete($societeId)
-            ->where('statut', 'actif')
-            ->orderBy('titre')
-            ->get()
-            ->map(fn ($o) => [
-                'id'               => $o->id,
-                'titre'            => $o->titre,
-                'collaborateur_id' => $o->collaborateur_id,
-                'axe'              => $o->axe,
-            ]);
-
         return Inertia::render('Performance/Index', [
             'fiches'         => $fiches,
             'collaborateurs' => $collaborateurs,
             'cycles'         => $cycles,
             'stats'          => $stats,
-            'objectifs'      => $objectifs,
+            'peutVoirTout'   => $peutVoirTout,
         ]);
     }
 
@@ -172,8 +189,6 @@ class PerformanceController extends Controller
             'manager_id'                        => ['nullable', 'integer', 'exists:collaborateurs,id'],
             'periode_debut'                     => ['nullable', 'date'],
             'periode_fin'                       => ['nullable', 'date'],
-            'objectif_okr_id_commercial'        => ['nullable', 'integer', 'exists:objectifs,id'],
-            'objectif_okr_id_delivery'          => ['nullable', 'integer', 'exists:objectifs,id'],
         ], $dimRules));
 
         $fiche->fill($validated);
@@ -190,14 +205,52 @@ class PerformanceController extends Controller
             'commentaire' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        // ── Vérification de la transition autorisée (state machine) ──────────
         $transitions = FichePerformance::TRANSITIONS[$fiche->statut] ?? [];
-
         if (!in_array($validated['vers_statut'], $transitions)) {
             return back()->withErrors([
                 'vers_statut' => "Transition de \"{$fiche->statut}\" vers \"{$validated['vers_statut']}\" non autorisée.",
             ]);
         }
 
+        // ── Vérification du rôle par transition ──────────────────────────────
+        $collab = $request->user()->collaborateurActuel();
+
+        $estGestionnaire = $collab &&
+            ($collab->estAdmin() || $collab->estDirecteur() || $collab->estManager());
+
+        $estCollaborateurEvalue = $collab && $collab->id === $fiche->collaborateur_id;
+
+        $estDrh = $collab && ($collab->estDrh() || $collab->estAdmin());
+
+        $transitionKey = "{$fiche->statut}__{$validated['vers_statut']}";
+
+        $roleOk = match ($transitionKey) {
+            // Manager/Admin/Dir soumettent la fiche au collaborateur
+            'brouillon__en_revision'            => $estGestionnaire,
+            // Manager/Admin/Dir renvoient au brouillon depuis révision demandée
+            'revision_demandee__brouillon'      => $estGestionnaire,
+            // Manager/Admin/Dir reprennent la révision
+            'revision_demandee__en_revision'    => $estGestionnaire,
+            // Manager/Admin/Dir envoient à la DRH
+            'en_revision__attente_drh'          => $estGestionnaire,
+            // Manager/Admin/Dir peuvent aussi remettre en brouillon
+            'en_revision__brouillon'            => $estGestionnaire,
+            // Seul le collaborateur évalué demande une révision depuis en_revision
+            'en_revision__revision_demandee'    => $estCollaborateurEvalue,
+            // DRH confirme ou renvoie en révision
+            'attente_drh__confirme'             => $estDrh,
+            'attente_drh__revision_demandee'    => $estDrh,
+            default                             => false,
+        };
+
+        if (!$roleOk) {
+            return back()->withErrors([
+                'vers_statut' => 'Vous n\'avez pas le rôle requis pour effectuer cette action.',
+            ]);
+        }
+
+        // ── Limite aller-retours ──────────────────────────────────────────────
         $isRetour = in_array($validated['vers_statut'], ['brouillon', 'revision_demandee']);
         if ($isRetour && $fiche->nb_aller_retour >= 3) {
             return back()->withErrors([
@@ -205,6 +258,7 @@ class PerformanceController extends Controller
             ]);
         }
 
+        // ── Transition ───────────────────────────────────────────────────────
         $deStatut      = $fiche->statut;
         $fiche->statut = $validated['vers_statut'];
 
@@ -281,12 +335,12 @@ class PerformanceController extends Controller
 
         $dims = array_filter($details);
         if (empty($dims)) {
-            return back()->withErrors(['sync' => 'Aucun objectif OKR lié (Commercial ou Delivery). Configurez les liens OKR dans la fiche d\'abord.']);
+            return back()->withErrors(['sync' => 'Aucun OKR trouvé avec un axe taggé "commercial" ou "delivery". Configurez la catégorie performance des axes dans les paramètres OKR.']);
         }
 
         $messages = [];
         foreach ($dims as $dim => $d) {
-            $messages[] = ucfirst($dim) . " : {$d['progression']}% → {$d['score_auto']}/5";
+            $messages[] = ucfirst($dim) . " : {$d['objectif_count']} OKR(s) · {$d['kr_count']} KRs · {$d['progression']}% → {$d['score_auto']}/5";
         }
 
         return back()->with('success', 'Scores synchronisés depuis les OKR · ' . implode(' · ', $messages));

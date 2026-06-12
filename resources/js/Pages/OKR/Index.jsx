@@ -2018,11 +2018,13 @@ function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], 
  const [description, setDescription] = useState('');
  const [unite, setUnite] = useState('');
  const [valeurCible, setValeurCible] = useState(100);
+ const [sourceCrm, setSourceCrm] = useState(false);
+ const [sourceCrmTypeDeal, setSourceCrmTypeDeal] = useState('');
  const [error, setError] = useState('');
  const [submitting, setSubmitting] = useState(false);
 
  useEffect(() => {
-  if (open) { setObjId(defaultObjectifId ? String(defaultObjectifId) : ''); setDescription(''); setUnite(''); setValeurCible(100); setError(''); }
+  if (open) { setObjId(defaultObjectifId ? String(defaultObjectifId) : ''); setDescription(''); setUnite(''); setValeurCible(100); setSourceCrm(false); setSourceCrmTypeDeal(''); setError(''); }
  }, [open, defaultObjectifId]);
 
  const handleSubmit = (e) => {
@@ -2035,6 +2037,8 @@ function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], 
    valeur_cible: valeurCible || 100,
    unite: unite || null,
    poids: 1,
+   source_crm: sourceCrm,
+   source_crm_filtre: sourceCrm ? { type_deal: sourceCrmTypeDeal || null } : null,
   }, {
    preserveState: true, preserveScroll: true,
    onSuccess: () => { toast.success('Résultat clé ajouté'); onClose(); setSubmitting(false); },
@@ -2074,6 +2078,26 @@ function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], 
          <SearchableSelect value={unite} onChange={setUnite} nullable nullLabel="—" placeholder="—" options={uniteOptions} />
         </div>
        </div>
+      </div>
+
+      {/* Source CRM */}
+      <div className="mt-1 pt-3 border-t border-gray-100 dark:border-dark-700">
+       <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+        <input type="checkbox" checked={sourceCrm} onChange={e => setSourceCrm(e.target.checked)}
+         className="rounded border-gray-300 text-teal-500 focus:ring-teal-500 bg-white dark:bg-dark-800" />
+        Alimenter depuis le CRM (deals gagnés)
+       </label>
+       {sourceCrm && (
+        <div className="mt-2 pl-6">
+         <select value={sourceCrmTypeDeal} onChange={e => setSourceCrmTypeDeal(e.target.value)}
+          className="w-full text-xs py-1.5 px-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/30">
+          <option value="">Tous les types</option>
+          <option value="licence">Licences SaaS</option>
+          <option value="setup">Setup & Onboarding</option>
+          <option value="service">Services pro</option>
+         </select>
+        </div>
+       )}
       </div>
      </div>
      <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">

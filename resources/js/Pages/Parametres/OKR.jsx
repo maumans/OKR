@@ -73,7 +73,7 @@ export default function ParametresOKR({
     const [editingItem, setEditingItem] = useState(null);
 
     // ─── Forms ───────────────────────────────────────────
-    const axeForm = useForm({ nom: '', description: '', couleur: '#00c9ff', ordre: 0, actif: true });
+    const axeForm = useForm({ nom: '', description: '', couleur: '#00c9ff', ordre: 0, actif: true, categorie_performance: '' });
     const periodeForm = useForm({ nom: '', date_debut: '', date_fin: '', type: 'trimestriel', statut: 'actif' });
     const typeObjForm = useForm({ nom: '', description: '', niveau: 'individuel' });
     const typeKRForm = useForm({ nom: '', type_valeur: 'number', unite: '' });
@@ -182,6 +182,7 @@ export default function ParametresOKR({
                             { label: 'Couleur', className: 'w-16' },
                             { label: 'Nom' },
                             { label: 'Description' },
+                            { label: 'Dimension Perf.', className: 'w-36' },
                             { label: 'Ordre', className: 'w-16' },
                             { label: 'Statut', className: 'w-20' },
                         ]}
@@ -189,11 +190,26 @@ export default function ParametresOKR({
                             <TableCell><div className="h-5 w-5 rounded-full" style={{ backgroundColor: item.couleur }} /></TableCell>
                             <TableCell className="font-medium">{item.nom}</TableCell>
                             <TableCell className="text-slate-500 text-sm">{item.description}</TableCell>
+                            <TableCell>
+                                {item.categorie_performance === 'commercial' && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">
+                                        🏆 Commercial
+                                    </span>
+                                )}
+                                {item.categorie_performance === 'delivery' && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-400">
+                                        ✅ Delivery
+                                    </span>
+                                )}
+                                {!item.categorie_performance && (
+                                    <span className="text-[11px] text-gray-400">—</span>
+                                )}
+                            </TableCell>
                             <TableCell>{item.ordre}</TableCell>
                             <TableCell><Badge variant={item.actif ? 'default' : 'ghost'}>{item.actif ? 'Actif' : 'Inactif'}</Badge></TableCell>
                         </>)}
                         onAdd={() => openAdd('axe', axeForm, { couleur: '#00c9ff', ordre: axes.length + 1 })}
-                        onEdit={(item) => openEdit('axe', axeForm, item, ['nom', 'description', 'couleur', 'ordre', 'actif'])}
+                        onEdit={(item) => openEdit('axe', axeForm, item, ['nom', 'description', 'couleur', 'ordre', 'actif', 'categorie_performance'])}
                         onDelete={(item) => handleDelete('parametres.okr.axes.destroy', item.id)}
                     />
                 </TabsContent>
@@ -439,6 +455,19 @@ export default function ParametresOKR({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><Label>Couleur</Label><Input type="color" value={axeForm.data.couleur} onChange={e => axeForm.setData('couleur', e.target.value)} className="mt-1.5 h-10" /></div>
                             <div><Label>Ordre</Label><NumberInput value={axeForm.data.ordre} onChange={v => axeForm.setData('ordre', v)} className="mt-1.5" decimals={0} /></div>
+                        </div>
+                        <div>
+                            <Label>Dimension Performance</Label>
+                            <p className="text-[11px] text-gray-400 mb-1.5">Cet axe alimentera automatiquement quel score dans les fiches de performance ?</p>
+                            <select
+                                value={axeForm.data.categorie_performance ?? ''}
+                                onChange={e => axeForm.setData('categorie_performance', e.target.value || null)}
+                                className="w-full rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            >
+                                <option value="">— Aucune (non lié à la performance) —</option>
+                                <option value="commercial">🏆 Commercial (50%) — KRs de cet axe alimentent le score commercial</option>
+                                <option value="delivery">✅ Delivery (25%) — KRs de cet axe alimentent le score delivery</option>
+                            </select>
                         </div>
                         {editingItem && (
                             <div className="flex items-center gap-2">

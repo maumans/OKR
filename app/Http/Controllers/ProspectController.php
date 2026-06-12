@@ -20,7 +20,7 @@ class ProspectController extends Controller
         $societeId = session('societe_id');
 
         $prospects = Prospect::where('societe_id', $societeId)
-            ->with('collaborateur:id,nom,prenom', 'client:id,nom,contact,secteur')
+            ->with('collaborateur:id,nom,prenom', 'client:id,nom,contact,secteur', 'actionsCommerciales')
             ->when($request->search, fn ($q, $s) =>
                 $q->where(fn ($qq) =>
                     $qq->where('titre', 'like', "%{$s}%")
@@ -49,6 +49,19 @@ class ProspectController extends Controller
                 'montant_final'        => (float) ($p->montant_final ?? 0),
                 'note'                 => $p->note,
                 'created_at'           => $p->created_at?->format('Y-m-d'),
+                'actions_count'        => $p->actionsCommerciales->count(),
+                'actions'              => $p->actionsCommerciales
+                    ->sortByDesc('date_action')
+                    ->values()
+                    ->map(fn ($a) => [
+                        'id'          => $a->id,
+                        'type'        => $a->type,
+                        'description' => $a->description,
+                        'date_action' => $a->date_action?->format('Y-m-d'),
+                        'duree'       => $a->duree,
+                        'resultat'    => $a->resultat,
+                        'created_at'  => $a->created_at?->format('Y-m-d H:i'),
+                    ]),
             ]);
 
         $collaborateurs = Collaborateur::where('societe_id', $societeId)->actifs()->get(['id', 'nom', 'prenom']);

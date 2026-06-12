@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
@@ -376,7 +376,7 @@ function HistoriqueWorkflow({ fiche }) {
 
 // ─── EditScoresPanel (slide-over "Voir la fiche") ─────────────────────────────
 
-function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
+function EditScoresPanel({ fiche, onClose, auth }) {
     const SCORE_OPTIONS = [
         { value: '', label: '—' },
         { value: '1', label: '1/5' },
@@ -402,8 +402,6 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
             f[`commentaire_manager_${d.key}`]         = fiche[`commentaire_manager_${d.key}`] || '';
             f[`commentaire_collaborateur_${d.key}`]   = fiche[`commentaire_collaborateur_${d.key}`] || '';
         });
-        f.objectif_okr_id_commercial = fiche.objectif_okr_id_commercial?.toString() || '';
-        f.objectif_okr_id_delivery   = fiche.objectif_okr_id_delivery?.toString() || '';
         return f;
     };
 
@@ -414,10 +412,23 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
     const [advancing, setAdvancing]     = useState(false);
     const [syncing, setSyncing]         = useState(false);
 
-    // OKR actifs du collaborateur
-    const okrOptions = objectifs
-        .filter(o => o.collaborateur_id === fiche.collaborateur_id)
-        .map(o => ({ value: String(o.id), label: o.titre + (o.axe ? ` · ${o.axe}` : '') }));
+    // Réinitialiser les scores du formulaire quand la fiche est mise à jour côté serveur
+    // (après une sync OKR ou un save par un autre onglet)
+    useEffect(() => {
+        setForm(prev => {
+            const updated = { ...prev };
+            DIMENSIONS.forEach(d => {
+                const val = fiche[d.scoreKey];
+                updated[d.scoreKey] = (val !== null && val !== undefined)
+                    ? String(Math.round(val))
+                    : null;
+            });
+            return updated;
+        });
+    }, [
+        fiche.score_commercial, fiche.score_delivery,
+        fiche.score_developpement, fiche.score_comportemental,
+    ]);
 
     const isLocked = fiche.verrouille;
     const previewScore = calcScoreGlobal({
@@ -428,23 +439,51 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
         poids_comportemental:fiche.poids_comportemental ?? 0.10,
     });
 
-    const WORKFLOW_TRANSITIONS = {
-        brouillon:   [{ value: 'en_revision', label: 'Envoyer au collaborateur', icon: ChevronRight, color: 'bg-amber-500 hover:bg-amber-600' }],
+    // ── Rôles de l'utilisateur courant ─────────────────────────────────────
+    const myCollab    = auth?.collaborateur;
+    const myRoles     = myCollab?.roles || [];
+    const isGest      = myCollab?.isAdmin || myCollab?.isDirecteur || myCollab?.isManager;
+    const isDRH       = myCollab?.isDRH || myCollab?.isAdmin;
+    const isEvalue    = myCollab?.id === fiche.collaborateur_id; // je suis la personne évaluée
+
+    // Seul le collaborateur évalué peut saisir ses propres champs
+    const canEditCollabFields = isEvalue && !isLocked && fiche.statut === 'en_revision';
+    // Le manager/admin/dir peut modifier les scores et les champs manager
+    const canEditManagerFields = isGest && !isLocked;
+
+    // ── Transitions disponibles selon le rôle ──────────────────────────────
+    const ALL_TRANSITIONS = {
+        brouillon: [
+            { value: 'en_revision', label: 'Envoyer au collaborateur', icon: ChevronRight, color: 'bg-amber-500 hover:bg-amber-600', roles: 'gest' },
+        ],
         en_revision: [
-            { value: 'attente_drh',       label: 'Soumettre à la DRH',    icon: ChevronRight, color: 'bg-blue-500 hover:bg-blue-600' },
-            { value: 'revision_demandee', label: 'Demander révision',      icon: RotateCcw,    color: 'bg-pink-500 hover:bg-pink-600' },
-            { value: 'brouillon',         label: 'Retourner en brouillon', icon: RotateCcw,    color: 'bg-gray-500 hover:bg-gray-600' },
+            { value: 'attente_drh',       label: 'Soumettre à la DRH',    icon: ChevronRight, color: 'bg-blue-500 hover:bg-blue-600',  roles: 'gest' },
+            { value: 'brouillon',         label: 'Retourner en brouillon', icon: RotateCcw,    color: 'bg-gray-500 hover:bg-gray-600',  roles: 'gest' },
+            { value: 'revision_demandee', label: 'Demander une révision',  icon: RotateCcw,    color: 'bg-pink-500 hover:bg-pink-600',  roles: 'evalue' },
         ],
         attente_drh: [
-            { value: 'confirme',          label: 'Confirmer la fiche',     icon: CheckCircle2, color: 'bg-emerald-500 hover:bg-emerald-600' },
-            { value: 'revision_demandee', label: 'Demander révision DRH',  icon: RotateCcw,    color: 'bg-pink-500 hover:bg-pink-600' },
+            { value: 'confirme',          label: '✓ Approuver (DRH)',      icon: CheckCircle2, color: 'bg-emerald-500 hover:bg-emerald-600', roles: 'drh' },
+            { value: 'revision_demandee', label: 'Renvoyer en révision',   icon: RotateCcw,    color: 'bg-pink-500 hover:bg-pink-600',       roles: 'drh' },
         ],
-        confirme:           [],
-        revision_demandee:  [
-            { value: 'en_revision', label: 'Reprendre en révision',  icon: ChevronRight, color: 'bg-amber-500 hover:bg-amber-600' },
-            { value: 'brouillon',   label: 'Retourner en brouillon', icon: RotateCcw,    color: 'bg-gray-500 hover:bg-gray-600' },
+        confirme: [],
+        revision_demandee: [
+            { value: 'en_revision', label: 'Reprendre en révision',  icon: ChevronRight, color: 'bg-amber-500 hover:bg-amber-600', roles: 'gest' },
+            { value: 'brouillon',   label: 'Retourner en brouillon', icon: RotateCcw,    color: 'bg-gray-500 hover:bg-gray-600',  roles: 'gest' },
         ],
     };
+
+    // Filtrer selon le rôle réel
+    const WORKFLOW_TRANSITIONS = Object.fromEntries(
+        Object.entries(ALL_TRANSITIONS).map(([statut, transitions]) => [
+            statut,
+            (transitions || []).filter(t => {
+                if (t.roles === 'gest')   return isGest;
+                if (t.roles === 'drh')    return isDRH;
+                if (t.roles === 'evalue') return isEvalue;
+                return true;
+            }),
+        ])
+    );
 
     const handleSave = () => {
         setSaving(true);
@@ -471,7 +510,7 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
     };
 
     const handleSyncOkr = () => {
-        if (!confirm('Synchroniser les scores Commercial et Delivery depuis les OKR liés ?')) return;
+        if (!confirm('Calculer les scores automatiquement ?\n\n• Commercial ← tous les KRs CRM du collaborateur\n• Delivery ← tous les OKRs liés à une Mission/Projet\n\nLes scores seront mis à jour.')) return;
         setSyncing(true);
         router.post(route('performance.sync-okr', fiche.id), {}, {
             preserveState: true, preserveScroll: true,
@@ -501,11 +540,12 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {!isLocked && okrOptions.length > 0 && (
+                    {!isLocked && isGest && (
                         <button onClick={handleSyncOkr} disabled={syncing}
-                            className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-semibold transition-colors disabled:opacity-60">
+                            title="Calcule les scores Commercial et Delivery depuis les KRs CRM et OKRs Missions"
+                            className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-60 text-white ${fiche.okr_synced_at ? 'bg-teal-600 hover:bg-teal-500' : 'bg-amber-500 hover:bg-amber-400'}`}>
                             <TrendingUp className="h-3 w-3" />
-                            {syncing ? 'Sync…' : 'Sync OKR'}
+                            {syncing ? 'Calcul…' : 'Calculer les scores'}
                         </button>
                     )}
                     <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white">
@@ -539,7 +579,7 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
                                         <select
                                             value={form[d.scoreKey] ?? ''}
                                             onChange={e => set(d.scoreKey, e.target.value === '' ? null : e.target.value)}
-                                            disabled={isLocked}
+                                            disabled={isLocked || !canEditManagerFields}
                                             className="text-[12px] font-semibold border border-gray-200 dark:border-dark-700 rounded-lg px-2 py-1 bg-white dark:bg-dark-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-60"
                                         >
                                             {SCORE_OPTIONS.map(o => (
@@ -552,7 +592,7 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
                                         <select
                                             value={form[`score_collab_${d.key}`] ?? ''}
                                             onChange={e => set(`score_collab_${d.key}`, e.target.value === '' ? null : e.target.value)}
-                                            disabled={isLocked}
+                                            disabled={isLocked || !canEditCollabFields}
                                             className="text-[12px] font-semibold border border-gray-200 dark:border-dark-700 rounded-lg px-2 py-1 bg-white dark:bg-dark-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-60"
                                         >
                                             {SCORE_OPTIONS.map(o => (
@@ -563,42 +603,60 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
                                 </div>
                             </div>
 
-                            {/* Objectif + cible */}
+                            {/* Objectif + cible — uniquement pour Développement et Comportemental (saisie manuelle manager) */}
                             <div className="space-y-1.5">
-                                <Input
-                                    value={form[`objectif_${d.key}`]}
-                                    onChange={e => set(`objectif_${d.key}`, e.target.value)}
-                                    placeholder="Titre de l'objectif…"
-                                    disabled={isLocked}
-                                    className="text-[12px] h-8"
-                                />
-                                <Input
-                                    value={form[`cible_${d.key}`]}
-                                    onChange={e => set(`cible_${d.key}`, e.target.value)}
-                                    placeholder="Cible : ex. CA ≥ 500M GNF…"
-                                    disabled={isLocked}
-                                    className="text-[12px] h-8 text-gray-400"
-                                />
-                                {/* OKR lié (Commercial et Delivery seulement) */}
-                                {(d.key === 'commercial' || d.key === 'delivery') && (
-                                    <div className="flex items-center gap-2">
-                                        <TrendingUp className="h-3 w-3 text-teal-500 shrink-0" />
-                                        <SearchableSelect
-                                            value={form[`objectif_okr_id_${d.key}`]}
-                                            onChange={v => set(`objectif_okr_id_${d.key}`, v)}
-                                            options={[{ value: '', label: '— Aucun OKR lié —' }, ...okrOptions]}
-                                            placeholder="Lier un OKR…"
-                                            disabled={isLocked}
-                                            className="flex-1 text-[11px]"
+                                {(d.key !== 'commercial' && d.key !== 'delivery') && (
+                                    <>
+                                        <Input
+                                            value={form[`objectif_${d.key}`]}
+                                            onChange={e => set(`objectif_${d.key}`, e.target.value)}
+                                            placeholder="Titre de l'objectif…"
+                                            disabled={isLocked || !canEditManagerFields}
+                                            className="text-[12px] h-8"
                                         />
-                                        {scoreAuto !== null && scoreAuto !== undefined && (
-                                            <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 shrink-0 bg-teal-50 dark:bg-teal-500/10 px-2 py-0.5 rounded-full">
-                                                Auto : {scoreAuto}/5
-                                            </span>
-                                        )}
-                                    </div>
+                                        <Input
+                                            value={form[`cible_${d.key}`]}
+                                            onChange={e => set(`cible_${d.key}`, e.target.value)}
+                                            placeholder="Cible : ex. 2 formations, obtenir certification…"
+                                            disabled={isLocked || !canEditManagerFields}
+                                            className="text-[12px] h-8 text-gray-400"
+                                        />
+                                    </>
                                 )}
-                                {/* Score auto OKR (dimensions sans lien OKR) */}
+                                {/* Source automatique (Commercial = KRs CRM, Delivery = OKRs Missions) */}
+                                {(d.key === 'commercial' || d.key === 'delivery') && (() => {
+                                    const synced = !!fiche.okr_synced_at;
+                                    const syncDate = fiche.okr_synced_at
+                                        ? new Date(fiche.okr_synced_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                        : null;
+                                    return (
+                                        <div className={`flex items-center justify-between px-2 py-1.5 rounded-lg border ${synced ? 'bg-teal-50 dark:bg-teal-500/10 border-teal-100 dark:border-teal-500/20' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20'}`}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <TrendingUp className={`h-3 w-3 shrink-0 ${synced ? 'text-teal-500' : 'text-amber-500'}`} />
+                                                    <span className={`text-[10px] font-semibold ${synced ? 'text-teal-700 dark:text-teal-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                                                        {d.key === 'commercial' ? 'Source : KRs CRM' : 'Source : OKRs Missions'}
+                                                    </span>
+                                                </div>
+                                                {syncDate && (
+                                                    <span className="text-[9px] text-gray-400 pl-4.5">
+                                                        Calculé le {syncDate}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {scoreAuto !== null && scoreAuto !== undefined ? (
+                                                <span className={`text-[11px] font-bold shrink-0 px-2 py-0.5 rounded-full border ${synced ? 'text-teal-700 dark:text-teal-400 bg-white dark:bg-teal-500/20 border-teal-200 dark:border-teal-500/30' : 'text-amber-700 dark:text-amber-400 bg-white dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/30'}`}>
+                                                    ↑ Auto {scoreAuto}/5
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] text-amber-600 dark:text-amber-400 italic font-medium">
+                                                    En attente de calcul
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                                {/* Score auto OKR (dimensions sans source automatique) */}
                                 {d.key !== 'commercial' && d.key !== 'delivery' && (
                                     scoreAuto !== null && scoreAuto !== undefined ? (
                                         <div className="flex items-center gap-1.5 text-[11px] text-teal-600 dark:text-teal-400">
@@ -618,7 +676,7 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
                                         onChange={e => set(`commentaire_manager_${d.key}`, e.target.value)}
                                         placeholder="Appréciation…"
                                         rows={2}
-                                        disabled={isLocked}
+                                        disabled={isLocked || !canEditManagerFields}
                                     />
                                 </div>
                                 <div>
@@ -628,7 +686,7 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
                                         onChange={e => set(`commentaire_collaborateur_${d.key}`, e.target.value)}
                                         placeholder="Auto-évaluation…"
                                         rows={2}
-                                        disabled={isLocked}
+                                        disabled={isLocked || !canEditCollabFields}
                                     />
                                 </div>
                             </div>
@@ -656,6 +714,19 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
             {/* Footer */}
             {!isLocked && (
                 <div className="border-t border-gray-100 dark:border-dark-800 p-4 space-y-3">
+                    {/* Bandeau rôle contexte */}
+                    {fiche.statut === 'en_revision' && isEvalue && !isGest && (
+                        <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300">
+                            <strong>En révision :</strong> Consultez vos objectifs, saisissez vos auto-évaluations et commentaires, puis cliquez "Demander une révision" si vous souhaitez renvoyer au manager.
+                        </div>
+                    )}
+                    {fiche.statut === 'attente_drh' && isDRH && (
+                        <div className="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-[11px] text-blue-800 dark:text-blue-300">
+                            <strong>Attente DRH :</strong> Vérifiez les objectifs, poids et scores. Approuvez ou renvoyez en révision.
+                        </div>
+                    )}
+
+                    {/* Transitions workflow filtrées par rôle */}
                     {(WORKFLOW_TRANSITIONS[fiche.statut] || []).length > 0 && (
                         <div className="space-y-2">
                             <Label className="text-[11px] text-gray-400">Avancer le workflow</Label>
@@ -678,17 +749,21 @@ function EditScoresPanel({ fiche, onClose, objectifs = [] }) {
                             </div>
                         </div>
                     )}
-                    <div className="flex gap-2">
-                        <Button className="flex-1" onClick={handleSave} disabled={saving}>
-                            {saving ? 'Enregistrement…' : 'Enregistrer'}
-                        </Button>
-                        {fiche.statut === 'brouillon' && (
-                            <Button variant="outline" size="icon" onClick={handleDelete}
-                                className="text-red-500 border-red-200 hover:bg-red-50 dark:border-red-500/30 dark:hover:bg-red-500/10">
-                                <Trash2 className="h-4 w-4" />
+
+                    {/* Bouton Enregistrer : visible si le user peut modifier quelque chose */}
+                    {(canEditManagerFields || canEditCollabFields) && (
+                        <div className="flex gap-2">
+                            <Button className="flex-1" onClick={handleSave} disabled={saving}>
+                                {saving ? 'Enregistrement…' : 'Enregistrer'}
                             </Button>
-                        )}
-                    </div>
+                            {fiche.statut === 'brouillon' && isGest && (
+                                <Button variant="outline" size="icon" onClick={handleDelete}
+                                    className="text-red-500 border-red-200 hover:bg-red-50 dark:border-red-500/30 dark:hover:bg-red-500/10">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
             {isLocked && (
@@ -1135,7 +1210,7 @@ function VueCycleAnnuel() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats, objectifs = [] }) {
+export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats, auth, peutVoirTout = false }) {
     const { flash } = usePage().props;
 
     const [activeView, setActiveView]         = useState('fiches');
@@ -1304,9 +1379,11 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
                                         className="pl-9 h-8 text-[13px]"
                                     />
                                 </div>
-                                <Button size="sm" onClick={() => handleOpenCreate()} className="shrink-0">
-                                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Nouvelle fiche
-                                </Button>
+                                {(peutVoirTout || auth?.collaborateur?.isManager) && (
+                                    <Button size="sm" onClick={() => handleOpenCreate()} className="shrink-0">
+                                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Nouvelle fiche
+                                    </Button>
+                                )}
                             </div>
 
                             {/* Grille de fiches */}
@@ -1323,8 +1400,8 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
                                     />
                                 ))}
 
-                                {/* Collaborateurs sans fiche (uniquement si pas de filtre cycle) */}
-                                {!cycleFiltré && !search && collaborateurs
+                                {/* Collaborateurs sans fiche — visible uniquement pour Manager/Admin/Dir/DRH */}
+                                {!cycleFiltré && !search && (peutVoirTout || auth?.collaborateur?.isManager) && collaborateurs
                                     .filter(c => !ficheParCollab[c.id])
                                     .map(c => (
                                         <FicheCard
@@ -1343,9 +1420,11 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
                                     <div className="col-span-3 flex flex-col items-center justify-center py-16 text-gray-400">
                                         <ClipboardCheck className="h-10 w-10 mb-3" />
                                         <p className="text-sm">Aucune fiche trouvée</p>
-                                        <Button size="sm" variant="outline" className="mt-3" onClick={() => handleOpenCreate()}>
-                                            <Plus className="h-3.5 w-3.5 mr-1" /> Créer la première fiche
-                                        </Button>
+                                        {(peutVoirTout || auth?.collaborateur?.isManager) && (
+                                            <Button size="sm" variant="outline" className="mt-3" onClick={() => handleOpenCreate()}>
+                                                <Plus className="h-3.5 w-3.5 mr-1" /> Créer la première fiche
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1539,7 +1618,7 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
                             key="panel"
                             fiche={displayedFiche}
                             onClose={() => setSelectedFiche(null)}
-                            objectifs={objectifs}
+                            auth={auth}
                         />
                     </>
                 )}

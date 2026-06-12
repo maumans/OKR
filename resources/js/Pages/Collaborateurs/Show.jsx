@@ -9,8 +9,8 @@ import StatsCard from '@/Components/StatsCard';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Mail, Briefcase, Target, CheckSquare, Pencil } from 'lucide-react';
 
-const roleColors = { admin: 'destructive', manager: 'warning', collaborateur: 'default' };
-const roleLabels = { admin: 'Administrateur', manager: 'Manager', collaborateur: 'Collaborateur' };
+const roleColors = { admin: 'destructive', directeur: 'warning', manager: 'secondary', drh: 'info', collaborateur: 'default' };
+const roleLabels = { admin: 'Administrateur', directeur: 'Directeur Général', manager: 'Manager', drh: 'DRH', collaborateur: 'Collaborateur' };
 
 export default function CollaborateursShow({ collaborateur, stats }) {
     return (

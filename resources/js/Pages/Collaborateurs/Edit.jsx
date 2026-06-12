@@ -9,10 +9,11 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Save } from 'lucide-react';
 
 const ROLES_DISPONIBLES = [
-    { value: 'collaborateur', label: 'Collaborateur',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',           dot: 'bg-sky-500' },
-    { value: 'manager',       label: 'Manager',           color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', dot: 'bg-violet-500' },
-    { value: 'directeur',     label: 'Directeur Général', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',     dot: 'bg-amber-500' },
-    { value: 'admin',         label: 'Administrateur',    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',             dot: 'bg-red-500' },
+    { value: 'collaborateur', label: 'Collaborateur',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',             dot: 'bg-sky-500' },
+    { value: 'manager',       label: 'Manager',           color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',  dot: 'bg-violet-500' },
+    { value: 'drh',           label: 'DRH',               color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',          dot: 'bg-teal-500' },
+    { value: 'directeur',     label: 'Directeur Général', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',      dot: 'bg-amber-500' },
+    { value: 'admin',         label: 'Administrateur',    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',              dot: 'bg-red-500' },
 ];
 
 export default function CollaborateursEdit({ collaborateur, departements = [] }) {
@@ -45,7 +46,7 @@ export default function CollaborateursEdit({ collaborateur, departements = [] })
 
     const rolesDisponibles = () => {
         if (isManager) return ROLES_DISPONIBLES.filter(r => r.value === 'collaborateur');
-        if (!aAccesGlobal) return ROLES_DISPONIBLES.filter(r => r.value !== 'admin' && r.value !== 'directeur');
+        if (!aAccesGlobal) return ROLES_DISPONIBLES.filter(r => r.value !== 'admin' && r.value !== 'directeur' && r.value !== 'drh');
         return ROLES_DISPONIBLES;
     };
 

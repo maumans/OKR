@@ -45,7 +45,7 @@ class DashboardController extends Controller
             'taches_bloquees' => Tache::where('societe_id', $societeId)->where('statut', 'bloque')->count(),
             'prospects' => Prospect::where('societe_id', $societeId)->count(),
             'prospects_gagnes' => Prospect::where('societe_id', $societeId)->where('statut', 'gagne')->count(),
-            'prospects_en_cours' => Prospect::where('societe_id', $societeId)->whereIn('statut', ['contacte', 'qualifie', 'proposition'])->count(),
+            'prospects_en_cours' => Prospect::where('societe_id', $societeId)->whereIn('statut', ['decouverte', 'proposition', 'negociation'])->count(),
         ];
 
         // Filtres globaux
@@ -86,12 +86,11 @@ class DashboardController extends Controller
 
         // ─── Pipeline prospects ─────────────────────────────
         $pipeline = [
-            ['statut' => 'Nouveau', 'count' => Prospect::where('societe_id', $societeId)->where('statut', 'nouveau')->count(), 'couleur' => '#9ca3af'],
-            ['statut' => 'Contacté', 'count' => Prospect::where('societe_id', $societeId)->where('statut', 'contacte')->count(), 'couleur' => '#3b82f6'],
-            ['statut' => 'Qualifié', 'count' => Prospect::where('societe_id', $societeId)->where('statut', 'qualifie')->count(), 'couleur' => '#6366f1'],
+            ['statut' => 'Découverte',  'count' => Prospect::where('societe_id', $societeId)->where('statut', 'decouverte')->count(),  'couleur' => '#9ca3af'],
             ['statut' => 'Proposition', 'count' => Prospect::where('societe_id', $societeId)->where('statut', 'proposition')->count(), 'couleur' => '#f59e0b'],
-            ['statut' => 'Gagné', 'count' => $stats['prospects_gagnes'], 'couleur' => '#10b981'],
-            ['statut' => 'Perdu', 'count' => Prospect::where('societe_id', $societeId)->where('statut', 'perdu')->count(), 'couleur' => '#ef4444'],
+            ['statut' => 'Négociation', 'count' => Prospect::where('societe_id', $societeId)->where('statut', 'negociation')->count(), 'couleur' => '#6366f1'],
+            ['statut' => 'Gagné',       'count' => $stats['prospects_gagnes'],                                                          'couleur' => '#10b981'],
+            ['statut' => 'Perdu',       'count' => Prospect::where('societe_id', $societeId)->where('statut', 'perdu')->count(),        'couleur' => '#ef4444'],
         ];
 
         // ─── Tâches urgentes / bloquées ─────────────────────

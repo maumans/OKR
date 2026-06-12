@@ -671,6 +671,8 @@ class ObjectifController extends Controller
             'unite'                 => 'nullable|string|max:50',
             'mode_calcul'           => 'nullable|string|in:pourcentage,boolean,milestone,mensuel',
             'milestones'            => 'nullable|array',
+            'source_crm'            => 'nullable|boolean',
+            'source_crm_filtre'     => 'nullable|array',
         ]);
 
         $modeCalcul = $validated['mode_calcul'] ?? 'pourcentage';
@@ -689,6 +691,8 @@ class ObjectifController extends Controller
             'unite'                 => $validated['unite'] ?? null,
             'mode_calcul'           => $modeCalcul,
             'milestones'            => $milestones,
+            'source_crm'            => $validated['source_crm'] ?? false,
+            'source_crm_filtre'     => $validated['source_crm_filtre'] ?? null,
             'progression'           => 0,
         ]);
 

@@ -34,6 +34,7 @@ class FichePerformance extends Model
         'commentaire_collaborateur',
         'commentaire_drh',
         // Champs par dimension
+        'okr_synced_at',
         'objectif_commercial',    'cible_commercial',    'objectif_okr_id_commercial',
         'commentaire_manager_commercial',    'commentaire_collaborateur_commercial',    'score_collab_commercial',
         'objectif_delivery',      'cible_delivery',      'objectif_okr_id_delivery',
@@ -65,6 +66,7 @@ class FichePerformance extends Model
             'periode_debut'         => 'date',
             'periode_fin'           => 'date',
             'validated_at'          => 'datetime',
+            'okr_synced_at'         => 'datetime',
             'final_date'            => 'datetime',
             'nb_aller_retour'       => 'integer',
             'verrouille'            => 'boolean',

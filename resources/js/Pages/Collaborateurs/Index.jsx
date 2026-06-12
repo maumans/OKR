@@ -18,10 +18,11 @@ import {
 } from 'lucide-react';
 
 const ROLE_CONFIG = {
-    admin:          { label: 'Administrateur',    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',       dot: 'bg-red-500' },
+    admin:          { label: 'Administrateur',    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',         dot: 'bg-red-500' },
     directeur:      { label: 'Directeur Général', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', dot: 'bg-amber-500' },
-    manager:        { label: 'Manager',            color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', dot: 'bg-violet-500' },
-    collaborateur:  { label: 'Collaborateur',      color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',       dot: 'bg-sky-500' },
+    manager:        { label: 'Manager',           color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', dot: 'bg-violet-500' },
+    drh:            { label: 'DRH',               color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',     dot: 'bg-teal-500' },
+    collaborateur:  { label: 'Collaborateur',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',         dot: 'bg-sky-500' },
 };
 
 function StatCard({ icon: Icon, label, value, color, delay = 0 }) {
@@ -128,11 +129,11 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats, de
 
             {/* ── Stat cards ── */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-                <StatCard icon={Users}      label="Total"             value={stats.total}       color="bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"    delay={0.0} />
-                <StatCard icon={UserCheck}  label="Actifs"            value={stats.actifs}       color="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"   delay={0.05} />
-                <StatCard icon={ShieldCheck} label="Admins"           value={stats.admins}       color="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"                   delay={0.1} />
-                <StatCard icon={Users}      label="Directeurs"        value={stats.directeurs || 0} color="bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400"       delay={0.12} />
-                <StatCard icon={Users}      label="Managers"          value={stats.managers}     color="bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400"       delay={0.15} />
+                <StatCard icon={Users}      label="Total"             value={stats.total}          color="bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"    delay={0.0} />
+                <StatCard icon={UserCheck}  label="Actifs"            value={stats.actifs}         color="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"   delay={0.05} />
+                <StatCard icon={ShieldCheck} label="Admins"           value={stats.admins}         color="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"                   delay={0.1} />
+                <StatCard icon={Users}      label="Managers"          value={stats.managers || 0}  color="bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400"       delay={0.12} />
+                <StatCard icon={Users}      label="DRH"               value={stats.drh || 0}       color="bg-teal-50 text-teal-600 dark:bg-teal-900/20 dark:text-teal-400"               delay={0.15} />
             </div>
 
             {/* ── Filters + Table ── */}
@@ -192,6 +193,7 @@ export default function CollaborateursIndex({ collaborateurs, filters, stats, de
                             { value: 'admin', label: 'Admins' },
                             { value: 'directeur', label: 'Directeurs' },
                             { value: 'manager', label: 'Managers' },
+                            { value: 'drh', label: 'DRH' },
                             { value: 'collaborateur', label: 'Membres' },
                         ].map(({ value, label }) => (
                             <button
