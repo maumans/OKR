@@ -16,11 +16,13 @@ class DailyRappel extends Mailable
 
     public string $dateFormatee;
     public string $urlDaily;
+    public string $heureEnvoi;
 
     public function __construct(public readonly Collaborateur $collaborateur)
     {
         $this->dateFormatee = Carbon::today()->locale('fr')->isoFormat('dddd D MMMM YYYY');
         $this->urlDaily     = url('/daily');
+        $this->heureEnvoi   = Carbon::now()->format('H\hi');
     }
 
     public function envelope(): Envelope

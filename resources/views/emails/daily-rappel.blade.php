@@ -3,7 +3,7 @@
 
 Bonjour **{{ $collaborateur->prenom }}**,
 
-Il est déjà **11h00** et votre bilan Daily du **{{ $dateFormatee }}** n'a pas encore été rempli.
+Il est déjà **{{ $heureEnvoi }}** et votre bilan Daily du **{{ $dateFormatee }}** n'a pas encore été rempli.
 
 Prenez 2 minutes pour déclarer vos tâches du jour et remplir votre bilan de fin de journée.
 
