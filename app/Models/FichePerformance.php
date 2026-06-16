@@ -58,6 +58,9 @@ class FichePerformance extends Model
         // Validation workflow
         'validated_at',
         'validated_by_id',
+        // Accord collaborateur
+        'accord_collab',
+        'accord_collab_at',
     ];
 
     protected function casts(): array
@@ -66,6 +69,8 @@ class FichePerformance extends Model
             'periode_debut'         => 'date',
             'periode_fin'           => 'date',
             'validated_at'          => 'datetime',
+            'accord_collab_at'      => 'datetime',
+            'accord_collab'         => 'boolean',
             'okr_synced_at'         => 'datetime',
             'final_date'            => 'datetime',
             'nb_aller_retour'       => 'integer',
@@ -89,11 +94,11 @@ class FichePerformance extends Model
 
     // ─── Transitions autorisées : statut courant → [statuts cibles] ──────────
     const TRANSITIONS = [
-        'brouillon'          => ['en_revision'],
-        'en_revision'        => ['attente_drh', 'revision_demandee'],
-        'attente_drh'        => ['confirme', 'revision_demandee'],
-        'confirme'           => [],
-        'revision_demandee'  => ['en_revision', 'brouillon'],
+        'brouillon'       => ['auto_evaluation'],
+        'auto_evaluation' => ['attente_drh', 'contestation'],
+        'attente_drh'     => ['confirme', 'auto_evaluation'],
+        'confirme'        => [],
+        'contestation'    => ['auto_evaluation'],
     ];
 
     // ─── Normalisation score OKR brut (%) → /5 ───────────────────────────────

@@ -20,11 +20,11 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUTS_PERF = [
-    { value: 'brouillon',         label: 'Brouillon',      color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
-    { value: 'en_revision',       label: 'En révision',    color: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' },
-    { value: 'attente_drh',       label: 'Attente DRH',    color: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' },
-    { value: 'confirme',          label: 'Confirmé',       color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' },
-    { value: 'revision_demandee', label: 'Révision dem.',  color: 'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400' },
+    { value: 'brouillon',       label: 'Brouillon',        color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+    { value: 'auto_evaluation', label: 'Auto-évaluation',  color: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' },
+    { value: 'attente_drh',     label: 'Attente DRH',      color: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' },
+    { value: 'confirme',        label: 'Confirmé',         color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' },
+    { value: 'contestation',    label: 'Contestée',        color: 'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400' },
 ];
 
 const DIMENSIONS = [
@@ -211,6 +211,11 @@ function FicheCard({ fiche, onOpen, onMidReview, onEvalFinale, onCreateFiche, co
                     <Button size="sm" variant="outline" onClick={() => onMidReview(fiche)}>
                         <RefreshCw className="h-3.5 w-3.5 mr-1" /> Mid-Review
                     </Button>
+                )}
+                {(fiche.statut === 'auto_evaluation' && fiche.accord_collab) && (
+                    <span title="Collaborateur a approuvé" className="flex items-center text-emerald-500">
+                        <CheckCircle2 className="h-4 w-4" />
+                    </span>
                 )}
                 {(fiche.statut === 'attente_drh' || fiche.statut === 'confirme') && (
                     <Button size="sm" variant="outline" onClick={() => onEvalFinale(fiche)}>
@@ -468,34 +473,31 @@ function EditScoresPanel({ fiche, onClose, auth }) {
 
     // ── Rôles de l'utilisateur courant ─────────────────────────────────────
     const myCollab    = auth?.collaborateur;
-    const myRoles     = myCollab?.roles || [];
     const isGest      = myCollab?.isAdmin || myCollab?.isDirecteur || myCollab?.isManager;
     const isDRH       = myCollab?.isDRH || myCollab?.isAdmin;
-    const isEvalue    = myCollab?.id === fiche.collaborateur_id; // je suis la personne évaluée
+    const isEvalue    = myCollab?.id === fiche.collaborateur_id;
 
-    // Seul le collaborateur évalué peut saisir ses propres champs
-    const canEditCollabFields = isEvalue && !isLocked && fiche.statut === 'en_revision';
+    // Seul le collaborateur évalué peut saisir ses propres champs en auto-évaluation
+    const canEditCollabFields = isEvalue && !isLocked && fiche.statut === 'auto_evaluation';
     // Le manager/admin/dir peut modifier les scores et les champs manager
     const canEditManagerFields = isGest && !isLocked;
 
     // ── Transitions disponibles selon le rôle ──────────────────────────────
     const ALL_TRANSITIONS = {
         brouillon: [
-            { value: 'en_revision', label: 'Envoyer au collaborateur', icon: ChevronRight, color: 'bg-amber-500 hover:bg-amber-600', roles: 'gest' },
+            { value: 'auto_evaluation', label: 'Envoyer au collaborateur',  icon: ChevronRight, color: 'bg-amber-500 hover:bg-amber-600', roles: 'gest' },
         ],
-        en_revision: [
-            { value: 'attente_drh',       label: 'Soumettre à la DRH',    icon: ChevronRight, color: 'bg-blue-500 hover:bg-blue-600',  roles: 'gest' },
-            { value: 'brouillon',         label: 'Retourner en brouillon', icon: RotateCcw,    color: 'bg-gray-500 hover:bg-gray-600',  roles: 'gest' },
-            { value: 'revision_demandee', label: 'Demander une révision',  icon: RotateCcw,    color: 'bg-pink-500 hover:bg-pink-600',  roles: 'evalue' },
+        auto_evaluation: [
+            { value: 'attente_drh',  label: 'Soumettre à la DRH',   icon: ChevronRight, color: 'bg-blue-500 hover:bg-blue-600',  roles: 'gest' },
+            { value: 'contestation', label: 'Contester la fiche',    icon: RotateCcw,    color: 'bg-pink-500 hover:bg-pink-600',  roles: 'evalue' },
         ],
         attente_drh: [
-            { value: 'confirme',          label: '✓ Approuver (DRH)',      icon: CheckCircle2, color: 'bg-emerald-500 hover:bg-emerald-600', roles: 'drh' },
-            { value: 'revision_demandee', label: 'Renvoyer en révision',   icon: RotateCcw,    color: 'bg-pink-500 hover:bg-pink-600',       roles: 'drh' },
+            { value: 'confirme',        label: '✓ Approuver (DRH)',          icon: CheckCircle2, color: 'bg-emerald-500 hover:bg-emerald-600', roles: 'drh' },
+            { value: 'auto_evaluation', label: 'Renvoyer au collaborateur',  icon: RotateCcw,    color: 'bg-amber-500 hover:bg-amber-600',     roles: 'drh' },
         ],
         confirme: [],
-        revision_demandee: [
-            { value: 'en_revision', label: 'Reprendre en révision',  icon: ChevronRight, color: 'bg-amber-500 hover:bg-amber-600', roles: 'gest' },
-            { value: 'brouillon',   label: 'Retourner en brouillon', icon: RotateCcw,    color: 'bg-gray-500 hover:bg-gray-600',  roles: 'gest' },
+        contestation: [
+            { value: 'auto_evaluation', label: 'Reprendre la révision', icon: ChevronRight, color: 'bg-amber-500 hover:bg-amber-600', roles: 'gest' },
         ],
     };
 
@@ -518,6 +520,14 @@ function EditScoresPanel({ fiche, onClose, auth }) {
             preserveState: true, preserveScroll: true,
             onError: (errs) => { setErrors(errs); setSaving(false); },
             onSuccess: () => setSaving(false),
+        });
+    };
+
+    const handleValiderCollab = () => {
+        if (!confirm('Confirmer que vous avez pris connaissance et approuvez cette fiche de performance ?')) return;
+        router.post(route('performance.valider-collab', fiche.id), {}, {
+            preserveState: true, preserveScroll: true,
+            onError: (errs) => setErrors(errs),
         });
     };
 
@@ -742,15 +752,41 @@ function EditScoresPanel({ fiche, onClose, auth }) {
             {!isLocked && (
                 <div className="border-t border-gray-100 dark:border-dark-800 p-4 space-y-3">
                     {/* Bandeau rôle contexte */}
-                    {fiche.statut === 'en_revision' && isEvalue && !isGest && (
+                    {fiche.statut === 'auto_evaluation' && isEvalue && !isGest && (
                         <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300">
-                            <strong>En révision :</strong> Consultez vos objectifs, saisissez vos auto-évaluations et commentaires, puis cliquez "Demander une révision" si vous souhaitez renvoyer au manager.
+                            <strong>Auto-évaluation :</strong> Saisissez vos commentaires et scores. Cliquez <strong>"J'approuve"</strong> si vous êtes d'accord, ou <strong>"Contester"</strong> pour demander des corrections.
+                        </div>
+                    )}
+                    {fiche.statut === 'auto_evaluation' && isGest && fiche.accord_collab && (
+                        <div className="px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            Le collaborateur a approuvé cette fiche — vous pouvez soumettre à la DRH.
+                        </div>
+                    )}
+                    {fiche.statut === 'contestation' && isGest && (
+                        <div className="px-3 py-2 rounded-lg bg-pink-50 dark:bg-pink-500/10 border border-pink-200 dark:border-pink-500/20 text-[11px] text-pink-800 dark:text-pink-300">
+                            <strong>Fiche contestée :</strong> Le collaborateur a demandé des corrections. Apportez vos modifications puis reprenez la révision.
                         </div>
                     )}
                     {fiche.statut === 'attente_drh' && isDRH && (
                         <div className="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-[11px] text-blue-800 dark:text-blue-300">
-                            <strong>Attente DRH :</strong> Vérifiez les objectifs, poids et scores. Approuvez ou renvoyez en révision.
+                            <strong>Attente DRH :</strong> Vérifiez les objectifs, poids et scores. Approuvez ou renvoyez en auto-évaluation.
                         </div>
+                    )}
+
+                    {/* Bouton accord collaborateur */}
+                    {fiche.statut === 'auto_evaluation' && isEvalue && !isGest && (
+                        fiche.accord_collab ? (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                Vous avez approuvé cette fiche
+                            </div>
+                        ) : (
+                            <button onClick={handleValiderCollab}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-semibold transition-colors">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> J'approuve cette fiche
+                            </button>
+                        )
                     )}
 
                     {/* Transitions workflow filtrées par rôle */}
@@ -1068,11 +1104,11 @@ function primeEstimee(fiche) {
 // ─── Vue Workflow (Kanban) ────────────────────────────────────────────────────
 
 const KANBAN_COLS = [
-    { statut: 'brouillon',    label: 'Brouillon',    color: 'bg-gray-100 dark:bg-dark-800',     badge: 'bg-gray-500 text-white',          icon: '📝' },
-    { statut: 'en_revision',  label: 'En révision',  color: 'bg-amber-50 dark:bg-amber-500/10', badge: 'bg-amber-500 text-white',          icon: '✏️' },
-    { statut: 'attente_drh',  label: 'Attente DRH',  color: 'bg-blue-50 dark:bg-blue-500/10',   badge: 'bg-blue-500 text-white',           icon: '🏛' },
-    { statut: 'confirme',     label: 'Confirmé',     color: 'bg-emerald-50 dark:bg-emerald-500/10', badge: 'bg-emerald-500 text-white',    icon: '✅' },
-    { statut: 'revision_demandee', label: 'Révision dem.', color: 'bg-pink-50 dark:bg-pink-500/10', badge: 'bg-pink-500 text-white', icon: '🔄' },
+    { statut: 'brouillon',       label: 'Brouillon',       color: 'bg-gray-100 dark:bg-dark-800',         badge: 'bg-gray-500 text-white',       icon: '📝' },
+    { statut: 'auto_evaluation', label: 'Auto-évaluation', color: 'bg-amber-50 dark:bg-amber-500/10',     badge: 'bg-amber-500 text-white',       icon: '✏️' },
+    { statut: 'attente_drh',     label: 'Attente DRH',     color: 'bg-blue-50 dark:bg-blue-500/10',       badge: 'bg-blue-500 text-white',        icon: '🏛' },
+    { statut: 'confirme',        label: 'Confirmé',        color: 'bg-emerald-50 dark:bg-emerald-500/10', badge: 'bg-emerald-500 text-white',     icon: '✅' },
+    { statut: 'contestation',    label: 'Contestée',       color: 'bg-pink-50 dark:bg-pink-500/10',       badge: 'bg-pink-500 text-white',        icon: '⚠️' },
 ];
 
 const WORKFLOW_ETAPES = [
@@ -1274,9 +1310,9 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
 
     const viewCounts = {
         fiches:     stats.total,
-        workflow:   stats.en_revision + stats.attente_drh,
+        workflow:   stats.auto_evaluation + stats.attente_drh + stats.contestation,
         cycle:      null,
-        mid_review: stats.en_revision,
+        mid_review: stats.auto_evaluation,
         evaluation: stats.attente_drh,
     };
 
@@ -1321,10 +1357,10 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
                 {[
                     { label: 'Total fiches',    value: stats.total,               color: 'text-gray-600',    bg: 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-dark-700', onClick: () => setActiveView('fiches') },
                     { label: 'Brouillon',       value: stats.brouillon,           color: 'text-gray-500',    bg: 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-dark-700', onClick: null },
-                    { label: 'En révision',     value: stats.en_revision,         color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20', onClick: () => setActiveView('workflow') },
+                    { label: 'Auto-éval.',      value: stats.auto_evaluation,     color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20', onClick: () => setActiveView('workflow') },
                     { label: 'Attente DRH',     value: stats.attente_drh,         color: 'text-blue-600',    bg: 'bg-blue-50 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/20', onClick: () => setActiveView('workflow') },
                     { label: 'Confirmées',      value: stats.confirme,            color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20', onClick: null },
-                    { label: 'Rév. demandée',   value: stats.revision_demandee,   color: 'text-pink-600',    bg: 'bg-pink-50 dark:bg-pink-500/10 border-pink-100 dark:border-pink-500/20', onClick: () => setActiveView('workflow') },
+                    { label: 'Contestées',      value: stats.contestation,        color: 'text-pink-600',    bg: 'bg-pink-50 dark:bg-pink-500/10 border-pink-100 dark:border-pink-500/20', onClick: () => setActiveView('workflow') },
                 ].map((s, i) => (
                     <div key={i} onClick={s.onClick}
                         className={`rounded-xl border px-3 py-2.5 ${s.bg} ${s.onClick ? 'cursor-pointer hover:shadow-sm transition-shadow' : ''}`}>

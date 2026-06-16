@@ -87,8 +87,9 @@ class HandleInertiaRequests extends Middleware
                 'societe' => $societe ? $societe->only(['id', 'nom']) : null,
             ] : null,
             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error'   => fn () => $request->session()->get('error'),
+                'success'        => fn () => $request->session()->get('success'),
+                'error'          => fn () => $request->session()->get('error'),
+                'command_result' => fn () => $request->session()->get('command_result'),
             ],
             'notifications' => fn () => $user && $societe ? [
                 'count' => NotificationApp::where('societe_id', $societe->id)

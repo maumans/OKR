@@ -96,12 +96,12 @@ class PerformanceController extends Controller
         $cycles = $fiches->pluck('cycle')->unique()->sort()->values();
 
         $stats = [
-            'total'             => $fiches->count(),
-            'brouillon'         => $fiches->where('statut', 'brouillon')->count(),
-            'en_revision'       => $fiches->where('statut', 'en_revision')->count(),
-            'attente_drh'       => $fiches->where('statut', 'attente_drh')->count(),
-            'confirme'          => $fiches->where('statut', 'confirme')->count(),
-            'revision_demandee' => $fiches->where('statut', 'revision_demandee')->count(),
+            'total'           => $fiches->count(),
+            'brouillon'       => $fiches->where('statut', 'brouillon')->count(),
+            'auto_evaluation' => $fiches->where('statut', 'auto_evaluation')->count(),
+            'attente_drh'     => $fiches->where('statut', 'attente_drh')->count(),
+            'confirme'        => $fiches->where('statut', 'confirme')->count(),
+            'contestation'    => $fiches->where('statut', 'contestation')->count(),
         ];
 
         return Inertia::render('Performance/Index', [
@@ -201,7 +201,7 @@ class PerformanceController extends Controller
     public function avancerWorkflow(Request $request, FichePerformance $fiche): RedirectResponse
     {
         $validated = $request->validate([
-            'vers_statut' => ['required', 'string', 'in:brouillon,en_revision,attente_drh,confirme,revision_demandee'],
+            'vers_statut' => ['required', 'string', 'in:auto_evaluation,attente_drh,confirme,contestation'],
             'commentaire' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -226,22 +226,18 @@ class PerformanceController extends Controller
         $transitionKey = "{$fiche->statut}__{$validated['vers_statut']}";
 
         $roleOk = match ($transitionKey) {
-            // Manager/Admin/Dir soumettent la fiche au collaborateur
-            'brouillon__en_revision'            => $estGestionnaire,
-            // Manager/Admin/Dir renvoient au brouillon depuis révision demandée
-            'revision_demandee__brouillon'      => $estGestionnaire,
-            // Manager/Admin/Dir reprennent la révision
-            'revision_demandee__en_revision'    => $estGestionnaire,
-            // Manager/Admin/Dir envoient à la DRH
-            'en_revision__attente_drh'          => $estGestionnaire,
-            // Manager/Admin/Dir peuvent aussi remettre en brouillon
-            'en_revision__brouillon'            => $estGestionnaire,
-            // Seul le collaborateur évalué demande une révision depuis en_revision
-            'en_revision__revision_demandee'    => $estCollaborateurEvalue,
-            // DRH confirme ou renvoie en révision
-            'attente_drh__confirme'             => $estDrh,
-            'attente_drh__revision_demandee'    => $estDrh,
-            default                             => false,
+            // Manager/Admin/Dir envoient la fiche au collaborateur
+            'brouillon__auto_evaluation'         => $estGestionnaire,
+            // Manager/Admin/Dir reprennent après contestation
+            'contestation__auto_evaluation'      => $estGestionnaire,
+            // Manager/Admin/Dir soumettent à la DRH
+            'auto_evaluation__attente_drh'       => $estGestionnaire,
+            // Seul le collaborateur évalué peut contester
+            'auto_evaluation__contestation'      => $estCollaborateurEvalue,
+            // DRH approuve ou renvoie directement en auto-évaluation
+            'attente_drh__confirme'              => $estDrh,
+            'attente_drh__auto_evaluation'       => $estDrh,
+            default                              => false,
         };
 
         if (!$roleOk) {
@@ -250,8 +246,9 @@ class PerformanceController extends Controller
             ]);
         }
 
-        // ── Limite aller-retours ──────────────────────────────────────────────
-        $isRetour = in_array($validated['vers_statut'], ['brouillon', 'revision_demandee']);
+        // ── Limite aller-retours : contestation collab + renvoi DRH comptent ────
+        $isRetour = ($fiche->statut === 'auto_evaluation' && $validated['vers_statut'] === 'contestation')
+            || ($fiche->statut === 'attente_drh' && $validated['vers_statut'] === 'auto_evaluation');
         if ($isRetour && $fiche->nb_aller_retour >= 3) {
             return back()->withErrors([
                 'vers_statut' => 'Le nombre maximum d\'allers-retours (3) est atteint.',
@@ -335,15 +332,42 @@ class PerformanceController extends Controller
 
         $dims = array_filter($details);
         if (empty($dims)) {
-            return back()->withErrors(['sync' => 'Aucun OKR trouvé avec un axe taggé "commercial" ou "delivery". Configurez la catégorie performance des axes dans les paramètres OKR.']);
+            return back()->withErrors(['sync' => 'Aucun KR avec un responsable assigné dans un axe "commercial" ou "delivery". Assignez un responsable aux KRs concernés.']);
         }
 
         $messages = [];
         foreach ($dims as $dim => $d) {
-            $messages[] = ucfirst($dim) . " : {$d['objectif_count']} OKR(s) · {$d['kr_count']} KRs · {$d['progression']}% → {$d['score_auto']}/5";
+            $messages[] = ucfirst($dim) . " : {$d['kr_count']} KR(s) · {$d['progression']}% → {$d['score_auto']}/5";
         }
 
         return back()->with('success', 'Scores synchronisés depuis les OKR · ' . implode(' · ', $messages));
+    }
+
+    public function validerCollab(Request $request, FichePerformance $fiche): RedirectResponse
+    {
+        $collab = $request->user()->collaborateurActuel();
+
+        if (!$collab || $collab->id !== $fiche->collaborateur_id) {
+            abort(403, 'Seul le collaborateur évalué peut valider sa fiche.');
+        }
+
+        if ($fiche->statut !== 'auto_evaluation') {
+            abort(403, 'La validation n\'est possible qu\'en phase d\'auto-évaluation.');
+        }
+
+        $fiche->accord_collab    = true;
+        $fiche->accord_collab_at = now();
+        $fiche->save();
+
+        HistoriqueWorkflowPerformance::create([
+            'fiche_performance_id' => $fiche->id,
+            'de_statut'            => $fiche->statut,
+            'vers_statut'          => $fiche->statut,
+            'user_id'              => $request->user()->id,
+            'commentaire'          => '✅ Collaborateur a approuvé la fiche',
+        ]);
+
+        return back()->with('success', 'Vous avez approuvé votre fiche de performance.');
     }
 
     public function destroy(FichePerformance $fiche): RedirectResponse

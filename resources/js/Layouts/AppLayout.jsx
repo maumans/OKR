@@ -4,6 +4,7 @@ import { Toaster, toast } from 'sonner';
 import Sidebar from '@/Components/Sidebar';
 import TopbarNav from '@/Components/TopbarNav';
 import NotificationBell from '@/Components/NotificationBell';
+import AdminCommandsNav from '@/Components/AdminCommandsNav';
 import { Menu, Search, LogOut, User, Settings, Sun, Moon, AlertTriangle, X } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/Components/ui/Button';
@@ -108,8 +109,21 @@ function useFlashToast() {
             if (msg) toast.error(msg);
             shown.current.error = flash.error;
         }
+        if (flash?.command_result && shown.current.command_result !== flash.command_result?.command) {
+            const r = flash.command_result;
+            toast.success(
+                <div>
+                    <p className="font-semibold text-sm">Commande <code className="font-mono text-xs bg-emerald-100 px-1 rounded">{r.command}</code> exécutée</p>
+                    <pre className="text-xs mt-1 whitespace-pre-wrap font-mono text-gray-600 leading-relaxed">{r.output}</pre>
+                </div>,
+                { duration: 8000 }
+            );
+            shown.current.command_result = r.command;
+        }
     }, [flash]);
 }
+
+
 
 export default function AppLayout({ title, children }) {
     const { auth, impersonation } = usePage().props;
@@ -185,6 +199,7 @@ export default function AppLayout({ title, children }) {
                             {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-500" />}
                         </button>
                         <NotificationBell />
+                        <AdminCommandsNav />
 
                         {/* Menu utilisateur */}
                         {sidebarUser && (

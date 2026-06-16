@@ -15,6 +15,7 @@ class ResultatCle extends Model
 
     protected $fillable = [
         'objectif_id',
+        'responsable_id',
         'type_resultat_cle_id',
         'description',
         'description_detaillee',
@@ -48,6 +49,11 @@ class ResultatCle extends Model
     public function objectif(): BelongsTo
     {
         return $this->belongsTo(Objectif::class);
+    }
+
+    public function responsable(): BelongsTo
+    {
+        return $this->belongsTo(Collaborateur::class, 'responsable_id');
     }
 
     public function typeResultatCle(): BelongsTo

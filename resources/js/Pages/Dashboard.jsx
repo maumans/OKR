@@ -8,7 +8,7 @@ import { UserAvatar } from '@/Components/ui/Avatar';
 import { motion } from 'framer-motion';
 import {
     Users, Target, CheckSquare, TrendingUp, Clock, Award,
-    AlertCircle, AlertTriangle, ArrowRight, Flame, BarChart3, Building2, X, Package
+    AlertCircle, AlertTriangle, ArrowRight, Flame, BarChart3, Building2, X, Package, CalendarClock,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { useState } from 'react';
@@ -31,7 +31,7 @@ function getSeuilColor(val, seuils) {
     return s?.couleur || null;
 }
 
-function MiniStat({ icon: Icon, label, value, subtitle, color = 'primary', delay = 0 }) {
+function MiniStat({ icon: Icon, label, value, subtitle, color = 'primary', delay = 0, href }) {
     const colorMap = {
         primary: { bg: 'bg-primary-500/10', text: 'text-primary-500', border: 'border-primary-500/20' },
         secondary: { bg: 'bg-secondary-500/10', text: 'text-secondary-500', border: 'border-secondary-500/20' },
@@ -40,12 +40,12 @@ function MiniStat({ icon: Icon, label, value, subtitle, color = 'primary', delay
     };
     const c = colorMap[color] || colorMap.primary;
 
-    return (
+    const card = (
         <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: delay * 0.08 }}
-            className={`bg-white dark:bg-dark-800 rounded-xl border ${c.border} p-4 hover:shadow-md transition-all`}
+            className={`bg-white dark:bg-dark-800 rounded-xl border ${c.border} p-4 hover:shadow-md transition-all ${href ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
         >
             <div className="flex items-start justify-between">
                 <div>
@@ -59,13 +59,16 @@ function MiniStat({ icon: Icon, label, value, subtitle, color = 'primary', delay
             </div>
         </motion.div>
     );
+
+    if (href) return <Link href={href} className="block">{card}</Link>;
+    return card;
 }
 
 export default function Dashboard({
     stats, dernieresTaches = [], derniersObjectifs = [], noSociete,
     progressionParAxe = [], repartitionTaches = [], pipeline = [],
     tachesAlerte = [], topCollaborateurs = [], seuils = [], periodes = [], axes = [], filters = {}, collaborateurNom = '',
-    livrables_urgents = []
+    livrables_urgents = [], tachesDailyRetard = []
 }) {
     const [periodeFilter, setPeriodeFilter] = useState(filters?.periode_id || '');
     const [axeFilter, setAxeFilter] = useState(filters?.axe_objectif_id || '');
@@ -108,7 +111,7 @@ export default function Dashboard({
                         Aperçu de la performance de votre entreprise
                     </p>
                 </motion.div>
-                <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2 flex-wrap sm:flex-nowrap">
+                <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2 flex-wrap sm:flex-nowrap items-center">
                     <SearchableSelect value={periodeFilter} onChange={v => { setPeriodeFilter(v); applyFilters({ periode_id: v, axe_id: axeFilter }); }} options={periodes.map(p => ({ value: String(p.id), label: p.nom }))} nullable nullLabel="Toute période" placeholder="Toute période" />
                     <SearchableSelect value={axeFilter} onChange={v => { setAxeFilter(v); applyFilters({ periode_id: periodeFilter, axe_id: v }); }} options={axes.map(a => ({ value: String(a.id), label: a.nom }))} nullable nullLabel="Tous les axes" placeholder="Tous les axes" />
                     {(periodeFilter || axeFilter) && (
@@ -133,7 +136,7 @@ export default function Dashboard({
                         </div>
                         <div className="space-y-1.5">
                             {tachesAlerte.map(t => (
-                                <div key={t.id} className="flex items-center justify-between text-xs">
+                                <Link key={t.id} href={t.objectif_id ? route('objectifs.show', t.objectif_id) + '#task-' + t.id : route('taches.index')} className="flex items-center justify-between text-xs rounded-lg px-1 py-0.5 hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors cursor-pointer">
                                     <div className="flex items-center gap-2">
                                         <Flame className="h-3 w-3 text-red-400" />
                                         <span className="text-gray-800 dark:text-gray-200">{t.titre}</span>
@@ -143,7 +146,7 @@ export default function Dashboard({
                                         <Badge variant={prioriteColors[t.priorite]} className="text-[9px] py-0">{t.priorite}</Badge>
                                         <Badge variant={statutColors[t.statut]} className="text-[9px] py-0">{statutLabels[t.statut]}</Badge>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     </div>
@@ -163,7 +166,7 @@ export default function Dashboard({
                             {livrables_urgents.map(l => {
                                 const isOverdue = l.jours_restants <= 0;
                                 return (
-                                    <div key={l.id} className="flex items-center justify-between text-xs gap-2">
+                                    <Link key={l.id} href={route('missions.index') + '?open_mission=' + l.mission.id + '&livrable_id=' + l.id} className="flex items-center justify-between text-xs gap-2 rounded-lg px-1 py-0.5 hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-colors cursor-pointer">
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                             {isOverdue
                                                 ? <AlertTriangle className="h-3 w-3 text-red-400 shrink-0" />
@@ -184,7 +187,7 @@ export default function Dashboard({
                                                 {isOverdue ? `${Math.abs(l.jours_restants)}j de retard` : `${l.jours_restants}j restant${l.jours_restants > 1 ? 's' : ''}`}
                                             </span>
                                         </div>
-                                    </div>
+                                    </Link>
                                 );
                             })}
                         </div>
@@ -195,12 +198,40 @@ export default function Dashboard({
                 </motion.div>
             )}
 
+            {/* ═══ Tâches Daily en retard ════════════════════════ */}
+            {tachesDailyRetard.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-5">
+                    <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/30 rounded-xl px-4 py-3">
+                        <div className="flex items-center gap-2 mb-2">
+                            <CalendarClock className="h-4 w-4 text-orange-500" />
+                            <h3 className="text-sm font-semibold text-orange-700 dark:text-orange-400">Tâches Daily en retard</h3>
+                            <Badge variant="warning" className="text-[10px]">{tachesDailyRetard.length}</Badge>
+                        </div>
+                        <div className="space-y-1.5">
+                            {tachesDailyRetard.map(t => (
+                                <Link key={t.id} href={route('daily.index', { date: t.date }) + '#daily-tache-' + t.id} className="flex items-center justify-between text-xs rounded-lg px-1 py-0.5 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-colors cursor-pointer">
+                                    <div className="flex items-center gap-2">
+                                        <CalendarClock className="h-3 w-3 text-orange-400" />
+                                        <span className="text-gray-800 dark:text-gray-200">{t.titre}</span>
+                                        <span className="text-gray-400">— {t.collaborateur}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] text-gray-400">{new Date(t.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+                                        <Badge variant={prioriteColors[t.priorite]} className="text-[9px] py-0">{t.priorite}</Badge>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
             {/* ═══ Stats cards ════════════════════════════════════ */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                <MiniStat icon={Users} label="Collaborateurs" value={stats?.collaborateurs ?? 0} color="primary" delay={0} />
-                <MiniStat icon={Target} label="Objectifs actifs" value={stats?.objectifs ?? 0} subtitle={`${stats?.objectifs_termines ?? 0} terminés / ${stats?.objectifs_total ?? 0}`} color="secondary" delay={1} />
-                <MiniStat icon={CheckSquare} label="Tâches en cours" value={stats?.taches_en_cours ?? 0} subtitle={`${tauxCompletion}% complétées`} color="success" delay={2} />
-                <MiniStat icon={Building2} label="Pipeline" value={stats?.prospects ?? 0} subtitle={`${stats?.prospects_gagnes ?? 0} gagnés`} color="warning" delay={3} />
+                <MiniStat icon={Users} label="Collaborateurs" value={stats?.collaborateurs ?? 0} color="primary" delay={0} href={route('performance.index')} />
+                <MiniStat icon={Target} label="Objectifs actifs" value={stats?.objectifs ?? 0} subtitle={`${stats?.objectifs_termines ?? 0} terminés / ${stats?.objectifs_total ?? 0}`} color="secondary" delay={1} href={route('objectifs.index')} />
+                <MiniStat icon={CheckSquare} label="Tâches en cours" value={stats?.taches_en_cours ?? 0} subtitle={`${tauxCompletion}% complétées`} color="success" delay={2} href={route('taches.index')} />
+                <MiniStat icon={Building2} label="Pipeline" value={stats?.prospects ?? 0} subtitle={`${stats?.prospects_gagnes ?? 0} gagnés`} color="warning" delay={3} href={route('prospects.index')} />
             </div>
 
             {/* ═══ Ligne 2 : OKR + Axe ═══════════════════════════ */}
@@ -224,24 +255,26 @@ export default function Dashboard({
                             </div>
                             <div className="space-y-2">
                                 {derniersObjectifs.map((obj, i) => (
-                                    <motion.div key={obj.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 + i * 0.06 }}
-                                        className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 dark:bg-dark-700/50 hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors">
-                                        <div className="flex-1 min-w-0 mr-3">
-                                            <div className="flex items-center gap-2">
-                                                {obj.axe_couleur && <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: obj.axe_couleur }} />}
-                                                <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{obj.titre}</p>
+                                    <Link key={obj.id} href={route('objectifs.show', obj.id)} className="block">
+                                        <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 + i * 0.06 }}
+                                            className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 dark:bg-dark-700/50 hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors cursor-pointer">
+                                            <div className="flex-1 min-w-0 mr-3">
+                                                <div className="flex items-center gap-2">
+                                                    {obj.axe_couleur && <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: obj.axe_couleur }} />}
+                                                    <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{obj.titre}</p>
+                                                </div>
+                                                <p className="text-[11px] text-gray-400 mt-0.5">{obj.collaborateur} · {obj.periode}</p>
                                             </div>
-                                            <p className="text-[11px] text-gray-400 mt-0.5">{obj.collaborateur} · {obj.periode}</p>
-                                        </div>
-                                        <div className="flex items-center gap-2.5 shrink-0">
-                                            <div className="w-16 bg-gray-200 dark:bg-dark-600 rounded-full h-1.5 overflow-hidden">
-                                                <div className="h-full rounded-full" style={{ width: `${Math.min(obj.progression, 100)}%`, backgroundColor: getSeuilColor(obj.progression, seuils) || '#3b82f6' }} />
+                                            <div className="flex items-center gap-2.5 shrink-0">
+                                                <div className="w-16 bg-gray-200 dark:bg-dark-600 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="h-full rounded-full" style={{ width: `${Math.min(obj.progression, 100)}%`, backgroundColor: getSeuilColor(obj.progression, seuils) || '#3b82f6' }} />
+                                                </div>
+                                                <span className="text-[11px] font-bold w-8 text-right tabular-nums" style={{ color: getSeuilColor(obj.progression, seuils) || '#6b7280' }}>
+                                                    {Math.round(obj.progression)}%
+                                                </span>
                                             </div>
-                                            <span className="text-[11px] font-bold w-8 text-right tabular-nums" style={{ color: getSeuilColor(obj.progression, seuils) || '#6b7280' }}>
-                                                {Math.round(obj.progression)}%
-                                            </span>
-                                        </div>
-                                    </motion.div>
+                                        </motion.div>
+                                    </Link>
                                 ))}
                                 {derniersObjectifs.length === 0 && (
                                     <div className="text-center py-6 text-gray-400">
@@ -259,12 +292,12 @@ export default function Dashboard({
                     </Card>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="min-w-0">
                     <Card className="h-full">
                         <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-4.5 w-4.5 text-primary-500" />Par axe stratégique</CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-2 h-64">
+                        <CardContent className="pt-2 h-64 overflow-hidden">
                             {progressionParAxe.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={progressionParAxe} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -295,13 +328,13 @@ export default function Dashboard({
 
             {/* ═══ Ligne 3 : Tâches + Pipeline + Top ═══════════════ */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="min-w-0">
                     <Card className="h-full">
                         <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2 text-base"><CheckSquare className="h-4.5 w-4.5 text-emerald-500" />Tâches</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="h-40 mb-2">
+                            <div className="h-40 mb-2 overflow-hidden">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
@@ -417,17 +450,19 @@ export default function Dashboard({
                     <CardContent>
                         <div className="space-y-2">
                             {dernieresTaches.map((tache, i) => (
-                                <motion.div key={tache.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 + i * 0.04 }}
-                                    className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 dark:bg-dark-700/50 hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors">
-                                    <div className="flex-1 min-w-0 mr-3">
-                                        <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{tache.titre}</p>
-                                        <p className="text-[11px] text-gray-400">{tache.collaborateur}{tache.date && ` · ${tache.date}`}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <Badge variant={prioriteColors[tache.priorite]} className="text-[9px] py-0">{tache.priorite}</Badge>
-                                        <Badge variant={statutColors[tache.statut]} className="text-[9px] py-0">{statutLabels[tache.statut]}</Badge>
-                                    </div>
-                                </motion.div>
+                                <Link key={tache.id} href={route('taches.index')} className="block">
+                                    <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 + i * 0.04 }}
+                                        className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 dark:bg-dark-700/50 hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors cursor-pointer">
+                                        <div className="flex-1 min-w-0 mr-3">
+                                            <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{tache.titre}</p>
+                                            <p className="text-[11px] text-gray-400">{tache.collaborateur}{tache.date && ` · ${tache.date}`}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <Badge variant={prioriteColors[tache.priorite]} className="text-[9px] py-0">{tache.priorite}</Badge>
+                                            <Badge variant={statutColors[tache.statut]} className="text-[9px] py-0">{statutLabels[tache.statut]}</Badge>
+                                        </div>
+                                    </motion.div>
+                                </Link>
                             ))}
                             {dernieresTaches.length === 0 && (
                                 <div className="text-center py-4 text-gray-400">

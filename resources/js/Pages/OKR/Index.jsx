@@ -205,9 +205,11 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  const n = [...formData.resultats_cles]; n.splice(i, 1); setField('resultats_cles', n);
  };
  const updateKR = (i, field, value) => {
- const n = [...formData.resultats_cles];
+ setFormData(prev => {
+ const n = [...prev.resultats_cles];
  n[i] = { ...n[i], [field]: value };
- setField('resultats_cles', n);
+ return { ...prev, resultats_cles: n };
+ });
  };
 
  const togglePeriode = (periodeId) => {
@@ -261,7 +263,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  type_resultat_cle_id: kr.type_resultat_cle_id || null,
  valeur_cible: (modeCalcul === 'mensuel' && milestones)
  ? milestones.reduce((s, m) => s + (Number(m.cible) || 0), 0)
- : (kr.valeur_cible ?? 100),
+ : (Number(kr.valeur_cible) || 100),
  unite: kr.unite || null,
  poids: kr.poids ?? 1,
  mode_calcul: modeCalcul,
@@ -456,7 +458,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  <div className="flex items-center gap-2 ml-5 flex-wrap">
  <div className="flex items-center gap-1.5">
  <span className="text-[10px] text-gray-400">Cible</span>
- <input type="number" value={kr.valeur_cible} onChange={e => updateKR(i, 'valeur_cible', Number(e.target.value))}
+ <input type="number" value={kr.valeur_cible ?? ''} onChange={e => updateKR(i, 'valeur_cible', e.target.value)}
  className="w-20 px-2 py-1 text-xs bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-right" />
  </div>
  <div className="flex items-center gap-1.5">
@@ -1527,7 +1529,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
 }
 
 // ─── Modal d'édition directe d'un KR ────────────────────────
-function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
+function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateurs = [] }) {
  const [error, setError] = useState('');
  const [submitting, setSubmitting] = useState(false);
  const [form, setForm] = useState({});
@@ -1543,6 +1545,7 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  unite: kr.unite || '',
  source_crm: kr.source_crm ?? false,
  source_crm_type_deal: kr.source_crm_filtre?.type_deal || '',
+ responsable_id: String(kr.responsable_id || ''),
  });
  setError('');
  }
@@ -1566,6 +1569,7 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  source_crm_filtre: form.source_crm
    ? { type_deal: form.source_crm_type_deal || null }
    : null,
+ responsable_id: form.responsable_id || null,
  }, {
  preserveScroll: true,
  preserveState: true,
@@ -1599,6 +1603,14 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [] }) {
  <textarea value={form.description_detaillee || ''} onChange={e => setF('description_detaillee', e.target.value)}
  rows={2} className={`${inputCls} resize-none`} placeholder="Contexte, critères de succès..." />
  </div>
+ {collaborateurs.length > 0 && (
+ <div>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Responsable du KR</label>
+ <div className="mt-1">
+ <SearchableSelect value={form.responsable_id||""} onChange={v=>setF('responsable_id',v)} nullable nullLabel="— Non assigné —" options={collaborateurs.map(c=>({value:String(c.id),label:c.prenom+' '+c.nom}))} />
+ </div>
+ </div>
+ )}
  {typesResultatsCles.length > 0 && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type de KR</label>
@@ -2013,18 +2025,19 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
 }
 
 // ─── Modal ajout rapide de KR ────────────────────────────────
-function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], defaultObjectifId = null }) {
+function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], defaultObjectifId = null, collaborateurs = [] }) {
  const [objId, setObjId] = useState('');
  const [description, setDescription] = useState('');
  const [unite, setUnite] = useState('');
  const [valeurCible, setValeurCible] = useState(100);
  const [sourceCrm, setSourceCrm] = useState(false);
  const [sourceCrmTypeDeal, setSourceCrmTypeDeal] = useState('');
+ const [responsableId, setResponsableId] = useState('');
  const [error, setError] = useState('');
  const [submitting, setSubmitting] = useState(false);
 
  useEffect(() => {
-  if (open) { setObjId(defaultObjectifId ? String(defaultObjectifId) : ''); setDescription(''); setUnite(''); setValeurCible(100); setSourceCrm(false); setSourceCrmTypeDeal(''); setError(''); }
+  if (open) { setObjId(defaultObjectifId ? String(defaultObjectifId) : ''); setDescription(''); setUnite(''); setValeurCible(100); setSourceCrm(false); setSourceCrmTypeDeal(''); setResponsableId(''); setError(''); }
  }, [open, defaultObjectifId]);
 
  const handleSubmit = (e) => {
@@ -2039,6 +2052,7 @@ function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], 
    poids: 1,
    source_crm: sourceCrm,
    source_crm_filtre: sourceCrm ? { type_deal: sourceCrmTypeDeal || null } : null,
+   responsable_id: responsableId || null,
   }, {
    preserveState: true, preserveScroll: true,
    onSuccess: () => { toast.success('Résultat clé ajouté'); onClose(); setSubmitting(false); },
@@ -2066,6 +2080,12 @@ function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], 
        <input autoFocus type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Atteindre 150M GNF de CA..."
         className="mt-1 w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500" />
       </div>
+      {collaborateurs.length > 0 && (
+       <div>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Responsable du KR</label>
+        <div className="mt-1"><SearchableSelect value={responsableId} onChange={setResponsableId} nullable nullLabel="— Non assigné —" options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} /></div>
+       </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
        <div>
         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Valeur cible</label>
@@ -2513,6 +2533,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
   defaultObjectifId={quickKRModal.objectifId}
   objectifs={objectifs.data || []}
   typesResultatsCles={typesResultatsCles}
+  collaborateurs={collaborateurs}
  />
 
  {/* ═══ Modal ajout rapide tâche ═══ */}
@@ -2559,6 +2580,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  onClose={() => setEditKrModal({ open: false, kr: null })}
  kr={editKrModal.kr}
  typesResultatsCles={typesResultatsCles}
+ collaborateurs={collaborateurs}
  />
  </AppLayout>
  );

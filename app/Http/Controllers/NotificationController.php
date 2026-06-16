@@ -87,6 +87,33 @@ class NotificationController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Endpoint léger pour le polling côté client (count + 10 dernières).
+     */
+    public function poll(Request $request)
+    {
+        $user      = $request->user();
+        $societeId = session('societe_id');
+
+        if (!$societeId) {
+            return response()->json(['count' => 0, 'items' => []]);
+        }
+
+        $count = NotificationApp::where('societe_id', $societeId)
+            ->pourUser($user->id)
+            ->nonLues()
+            ->count();
+
+        $items = NotificationApp::where('societe_id', $societeId)
+            ->pourUser($user->id)
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(fn ($n) => $this->format($n));
+
+        return response()->json(['count' => $count, 'items' => $items]);
+    }
+
     // ─── Helpers ──────────────────────────────────────────────
 
     private function authorizeNotification(Request $request, NotificationApp $notification): void

@@ -47,18 +47,24 @@ class SendDailyRappel extends Command
                 continue;
             }
 
-            // Déjà un bilan ou des tâches aujourd'hui → pas de rappel
+            // Bilan du jour rempli ?
             $hasBilan = BilanJournalier::where('collaborateur_id', $collab->id)
                 ->whereDate('date', $today)
                 ->exists();
 
-            $hasTaches = TacheDaily::where('collaborateur_id', $collab->id)
+            // Statuts de toutes les tâches du jour
+            $statutsTaches = TacheDaily::where('collaborateur_id', $collab->id)
                 ->whereDate('date', $today)
-                ->exists();
+                ->pluck('statut');
 
-            if ($hasBilan || $hasTaches) {
+            // Daily complet = bilan rempli OU toutes les tâches du jour terminées
+            $toutesTerminees = $statutsTaches->isNotEmpty()
+                && $statutsTaches->every(fn ($s) => $s === 'termine');
+
+            if ($hasBilan || $toutesTerminees) {
                 $ignores++;
-                $this->line("  ✓ {$collab->nomComplet()} — déjà rempli");
+                $status = $hasBilan ? 'bilan rempli' : 'toutes tâches terminées';
+                $this->line("  ✓ {$collab->nomComplet()} — {$status}");
                 continue;
             }
 
@@ -95,7 +101,7 @@ class SendDailyRappel extends Command
             $envoyes++;
         }
 
-        $this->info("Rappels envoyés : {$envoyes} | Ignorés (déjà remplis / déjà notifiés) : {$ignores}");
+        $this->info("Rappels envoyés : {$envoyes} | Ignorés (daily complet / déjà notifiés) : {$ignores}");
 
         return 0;
     }

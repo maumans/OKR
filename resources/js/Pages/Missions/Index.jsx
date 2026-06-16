@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
@@ -94,11 +94,25 @@ export default function MissionsIndex({ missions, collaborateurs, filters = {} }
 
     const [activeView, setActiveView] = useState('tous');
     const [search, setSearch]         = useState(filters.search || '');
-    const [selectedMission, setSelectedMission] = useState(null);
-    const [isCreateOpen, setIsCreateOpen]       = useState(false);
+    const [selectedMission, setSelectedMission]     = useState(null);
+    const [isCreateOpen, setIsCreateOpen]           = useState(false);
+    const [highlightLivrableId, setHighlightLivrableId] = useState(null);
     const [lastSync] = useState(
         new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     );
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const openMissionId = params.get('open_mission');
+        const livrableId    = params.get('livrable_id');
+        if (openMissionId) {
+            const m = missions.find(m => String(m.id) === openMissionId);
+            if (m) {
+                setSelectedMission(m);
+                if (livrableId) setHighlightLivrableId(Number(livrableId));
+            }
+        }
+    }, []);
 
     // ── Stats globales ──────────────────────────────────────────────────────────
     const stats = useMemo(() => {
@@ -296,6 +310,7 @@ export default function MissionsIndex({ missions, collaborateurs, filters = {} }
                                 collaborateurs={collaborateurs}
                                 devise={devise}
                                 onClose={() => setSelectedMission(null)}
+                                highlightLivrableId={highlightLivrableId}
                             />
                         )}
                     </AnimatePresence>
@@ -526,7 +541,7 @@ function NPSView({ missions, onUpdateNps }) {
 
 // ─── Side Panel ────────────────────────────────────────────────────────────────
 
-function MissionPanel({ mission, collaborateurs, devise, onClose }) {
+function MissionPanel({ mission, collaborateurs, devise, onClose, highlightLivrableId }) {
     const [activeTab, setActiveTab] = useState('livrables');
     const cfg = PRESSURE_CONFIG[mission.pressure] || PRESSURE_CONFIG.ok;
 
@@ -622,7 +637,7 @@ function MissionPanel({ mission, collaborateurs, devise, onClose }) {
 
             <div className="flex-1 overflow-y-auto">
                 {activeTab === 'livrables' && (
-                    <div className="p-4"><LivrablesTab mission={mission} collaborateurs={collaborateurs} /></div>
+                    <div className="p-4"><LivrablesTab mission={mission} collaborateurs={collaborateurs} highlightLivrableId={highlightLivrableId} /></div>
                 )}
                 {activeTab === 'infos' && (
                     <div className="p-4"><InfosTab mission={mission} collaborateurs={collaborateurs} devise={devise} /></div>
@@ -778,9 +793,15 @@ function EditLivrableForm({ livrable, missionId, collaborateurs, onCancel }) {
     );
 }
 
-function LivrablesTab({ mission, collaborateurs }) {
+function LivrablesTab({ mission, collaborateurs, highlightLivrableId }) {
     const [addOpen, setAddOpen]     = useState(false);
     const [editingId, setEditingId] = useState(null);
+
+    useEffect(() => {
+        if (!highlightLivrableId) return;
+        const el = document.getElementById('livrable-' + highlightLivrableId);
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+    }, [highlightLivrableId]);
     const { data, setData, post, processing, reset, errors } = useForm({
         nom: '', type_livrable: '', responsable_id: '', deadline_envoi: '', deadline_validation: '', url: '',
     });
@@ -815,7 +836,7 @@ function LivrablesTab({ mission, collaborateurs }) {
                             onCancel={() => setEditingId(null)}
                         />
                     ) : (
-                <div className="p-3 rounded-lg border border-gray-100 dark:border-dark-800 bg-gray-50 dark:bg-dark-950 group">
+                <div id={"livrable-" + livrable.id} className={`p-3 rounded-lg border bg-gray-50 dark:bg-dark-950 group transition-colors ${highlightLivrableId === livrable.id ? 'border-amber-400 ring-2 ring-amber-300/50 dark:border-amber-500' : 'border-gray-100 dark:border-dark-800'}`}>
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">

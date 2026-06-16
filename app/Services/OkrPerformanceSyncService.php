@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\FichePerformance;
 use App\Models\Objectif;
+use App\Models\ResultatCle;
 
 class OkrPerformanceSyncService
 {
@@ -24,35 +25,31 @@ class OkrPerformanceSyncService
         $details         = [];
 
         foreach (['commercial', 'delivery'] as $dim) {
-            $objectifs = Objectif::with('resultatsCles')
-                ->where('collaborateur_id', $collaborateurId)
-                ->where('societe_id', $societeId)
-                ->whereHas('axeObjectif', fn ($q) =>
-                    $q->where('categorie_performance', $dim)
+            // KRs dont ce collaborateur est responsable, dans un axe de cette dimension
+            $krs = ResultatCle::where('responsable_id', $collaborateurId)
+                ->whereHas('objectif', fn ($q) =>
+                    $q->where('societe_id', $societeId)
+                      ->whereHas('axeObjectif', fn ($q2) =>
+                          $q2->where('categorie_performance', $dim)
+                      )
                 )
                 ->get();
 
-            if ($objectifs->isEmpty()) {
+            if ($krs->isEmpty()) {
                 $details[$dim] = null;
                 continue;
             }
 
-            // Moyenne des progressions de chaque OKR (pondérée par ses KRs)
-            $progressions = $objectifs->map(fn ($o) =>
-                $this->okrService->calculerProgressionObjectif($o)
-            );
-
-            $progression = round($progressions->avg(), 2);
+            $progression = round($krs->avg('progression'), 2);
             $score       = FichePerformance::normaliserScore($progression);
 
             $fiche->{"score_auto_{$dim}"} = $score;
             $fiche->{"score_{$dim}"}      = $score;
 
             $details[$dim] = [
-                'objectif_count' => $objectifs->count(),
-                'kr_count'       => $objectifs->sum(fn ($o) => $o->resultatsCles->count()),
-                'progression'    => $progression,
-                'score_auto'     => $score,
+                'kr_count'    => $krs->count(),
+                'progression' => $progression,
+                'score_auto'  => $score,
             ];
         }
 

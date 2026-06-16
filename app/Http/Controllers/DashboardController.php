@@ -10,6 +10,7 @@ use App\Models\Periode;
 use App\Models\Prospect;
 use App\Models\SeuilPerformance;
 use App\Models\Tache;
+use App\Models\TacheDaily;
 use App\Models\JournalActivite;
 use App\Services\OkrService;
 use App\Services\ProspectionService;
@@ -110,6 +111,7 @@ class DashboardController extends Controller
                 'priorite' => $t->priorite,
                 'collaborateur' => $t->collaborateur->nomComplet(),
                 'date' => $t->date?->format('d/m/Y'),
+                'objectif_id' => $t->objectif_id,
             ]);
 
         // ─── Dernières tâches ───────────────────────────────
@@ -178,6 +180,23 @@ class DashboardController extends Controller
                 'date'         => $a->created_at->diffForHumans(),
             ]);
 
+        // ─── Tâches daily en retard ──────────────────────────────
+        $tachesDailyRetard = TacheDaily::where('societe_id', $societeId)
+            ->with('collaborateur')
+            ->where('statut', '!=', 'termine')
+            ->whereDate('date', '<', now()->toDateString())
+            ->orderBy('date')
+            ->take(5)
+            ->get()
+            ->map(fn ($t) => [
+                'id'            => $t->id,
+                'titre'         => $t->titre,
+                'statut'        => $t->statut,
+                'priorite'      => $t->priorite ?? 'normale',
+                'date'          => $t->date->format('Y-m-d'),
+                'collaborateur' => $t->collaborateur?->nomComplet() ?? '',
+            ]);
+
         // ─── Livrables urgents (deadline ≤ 7 jours ou dépassée) ──
         $livrables_urgents = Livrable::with(['mission:id,titre,client,societe_id', 'responsable:id,nom,prenom'])
             ->whereHas('mission', fn ($q) => $q->where('societe_id', $societeId)
@@ -210,7 +229,8 @@ class DashboardController extends Controller
             'progressionParAxe' => $progressionParAxe,
             'repartitionTaches' => $repartitionTaches,
             'pipeline'          => $pipeline,
-            'tachesAlerte'      => $tachesAlerte,
+            'tachesAlerte'        => $tachesAlerte,
+            'tachesDailyRetard'   => $tachesDailyRetard,
             'topCollaborateurs' => $topCollaborateurs,
             'activiteRecente'   => $activiteRecente,
             'livrables_urgents' => $livrables_urgents,

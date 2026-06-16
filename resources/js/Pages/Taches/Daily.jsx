@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm, router, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/Components/ui/Badge';
@@ -143,6 +143,12 @@ export default function DailyBilan({
  const [showHistory, setShowHistory] = useState(false);
  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
  const [editingTask, setEditingTask] = useState(null);
+
+ useEffect(() => {
+  if (!window.location.hash) return;
+  const el = document.getElementById(window.location.hash.slice(1));
+  if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+ }, []);
 
  // ─── Bilan form ──────────────────────────────────────────────────────────
  const { data, setData, post, processing } = useForm({
@@ -345,7 +351,7 @@ export default function DailyBilan({
  const hasTime = t.temps_estime || t.temps_reel;
  const isOverTime = isDone && t.temps_reel && t.temps_estime && parseInt(t.temps_reel) > parseInt(t.temps_estime);
  return (
- <div key={t.id}
+ <div key={t.id} id={"daily-tache-" + t.id}
  className="group flex items-start gap-3 px-5 py-3 border-b border-gray-50 dark:border-dark-800/50 last:border-0 hover:bg-gray-50/50 dark:hover:bg-dark-800/30 transition-colors">
  <button onClick={() => toggleTaskStatus(t)} disabled={!canAct}
  className="mt-0.5 shrink-0 text-gray-300 hover:text-emerald-500 transition-colors disabled:cursor-default disabled:hover:text-gray-300">

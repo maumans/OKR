@@ -15,6 +15,7 @@ export default function OKRCreate({ collaborateurs, axes = [], periodes = [], ty
         description: '', description_detaillee: '', type_resultat_cle_id: '',
         valeur_cible: 100, poids: 1, unite: '',
         mode_calcul: 'pourcentage', milestones: [],
+        responsable_id: '',
     });
 
     const { data, setData, post, processing, errors } = useForm({
@@ -276,6 +277,22 @@ export default function OKRCreate({ collaborateurs, axes = [], periodes = [], ty
                                                     </button>
                                                 )}
                                             </div>
+
+                                            {/* Responsable KR */}
+                                            {collaborateurs?.length > 0 && (
+                                                <div className="ml-7">
+                                                    <select
+                                                        value={kr.responsable_id}
+                                                        onChange={e => updateKr(i, 'responsable_id', e.target.value)}
+                                                        className={selectCls}
+                                                    >
+                                                        <option value="">— Responsable KR —</option>
+                                                        {collaborateurs.map(c => (
+                                                            <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
 
                                             {/* Cible / Unité / Poids (mode standard) */}
                                             {!isBoolean && kr.mode_calcul !== 'mensuel' && (

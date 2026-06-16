@@ -78,6 +78,27 @@ export default function NotificationBell({ variant = 'light' }) {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
+    // Polling toutes les 30s (seulement si la page est visible)
+    useEffect(() => {
+        const poll = async () => {
+            if (document.hidden) return;
+            try {
+                const res = await fetch(route('notifications.poll'), {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                setCount(data.count ?? 0);
+                setItems(data.items ?? []);
+            } catch {
+                // silencieux — pas de connexion ou session expirée
+            }
+        };
+
+        const id = setInterval(poll, 30_000);
+        return () => clearInterval(id);
+    }, []);
+
     const markRead = (id) => {
         fetch(route('notifications.read', id), { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content, 'Accept': 'application/json' } });
         setItems(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));

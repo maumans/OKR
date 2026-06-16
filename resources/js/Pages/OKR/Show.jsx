@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm, Link, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import AppLayout from '@/Layouts/AppLayout';
@@ -52,6 +52,12 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
     const [historyOpen, setHistoryOpen] = useState(false);
     const [selectedKrForHistory, setSelectedKrForHistory] = useState(null);
 
+    useEffect(() => {
+        if (!window.location.hash) return;
+        const el = document.getElementById(window.location.hash.slice(1));
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+    }, []);
+
     // Mois disponibles depuis les périodes de l'objectif
     const moisPeriode = useMemo(() => {
         const mois = [];
@@ -80,6 +86,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
         description: '', description_detaillee: '', type_resultat_cle_id: '',
         valeur_cible: 100, poids: 1, unite: '',
         mode_calcul: 'pourcentage', milestones: [],
+        responsable_id: '',
     });
 
     const submitAddKr = (e) => {
@@ -500,7 +507,7 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                                 const cfg = tacheStatutConfig[tache.statut] ?? tacheStatutConfig.a_faire;
                                                 const Icon = cfg.icon;
                                                 return (
-                                                    <div key={tache.id} onClick={() => setSelectedTask(tache)} className="cursor-pointer flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800/50 transition-colors group">
+                                                    <div key={tache.id} id={"task-" + tache.id} onClick={() => setSelectedTask(tache)} className="cursor-pointer flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800/50 transition-colors group">
                                                         <Icon className={`h-4 w-4 shrink-0 ${cfg.color}`} />
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-primary-600 truncate transition-colors">{tache.titre}</p>
@@ -726,6 +733,23 @@ export default function OKRShow({ objectif, seuils = [], configuration, taches =
                                     className="mt-1 w-full rounded-md border-gray-300 dark:border-dark-700 bg-white dark:bg-dark-900 text-sm focus:border-primary-500 focus:ring-primary-500 min-h-[56px]"
                                 />
                             </div>
+
+                            {/* Responsable */}
+                            {collaborateurs?.length > 0 && (
+                                <div>
+                                    <Label>Responsable du KR</Label>
+                                    <Select
+                                        value={krData.responsable_id}
+                                        onChange={e => setKrData('responsable_id', e.target.value)}
+                                        className="mt-1"
+                                    >
+                                        <option value="">— Non assigné —</option>
+                                        {collaborateurs.map(c => (
+                                            <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>
+                                        ))}
+                                    </Select>
+                                </div>
+                            )}
 
                             {/* Type + Cible + Unité */}
                             <div className="grid grid-cols-2 gap-3">

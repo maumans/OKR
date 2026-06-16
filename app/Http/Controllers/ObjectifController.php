@@ -113,6 +113,7 @@ class ObjectifController extends Controller
                     'source_crm_filtre' => $r->source_crm_filtre,
                     'type_nom' => $r->typeResultatCle?->nom,
                     'type_resultat_cle_id' => $r->type_resultat_cle_id,
+                    'responsable_id' => $r->responsable_id,
                     'taches' => $r->taches->map(fn ($t) => [
                         'id' => $t->id,
                         'titre' => $t->titre,
@@ -258,6 +259,7 @@ class ObjectifController extends Controller
             'resultats_cles.*.milestones'        => 'nullable|array',
             'resultats_cles.*.source_crm'        => 'nullable|boolean',
             'resultats_cles.*.source_crm_filtre' => 'nullable|array',
+            'resultats_cles.*.responsable_id'    => 'nullable|exists:collaborateurs,id',
             'mission_id' => 'nullable|exists:missions,id',
         ]);
 
@@ -311,6 +313,7 @@ class ObjectifController extends Controller
 
                 ResultatCle::create([
                     'objectif_id'          => $objectif->id,
+                    'responsable_id'       => $resultat['responsable_id'] ?? null,
                     'description'          => $resultat['description'],
                     'description_detaillee'=> $resultat['description_detaillee'] ?? null,
                     'type_resultat_cle_id' => $resultat['type_resultat_cle_id'] ?? null,
@@ -394,6 +397,7 @@ class ObjectifController extends Controller
                     'milestones'        => $r->milestones ?? [],
                     'source_crm'        => (bool) $r->source_crm,
                     'source_crm_filtre' => $r->source_crm_filtre,
+                    'responsable_id'    => $r->responsable_id,
                     'historique_progressions' => $r->historiqueProgressions->map(fn ($h) => [
                         'id'              => $h->id,
                         'progression'     => $h->progression,
@@ -446,6 +450,7 @@ class ObjectifController extends Controller
             'resultats_cles.*.milestones'          => 'nullable|array',
             'resultats_cles.*.source_crm'          => 'nullable|boolean',
             'resultats_cles.*.source_crm_filtre'   => 'nullable|array',
+            'resultats_cles.*.responsable_id'      => 'nullable|exists:collaborateurs,id',
             'mission_id' => 'nullable|exists:missions,id',
         ]);
 
@@ -482,6 +487,7 @@ class ObjectifController extends Controller
                             : ($krData['valeur_cible'] ?? 100);
 
                         $kr->update([
+                            'responsable_id'       => $krData['responsable_id'] ?? null,
                             'description'          => $krData['description'],
                             'description_detaillee'=> $krData['description_detaillee'] ?? null,
                             'type_resultat_cle_id' => $krData['type_resultat_cle_id'] ?? null,
@@ -505,6 +511,7 @@ class ObjectifController extends Controller
                     // Create new KR
                     $kr = ResultatCle::create([
                         'objectif_id'          => $objectif->id,
+                        'responsable_id'       => $krData['responsable_id'] ?? null,
                         'description'          => $krData['description'],
                         'description_detaillee'=> $krData['description_detaillee'] ?? null,
                         'type_resultat_cle_id' => $krData['type_resultat_cle_id'] ?? null,
@@ -651,6 +658,7 @@ class ObjectifController extends Controller
             'milestones'            => 'nullable|array',
             'source_crm'            => 'nullable|boolean',
             'source_crm_filtre'     => 'nullable|array',
+            'responsable_id'        => 'nullable|exists:collaborateurs,id',
         ]);
 
         $resultatCle->update($validated);
@@ -673,6 +681,7 @@ class ObjectifController extends Controller
             'milestones'            => 'nullable|array',
             'source_crm'            => 'nullable|boolean',
             'source_crm_filtre'     => 'nullable|array',
+            'responsable_id'        => 'nullable|exists:collaborateurs,id',
         ]);
 
         $modeCalcul = $validated['mode_calcul'] ?? 'pourcentage';
@@ -683,6 +692,7 @@ class ObjectifController extends Controller
 
         ResultatCle::create([
             'objectif_id'           => $objectif->id,
+            'responsable_id'        => $validated['responsable_id'] ?? null,
             'description'           => $validated['description'],
             'description_detaillee' => $validated['description_detaillee'] ?? null,
             'type_resultat_cle_id'  => $validated['type_resultat_cle_id'] ?? null,

@@ -40,10 +40,15 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // ─── Commandes admin ──────────────────────────────────────
+    Route::post('/admin/commands/daily-rappel',    [\App\Http\Controllers\AdminCommandController::class, 'dailyRappel'])->name('admin.commands.daily-rappel');
+    Route::post('/admin/commands/livrable-alerts', [\App\Http\Controllers\AdminCommandController::class, 'livrableAlerts'])->name('admin.commands.livrable-alerts');
+
     // ─── Notifications in-app ─────────────────────────────────
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/centre', [NotificationController::class, 'page'])->name('page');
         Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/poll', [NotificationController::class, 'poll'])->name('poll');
         Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
         Route::delete('/{notification}', [NotificationController::class, 'destroy'])->name('destroy');
@@ -99,6 +104,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
         Route::post('/performance/{fiche}/avancer', [PerformanceController::class, 'avancerWorkflow'])->name('performance.avancer');
         Route::post('/performance/{fiche}/cloturer', [PerformanceController::class, 'cloturerFinale'])->name('performance.cloturer');
         Route::post('/performance/{fiche}/sync-okr', [PerformanceController::class, 'syncOkr'])->name('performance.sync-okr');
+        Route::post('/performance/{fiche}/valider-collab', [PerformanceController::class, 'validerCollab'])->name('performance.valider-collab');
         Route::delete('/performance/{fiche}', [PerformanceController::class, 'destroy'])->name('performance.destroy');
     });
 
