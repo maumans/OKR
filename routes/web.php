@@ -77,11 +77,33 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     Route::get('/parametres/modules', [ModuleSocieteController::class, 'index'])->name('parametres.modules.index');
     Route::put('/parametres/modules/{module}/toggle', [ModuleSocieteController::class, 'toggle'])->name('parametres.modules.toggle');
 
+    // ─── Opérations ─────────────────────────────────────────
+    Route::middleware('module:operations')->prefix('operations')->name('operations.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\OperationsController::class, 'index'])->name('index');
+        Route::post('/indicateurs', [\App\Http\Controllers\OperationsController::class, 'storeIndicateur'])->name('indicateurs.store');
+        Route::put('/indicateurs/{opsIndicateur}', [\App\Http\Controllers\OperationsController::class, 'updateIndicateur'])->name('indicateurs.update');
+        Route::delete('/indicateurs/{opsIndicateur}', [\App\Http\Controllers\OperationsController::class, 'destroyIndicateur'])->name('indicateurs.destroy');
+        Route::post('/saisies', [\App\Http\Controllers\OperationsController::class, 'saisir'])->name('saisies.store');
+        Route::delete('/saisies/{opsSaisie}', [\App\Http\Controllers\OperationsController::class, 'supprimerSaisie'])->name('saisies.destroy');
+    });
+
+    // ─── Ressources Humaines ────────────────────────────────
+    Route::middleware('module:rh')->prefix('rh')->name('rh.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\RhController::class, 'index'])->name('index');
+        Route::put('/collaborateurs/{collaborateur}/responsable', [\App\Http\Controllers\RhController::class, 'updateResponsable'])->name('collaborateurs.responsable');
+        Route::post('/competences', [\App\Http\Controllers\RhController::class, 'storeCompetence'])->name('competences.store');
+        Route::put('/competences/{competence}', [\App\Http\Controllers\RhController::class, 'updateCompetence'])->name('competences.update');
+        Route::delete('/competences/{competence}', [\App\Http\Controllers\RhController::class, 'destroyCompetence'])->name('competences.destroy');
+        Route::post('/collaborateurs/{collaborateur}/competences', [\App\Http\Controllers\RhController::class, 'assignerCompetence'])->name('collaborateurs.competences.assigner');
+        Route::delete('/collaborateurs/{collaborateur}/competences/{competence}', [\App\Http\Controllers\RhController::class, 'retirerCompetence'])->name('collaborateurs.competences.retirer');
+    });
+
     // ─── OKR ────────────────────────────────────────────────
     Route::middleware('module:okr')->group(function () {
         Route::put('/objectifs/kr/{resultatCle}', [ObjectifController::class, 'updateKr'])->name('objectifs.kr.update');
         Route::delete('/objectifs/kr/{resultatCle}', [ObjectifController::class, 'destroyKr'])->name('objectifs.kr.destroy');
         Route::post('/objectifs/{objectif}/kr', [ObjectifController::class, 'storeKr'])->name('objectifs.kr.store');
+        Route::post('/objectifs/kr/{resultatCle}/sync', [ObjectifController::class, 'syncKr'])->name('objectifs.kr.sync');
         Route::resource('objectifs', ObjectifController::class)->except(['edit']);
         Route::put('/objectifs/{objectif}/progress', [ObjectifController::class, 'updateProgress'])->name('objectifs.progress');
         Route::put('/objectifs/{objectif}/status', [ObjectifController::class, 'updateStatus'])->name('objectifs.status');
@@ -141,6 +163,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
         Route::put('/prospects/{prospect}/status', [ProspectController::class, 'updateStatus'])->name('prospects.status');
         Route::post('/prospects/{prospect}/actions', [ProspectController::class, 'storeAction'])->name('prospects.actions.store');
         Route::delete('/prospects/{prospect}', [ProspectController::class, 'destroy'])->name('prospects.destroy');
+
+        Route::post('/activites-commerciales', [ProspectController::class, 'storeActivite'])->name('activites.store');
+        Route::post('/activites-commerciales/sync-krs', [ProspectController::class, 'syncKrsActivites'])->name('activites.sync-krs');
+        Route::delete('/activites-commerciales/{activite}', [ProspectController::class, 'destroyActivite'])->name('activites.destroy');
 
         Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
         Route::put('/clients/{client}', [ClientController::class, 'update'])->name('clients.update');

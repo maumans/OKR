@@ -2,9 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Livrable;
+use App\Models\Mission;
 use App\Models\Prospect;
 use App\Models\Societe;
 use App\Models\User;
+use App\Observers\LivrableObserver;
+use App\Observers\MissionObserver;
 use App\Observers\ProspectObserver;
 use App\Observers\SocieteObserver;
 use App\Observers\UserObserver;
@@ -33,6 +37,8 @@ class AppServiceProvider extends ServiceProvider
         Societe::observe(SocieteObserver::class);
         User::observe(UserObserver::class);
         Prospect::observe(ProspectObserver::class);
+        Mission::observe(MissionObserver::class);
+        Livrable::observe(LivrableObserver::class);
 
         // ─── Event → Listener mapping ──────────────────────────
         Event::listen(

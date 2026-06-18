@@ -18,6 +18,7 @@ class Collaborateur extends Model
         'user_id',
         'societe_id',
         'departement_id',
+        'responsable_id',
         'nom',
         'prenom',
         'poste',
@@ -83,6 +84,23 @@ class Collaborateur extends Model
     public function fichesPerformance(): HasMany
     {
         return $this->hasMany(FichePerformance::class);
+    }
+
+    public function responsable(): BelongsTo
+    {
+        return $this->belongsTo(Collaborateur::class, 'responsable_id');
+    }
+
+    public function subordonnes(): HasMany
+    {
+        return $this->hasMany(Collaborateur::class, 'responsable_id');
+    }
+
+    public function competences(): BelongsToMany
+    {
+        return $this->belongsToMany(Competence::class, 'collaborateur_competence')
+            ->withPivot(['niveau', 'commentaire'])
+            ->withTimestamps();
     }
 
     // ─── Scopes ────────────────────────────────────────────

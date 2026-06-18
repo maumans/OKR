@@ -57,6 +57,7 @@ const navigation = [
         items: [
             { name: 'Missions / Projets', href: 'missions.index', icon: Briefcase, moduleCode: 'missions' },
             { name: 'CRM', href: 'prospects.index', icon: TrendingUp, moduleCode: 'prospection' },
+            { name: 'Opérations', href: 'operations.index', icon: BarChart3, moduleCode: 'operations' },
             { name: 'Incentives', href: 'incentives.index', icon: Award, moduleCode: 'incentives' },
         ]
     },
@@ -78,6 +79,7 @@ const navigation = [
     {
         name: 'ADMINISTRATION',
         items: [
+            { name: 'Ressources Humaines', href: 'rh.index', icon: Users, moduleCode: 'rh' },
             { name: 'Import de données', href: 'import.index', icon: Upload, moduleCode: 'import' },
             { name: 'Historique des imports', href: 'import.historique', icon: History, moduleCode: 'import' },
         ]

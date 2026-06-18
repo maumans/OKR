@@ -13,6 +13,7 @@ use App\Models\StatutObjectif;
 use App\Models\ConfigurationOkr;
 use App\Models\Mission;
 use App\Events\ProgressionKrMiseAJour;
+use App\Services\ConsolidationService;
 use App\Services\OkrService;
 use App\Services\HistoriqueService;
 use Illuminate\Http\Request;
@@ -111,6 +112,7 @@ class ObjectifController extends Controller
                     'poids' => $r->poids,
                     'source_crm' => (bool) $r->source_crm,
                     'source_crm_filtre' => $r->source_crm_filtre,
+                    'source_auto' => $r->source_auto,
                     'type_nom' => $r->typeResultatCle?->nom,
                     'type_resultat_cle_id' => $r->type_resultat_cle_id,
                     'responsable_id' => $r->responsable_id,
@@ -259,6 +261,7 @@ class ObjectifController extends Controller
             'resultats_cles.*.milestones'        => 'nullable|array',
             'resultats_cles.*.source_crm'        => 'nullable|boolean',
             'resultats_cles.*.source_crm_filtre' => 'nullable|array',
+            'resultats_cles.*.source_auto'       => 'nullable|string|in:crm_activites,crm_deals,crm_pipeline,missions_nps,missions_livrables,ops',
             'resultats_cles.*.responsable_id'    => 'nullable|exists:collaborateurs,id',
             'mission_id' => 'nullable|exists:missions,id',
         ]);
@@ -324,6 +327,7 @@ class ObjectifController extends Controller
                     'milestones'           => $milestones,
                     'source_crm'           => $resultat['source_crm'] ?? false,
                     'source_crm_filtre'    => $resultat['source_crm_filtre'] ?? null,
+                    'source_auto'          => $resultat['source_auto'] ?? null,
                     'progression'          => 0,
                 ]);
             }
@@ -397,6 +401,7 @@ class ObjectifController extends Controller
                     'milestones'        => $r->milestones ?? [],
                     'source_crm'        => (bool) $r->source_crm,
                     'source_crm_filtre' => $r->source_crm_filtre,
+                    'source_auto'       => $r->source_auto,
                     'responsable_id'    => $r->responsable_id,
                     'historique_progressions' => $r->historiqueProgressions->map(fn ($h) => [
                         'id'              => $h->id,
@@ -498,6 +503,7 @@ class ObjectifController extends Controller
                             'milestones'           => $milestones,
                             'source_crm'           => $krData['source_crm'] ?? false,
                             'source_crm_filtre'    => $krData['source_crm_filtre'] ?? null,
+                            'source_auto'          => $krData['source_auto'] ?? null,
                         ]);
                         $existingIds[] = $kr->id;
                     }
@@ -522,6 +528,7 @@ class ObjectifController extends Controller
                         'milestones'           => $milestones,
                         'source_crm'           => $krData['source_crm'] ?? false,
                         'source_crm_filtre'    => $krData['source_crm_filtre'] ?? null,
+                        'source_auto'          => $krData['source_auto'] ?? null,
                         'progression'          => 0,
                     ]);
                     $existingIds[] = $kr->id;
@@ -658,6 +665,7 @@ class ObjectifController extends Controller
             'milestones'            => 'nullable|array',
             'source_crm'            => 'nullable|boolean',
             'source_crm_filtre'     => 'nullable|array',
+            'source_auto'           => 'nullable|string|in:crm_activites,crm_deals,crm_pipeline,missions_nps,missions_livrables,ops',
             'responsable_id'        => 'nullable|exists:collaborateurs,id',
         ]);
 
@@ -681,6 +689,7 @@ class ObjectifController extends Controller
             'milestones'            => 'nullable|array',
             'source_crm'            => 'nullable|boolean',
             'source_crm_filtre'     => 'nullable|array',
+            'source_auto'           => 'nullable|string|in:crm_activites,crm_deals,crm_pipeline,missions_nps,missions_livrables,ops',
             'responsable_id'        => 'nullable|exists:collaborateurs,id',
         ]);
 
@@ -703,6 +712,7 @@ class ObjectifController extends Controller
             'milestones'            => $milestones,
             'source_crm'            => $validated['source_crm'] ?? false,
             'source_crm_filtre'     => $validated['source_crm_filtre'] ?? null,
+            'source_auto'           => $validated['source_auto'] ?? null,
             'progression'           => 0,
         ]);
 
@@ -714,6 +724,24 @@ class ObjectifController extends Controller
         Gate::authorize('update', $resultatCle->objectif);
         $resultatCle->delete();
         return redirect()->back()->with('success', 'Résultat clé supprimé.');
+    }
+
+    /**
+     * Déclenche manuellement la consolidation d'un KR depuis sa source automatique.
+     */
+    public function syncKr(ResultatCle $resultatCle, ConsolidationService $consolidation)
+    {
+        Gate::authorize('view', $resultatCle->objectif);
+
+        $resultatCle->load('objectif');
+
+        if (! $resultatCle->source_auto && ! $resultatCle->source_crm) {
+            return redirect()->back()->withErrors(['sync' => 'Ce KR n\'a pas de source automatique configurée.']);
+        }
+
+        $consolidation->recalculerKr($resultatCle, true);
+
+        return redirect()->back()->with('success', 'KR recalculé depuis sa source automatique.');
     }
 }
 

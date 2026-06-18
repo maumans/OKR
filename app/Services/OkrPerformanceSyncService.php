@@ -11,12 +11,18 @@ class OkrPerformanceSyncService
     public function __construct(private OkrService $okrService) {}
 
     /**
-     * Synchronise les scores Commercial et Delivery d'une fiche depuis les OKR.
+     * Synchronise les 4 dimensions de performance depuis les KRs OKR.
      *
-     * Commercial → tous les OKRs du collaborateur dont l'axe a categorie_performance = 'commercial'
-     * Delivery   → tous les OKRs du collaborateur dont l'axe a categorie_performance = 'delivery'
+     * commercial     → KRs du collaborateur dans un axe categorie_performance = 'commercial'
+     * delivery       → KRs dans un axe categorie_performance = 'delivery'
+     * developpement  → KRs dans un axe categorie_performance = 'developpement'
+     * comportemental → KRs dans un axe categorie_performance = 'comportemental'
      *
-     * @return array{commercial: array|null, delivery: array|null}
+     * Pour commercial/delivery : le score auto écrase le score (source authoritative).
+     * Pour developpement/comportemental : le score auto est stocké mais ne remplace
+     * le score manager que s'il est encore null (scores subjectifs, ne pas écraser).
+     *
+     * @return array<string, array|null>
      */
     public function syncFiche(FichePerformance $fiche): array
     {
@@ -24,8 +30,7 @@ class OkrPerformanceSyncService
         $societeId       = $fiche->societe_id;
         $details         = [];
 
-        foreach (['commercial', 'delivery'] as $dim) {
-            // KRs dont ce collaborateur est responsable, dans un axe de cette dimension
+        foreach (['commercial', 'delivery', 'developpement', 'comportemental'] as $dim) {
             $krs = ResultatCle::where('responsable_id', $collaborateurId)
                 ->whereHas('objectif', fn ($q) =>
                     $q->where('societe_id', $societeId)
@@ -44,7 +49,13 @@ class OkrPerformanceSyncService
             $score       = FichePerformance::normaliserScore($progression);
 
             $fiche->{"score_auto_{$dim}"} = $score;
-            $fiche->{"score_{$dim}"}      = $score;
+
+            // Pour commercial/delivery : source authoritative → on écrase toujours.
+            // Pour developpement/comportemental : on ne remplace que si le manager
+            // n'a pas encore saisi de score (null).
+            if (in_array($dim, ['commercial', 'delivery']) || $fiche->{"score_{$dim}"} === null) {
+                $fiche->{"score_{$dim}"} = $score;
+            }
 
             $details[$dim] = [
                 'kr_count'    => $krs->count(),

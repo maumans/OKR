@@ -6,6 +6,7 @@ use App\Models\Collaborateur;
 use App\Models\FichePerformance;
 use App\Models\HistoriqueWorkflowPerformance;
 use App\Services\OkrPerformanceSyncService;
+use App\Services\PrimeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,8 +16,9 @@ class PerformanceController extends Controller
 {
     public function index(Request $request): Response
     {
-        $societeId = session('societe_id');
-        $collab    = $request->user()->collaborateurActuel();
+        $societeId   = session('societe_id');
+        $collab      = $request->user()->collaborateurActuel();
+        $primeService = app(PrimeService::class);
 
         // ── Visibilité des fiches selon le rôle ────────────────────────────────
         // Admin / Directeur / DRH → toutes les fiches
@@ -71,6 +73,7 @@ class PerformanceController extends Controller
                     'created_at'  => $h->created_at?->toIso8601String(),
                     'user'        => $h->user ? ['name' => $h->user->name] : null,
                 ])->all(),
+                'prime_estimee' => $primeService->calculerPrime($f),
             ]));
 
         $collaborateurs = Collaborateur::pourSociete($societeId)

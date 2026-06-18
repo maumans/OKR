@@ -963,10 +963,7 @@ function EvaluationFinaleModal({ fiche, open, onClose }) {
         });
     };
 
-    // Stub prime (Chantier 5 — calcul réel non encore implémenté)
-    const primeStub = fiche?.score_global
-        ? Math.round(3000000 * (fiche.score_global / 5) * 0.75 / 10000) * 10000
-        : null;
+    const primeStub = fiche?.prime_estimee?.montant_net ?? null;
 
     const collab = fiche?.collaborateur;
 
@@ -1095,10 +1092,8 @@ function getScoreLabel(score) {
     return { label: 'Insuffisant',                               color: 'text-red-700 bg-red-50 dark:bg-red-500/10 dark:text-red-400' };
 }
 
-// Prime estimée stub (Chantier 5 calculera le vrai montant)
 function primeEstimee(fiche) {
-    if (!fiche?.score_global) return null;
-    return Math.round(3000000 * (fiche.score_global / 5) * 0.75 / 50000) * 50000;
+    return fiche?.prime_estimee?.montant_net ?? null;
 }
 
 // ─── Vue Workflow (Kanban) ────────────────────────────────────────────────────
@@ -1631,9 +1626,14 @@ export default function PerformanceIndex({ fiches, collaborateurs, cycles, stats
                                                             {f.score_global !== null ? `${formatNumber(f.score_global, 1)}/5` : '—'}
                                                         </span>
                                                         {prime !== null && (
-                                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
-                                                                Prime estimée : {prime.toLocaleString('fr-FR')} GNF
-                                                            </p>
+                                                            <div className="mt-0.5">
+                                                                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                                                                    Prime estimée : {prime.toLocaleString('fr-FR')} GNF
+                                                                </p>
+                                                                {f.prime_estimee?.malus_nps && (
+                                                                    <p className="text-[9px] text-red-500">⚠ Malus NPS −30%</p>
+                                                                )}
+                                                            </div>
                                                         )}
                                                         {scoreLabel && (
                                                             <p className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full mt-0.5 ${scoreLabel.color}`}>

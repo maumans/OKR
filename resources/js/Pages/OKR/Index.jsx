@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/u
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { motion, AnimatePresence } from 'framer-motion';
+import SourceAutoConfig, { SourceAutoBadge, SyncKrButton } from '@/Components/okr/SourceAutoConfig';
 import {
  Search, Plus, Target, Eye, Trash2, Pencil, Copy,
  ChevronDown, ChevronRight, CheckSquare, CheckCircle2, Check, X, Filter,
@@ -154,6 +155,144 @@ function formatPeriodDates(p) {
  return `${months[d1.getMonth()]}-${months[d2.getMonth()]}`;
 }
 
+// ─── KR Block Editor (partagé par Create/Edit Objectif) ─────
+function KRBlockEditor({ kr, index, onChange, onRemove, canRemove, typesResultatsCles, collaborateurs, moisPeriode = [] }) {
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
+    const typeInfo = typesResultatsCles.find(t => String(t.id) === String(kr.type_resultat_cle_id)) || null;
+    const isBoolean = typeInfo?.type_valeur === 'boolean';
+    const isPercent = typeInfo?.type_valeur === 'percent';
+
+    const onTypeChange = (typeId) => {
+        const t = typesResultatsCles.find(x => String(x.id) === String(typeId));
+        onChange('type_resultat_cle_id', typeId || '');
+        onChange('unite', t?.unite || '');
+        onChange('mode_calcul', t?.type_valeur === 'boolean' ? 'boolean' : 'pourcentage');
+        if (t?.type_valeur === 'percent') onChange('valeur_cible', 100);
+    };
+
+    const uniteOptions = [...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }));
+    const inputNum = "px-2 py-1 text-xs bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-primary-500/30";
+
+    return (
+        <div className="p-3 rounded-lg border border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 space-y-2">
+            {/* Titre + Type + Supprimer */}
+            <div className="flex items-start gap-2">
+                <span className="text-[10px] font-bold text-gray-400 mt-2 w-5 shrink-0">#{index + 1}</span>
+                <input type="text" value={kr.description} onChange={e => onChange('description', e.target.value)}
+                    placeholder="Titre du KR..."
+                    className="flex-1 px-2.5 py-1.5 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all" />
+                {typesResultatsCles.length > 0 && (
+                    <SearchableSelect value={kr.type_resultat_cle_id || ''} onChange={onTypeChange}
+                        size="sm" className="w-28 shrink-0" nullable nullLabel="Type…"
+                        options={typesResultatsCles.map(t => ({ value: String(t.id), label: t.nom }))} />
+                )}
+                {canRemove && (
+                    <button type="button" onClick={onRemove} className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0">
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                )}
+            </div>
+
+            {/* Info type */}
+            {isBoolean && (
+                <div className="ml-7 px-2 py-1 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded text-[10px] text-amber-700 dark:text-amber-400">
+                    Objectif binaire — marqué atteint (100%) ou non atteint (0%).
+                </div>
+            )}
+
+            {/* Cible · Poids · Unité */}
+            {!isBoolean && kr.mode_calcul !== 'mensuel' && (
+                <div className="flex items-center gap-2 ml-7 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-gray-400">Cible</span>
+                        <input type="number" value={kr.valeur_cible ?? ''} readOnly={isPercent}
+                            onChange={e => onChange('valeur_cible', e.target.value)}
+                            className={`w-20 ${inputNum}`} />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-gray-400">Poids</span>
+                        <input type="number" step="0.1" min="0" value={kr.poids ?? 1}
+                            onChange={e => onChange('poids', Number(e.target.value))}
+                            className={`w-16 ${inputNum}`} />
+                    </div>
+                    {!isPercent && (
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-gray-400">Unité</span>
+                            <SearchableSelect value={kr.unite || ''} onChange={v => onChange('unite', v)}
+                                size="sm" className="w-28" nullable nullLabel="—" options={uniteOptions} />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Ventilation mensuelle */}
+            {!isBoolean && moisPeriode.length >= 2 && (
+                <label className="flex items-center gap-1.5 ml-7 text-[11px] text-gray-500 cursor-pointer select-none w-fit">
+                    <input type="checkbox" checked={kr.mode_calcul === 'mensuel'}
+                        onChange={e => {
+                            const on = e.target.checked;
+                            onChange('mode_calcul', on ? 'mensuel' : 'pourcentage');
+                            onChange('milestones', on ? moisPeriode.map(m => ({ ...m, cible: 0 })) : []);
+                        }}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                    Ventilation mensuelle
+                </label>
+            )}
+
+            {/* Cibles mensuelles */}
+            {!isBoolean && kr.mode_calcul === 'mensuel' && (
+                <div className="ml-7 flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-gray-400">Unité</span>
+                        <SearchableSelect value={kr.unite || ''} onChange={v => onChange('unite', v)}
+                            size="sm" className="w-28" nullable nullLabel="—" options={uniteOptions} />
+                    </div>
+                    {(kr.milestones || []).map((m, mi) => (
+                        <div key={m.mois} className="flex items-center gap-1 bg-white dark:bg-dark-800 rounded px-2 py-1 border border-gray-200 dark:border-dark-700">
+                            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 shrink-0">{m.label}</span>
+                            <input type="number" value={m.cible} onChange={e => {
+                                const ms = [...(kr.milestones || [])];
+                                ms[mi] = { ...ms[mi], cible: Number(e.target.value) || 0 };
+                                onChange('milestones', ms);
+                            }} className="w-16 text-xs text-right bg-transparent border-none outline-none" />
+                        </div>
+                    ))}
+                    <span className="text-[10px] text-gray-400">
+                        = {(kr.milestones || []).reduce((s, m) => s + (Number(m.cible) || 0), 0).toLocaleString('fr-FR')} {kr.unite}
+                    </span>
+                </div>
+            )}
+
+            {/* Options avancées : Responsable + Source auto */}
+            <div className="ml-7">
+                <button type="button" onClick={() => setShowAdvanced(v => !v)}
+                    className="text-[10px] text-gray-400 hover:text-primary-500 flex items-center gap-1 transition-colors">
+                    <ChevronDown className={`h-3 w-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                    Options avancées (responsable, source auto)
+                </button>
+                {showAdvanced && (
+                    <div className="mt-2 space-y-2">
+                        {collaborateurs.length > 0 && (
+                            <div>
+                                <label className="text-[10px] text-gray-400">Responsable du KR</label>
+                                <SearchableSelect value={String(kr.responsable_id || '')} onChange={v => onChange('responsable_id', v)}
+                                    size="sm" nullable nullLabel="— Non assigné —" className="mt-0.5"
+                                    options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} />
+                            </div>
+                        )}
+                        <SourceAutoConfig
+                            sourceAuto={kr.source_auto}
+                            filtre={kr.source_crm_filtre}
+                            onChange={(src, flt) => { onChange('source_auto', src); onChange('source_crm_filtre', flt); }}
+                        />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // ─── Modal de création rapide d'objectif ────────────────────
 function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, collaborateurs, axes = [], typesObjectifs = [], typesResultatsCles = [], configuration, auth, missions = [] }) {
  const devise = auth?.societe?.devise;
@@ -165,6 +304,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  description: '', description_detaillee: '', type_resultat_cle_id: '',
  valeur_cible: 100, unite: '', poids: 1,
  mode_calcul: 'pourcentage', milestones: [],
+ responsable_id: '', source_auto: null, source_crm_filtre: null,
  });
 
  const [formData, setFormData] = useState({
@@ -268,6 +408,9 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  poids: kr.poids ?? 1,
  mode_calcul: modeCalcul,
  milestones,
+ responsable_id: kr.responsable_id || null,
+ source_auto: kr.source_auto || null,
+ source_crm_filtre: kr.source_crm_filtre || null,
  };
  });
 
@@ -428,98 +571,22 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  </button>
  </div>
  <div className="space-y-3">
- {formData.resultats_cles.map((kr, i) => {
- const selectedType = typesResultatsCles.find(t => t.id === Number(kr.type_resultat_cle_id));
- const isBoolean = selectedType?.type_valeur === 'boolean';
- return (
- <div key={i} className="p-3 rounded-lg border border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 space-y-2">
- {/* Titre + type + supprimer */}
- <div className="flex items-start gap-2">
- <span className="text-[10px] font-bold text-gray-400 mt-2 w-5 shrink-0">#{i+1}</span>
- <input
- type="text"
- value={kr.description}
- onChange={e => updateKR(i, 'description', e.target.value)}
- placeholder="Titre du KR..."
- className="flex-1 px-2.5 py-1.5 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all"
+ {formData.resultats_cles.map((kr, i) => (
+ <KRBlockEditor key={i} kr={kr} index={i}
+ onChange={(f, v) => updateKR(i, f, v)}
+ onRemove={() => removeKR(i)}
+ canRemove={formData.resultats_cles.length > 1}
+ typesResultatsCles={typesResultatsCles}
+ collaborateurs={collaborateurs}
+ moisPeriode={moisPeriode}
  />
- {typesResultatsCles.length > 0 && (
- <SearchableSelect value={kr.type_resultat_cle_id} onChange={v => { updateKR(i, "type_resultat_cle_id", v); const t=typesResultatsCles.find(t=>t.id===Number(v)); if(t?.unite) updateKR(i,"unite",t.unite); if(t?.type_valeur==="boolean") updateKR(i,"valeur_cible",1); }} size="sm" className="w-28 shrink-0" nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
- )}
- {formData.resultats_cles.length > 1 && (
- <button type="button" onClick={() => removeKR(i)} className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0">
- <X className="h-3.5 w-3.5" />
- </button>
- )}
- </div>
-
- {/* Cible · Unité · Poids (mode standard) */}
- {!isBoolean && kr.mode_calcul !== 'mensuel' && (
- <div className="flex items-center gap-2 ml-5 flex-wrap">
- <div className="flex items-center gap-1.5">
- <span className="text-[10px] text-gray-400">Cible</span>
- <input type="number" value={kr.valeur_cible ?? ''} onChange={e => updateKR(i, 'valeur_cible', e.target.value)}
- className="w-20 px-2 py-1 text-xs bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-right" />
- </div>
- <div className="flex items-center gap-1.5">
- <span className="text-[10px] text-gray-400">Unité</span>
- <SearchableSelect value={kr.unite || ""} onChange={v => updateKR(i, "unite", v)} size="sm" className="w-28" nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }))} />
- </div>
- {isPondere && (
- <div className="flex items-center gap-1.5">
- <span className="text-[10px] text-gray-400">Poids</span>
- <input type="number" step="0.1" value={kr.poids} onChange={e => updateKR(i, 'poids', Number(e.target.value))}
- className="w-16 px-2 py-1 text-xs bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-right" />
- </div>
- )}
- </div>
- )}
-
- {/* Toggle ventilation mensuelle */}
- {!isBoolean && moisPeriode.length >= 2 && (
- <label className="flex items-center gap-1.5 ml-5 text-[11px] text-gray-500 cursor-pointer select-none w-fit">
- <input type="checkbox" checked={kr.mode_calcul === 'mensuel'}
- onChange={e => {
- const on = e.target.checked;
- updateKR(i, 'mode_calcul', on ? 'mensuel' : 'pourcentage');
- updateKR(i, 'milestones', on ? moisPeriode.map(m => ({ ...m, cible: 0 })) : []);
- }}
- className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
- Ventilation mensuelle
- </label>
- )}
-
- {/* Cibles par mois */}
- {!isBoolean && kr.mode_calcul === 'mensuel' && (
- <div className="ml-5 flex items-center gap-2 flex-wrap">
- <div className="flex items-center gap-1.5">
- <span className="text-[10px] text-gray-400">Unité</span>
- <SearchableSelect value={kr.unite || ""} onChange={v => updateKR(i, "unite", v)} size="sm" className="w-28" nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }))} />
- </div>
- {(kr.milestones || []).map((m, mi) => (
- <div key={m.mois} className="flex items-center gap-1 bg-white dark:bg-dark-800 rounded px-2 py-1 border border-gray-200 dark:border-dark-700">
- <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 shrink-0">{m.label}</span>
- <input type="number" value={m.cible} onChange={e => {
- const ms = [...(kr.milestones || [])];
- ms[mi] = { ...ms[mi], cible: Number(e.target.value) || 0 };
- updateKR(i, 'milestones', ms);
- }} className="w-16 text-xs text-right bg-transparent border-none outline-none" />
- </div>
  ))}
- <span className="text-[10px] text-gray-400">
- = {(kr.milestones || []).reduce((s, m) => s + (Number(m.cible) || 0), 0).toLocaleString('fr-FR')} {kr.unite}
- </span>
- </div>
- )}
- </div>
- );
- })}
  </div>
  </div>
  </div>
 
  {/* Footer */}
- <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+ <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 shrink-0">
  <button type="button" onClick={onClose} className="px-4 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-700 transition-all">
  Annuler
  </button>
@@ -778,6 +845,11 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  valeur_cible: kr.valeur_cible || 100,
  poids: kr.poids || 1,
  unite: kr.unite || '',
+ mode_calcul: kr.mode_calcul || 'pourcentage',
+ milestones: kr.milestones || [],
+ responsable_id: String(kr.responsable_id || ''),
+ source_auto: kr.source_auto || null,
+ source_crm_filtre: kr.source_crm_filtre || null,
  })),
  });
  setError('');
@@ -793,7 +865,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  return { ...prev, resultats_cles: krs };
  });
  };
- const addKR = () => setField('resultats_cles', [...formData.resultats_cles, { id: null, description: '', description_detaillee: '', type_resultat_cle_id: '', valeur_cible: 100, poids: 1, unite: '' }]);
+ const addKR = () => setField('resultats_cles', [...formData.resultats_cles, { id: null, description: '', description_detaillee: '', type_resultat_cle_id: '', valeur_cible: 100, poids: 1, unite: '', mode_calcul: 'pourcentage', milestones: [], responsable_id: '', source_auto: null, source_crm_filtre: null }]);
  const removeKR = (i) => {
  const krs = [...formData.resultats_cles];
  krs.splice(i, 1);
@@ -916,43 +988,13 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  </div>
  <div className="space-y-2">
  {(formData.resultats_cles || []).map((kr, i) => (
- <div key={kr.id || `new-${i}`} className="p-3 rounded-lg border border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 space-y-2">
- <div className="flex items-start gap-2">
- <span className="text-[10px] font-bold text-gray-400 mt-2.5 w-5 shrink-0">#{i + 1}</span>
- <div className="flex-1 space-y-1.5">
- <input type="text" value={kr.description} onChange={e => updateKR(i, 'description', e.target.value)} placeholder="Titre du KR..."
- className="w-full px-2.5 py-1.5 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
- <textarea value={kr.description_detaillee || ''} onChange={e => updateKR(i, 'description_detaillee', e.target.value)} placeholder="Détails, notes..."
- className="w-full rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 px-2.5 py-1.5 text-xs placeholder:text-gray-400 hover:border-gray-300 dark:hover:border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-colors duration-150 resize-none min-h-[40px]" />
- </div>
- {typesResultatsCles.length > 0 && (
- <SearchableSelect value={kr.type_resultat_cle_id} onChange={v => { updateKR(i, "type_resultat_cle_id", v); const t=typesResultatsCles.find(t=>t.id===Number(v)); if(t?.unite) updateKR(i,"unite",t.unite); if(t?.type_valeur==="boolean") updateKR(i,"valeur_cible",1); }} size="sm" className="w-28 shrink-0" nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
- )}
- {(formData.resultats_cles || []).length > 1 && (
- <button type="button" onClick={() => removeKR(i)} className="p-1 text-gray-400 hover:text-red-500 transition-colors shrink-0">
- <Trash2 className="h-3.5 w-3.5" />
- </button>
- )}
- </div>
- <div className="flex items-center gap-3 ml-7">
- <div className="flex items-center gap-1.5">
- <span className="text-[10px] text-gray-400">Cible</span>
- <input type="number" value={kr.valeur_cible || ''} onChange={e => updateKR(i, 'valeur_cible', e.target.value)}
- className="w-20 px-2 py-1 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded text-[11px]" />
- </div>
- <div className="flex items-center gap-1.5">
- <span className="text-[10px] text-gray-400">Unité</span>
- <SearchableSelect value={kr.unite || ""} onChange={v => updateKR(i, "unite", v)} size="sm" className="w-28" nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }))} />
- </div>
- {isPondere && (
- <div className="flex items-center gap-1.5">
- <span className="text-[10px] text-gray-400">Poids</span>
- <input type="number" value={kr.poids || ''} onChange={e => updateKR(i, 'poids', e.target.value)}
- className="w-16 px-2 py-1 bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded text-[11px]" />
- </div>
- )}
- </div>
- </div>
+ <KRBlockEditor key={kr.id || `new-${i}`} kr={kr} index={i}
+ onChange={(f, v) => updateKR(i, f, v)}
+ onRemove={() => removeKR(i)}
+ canRemove={(formData.resultats_cles || []).length > 1}
+ typesResultatsCles={typesResultatsCles}
+ collaborateurs={collaborateurs}
+ />
  ))}
  </div>
  </div>
@@ -1534,17 +1576,24 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateur
  const [submitting, setSubmitting] = useState(false);
  const [form, setForm] = useState({});
 
+ // Retrouve les infos du type sélectionné
+ const typeInfo = typesResultatsCles.find(t => String(t.id) === String(form.type_resultat_cle_id)) || null;
+ const isBoolean = typeInfo?.type_valeur === 'boolean';
+ const isPercent = typeInfo?.type_valeur === 'percent';
+
  useEffect(() => {
  if (open && kr) {
  setForm({
  description: kr.description || '',
  description_detaillee: kr.description_detaillee || '',
  type_resultat_cle_id: String(kr.type_resultat_cle_id || ''),
+ mode_calcul: kr.mode_calcul || 'pourcentage',
  valeur_cible: kr.valeur_cible ?? 100,
  poids: kr.poids ?? 1,
  unite: kr.unite || '',
  source_crm: kr.source_crm ?? false,
- source_crm_type_deal: kr.source_crm_filtre?.type_deal || '',
+ source_auto: kr.source_auto || null,
+ source_crm_filtre_auto: kr.source_crm_filtre || null,
  responsable_id: String(kr.responsable_id || ''),
  });
  setError('');
@@ -1552,6 +1601,17 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateur
  }, [open, kr]);
 
  const setF = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+ // Quand le type change → aligner unite et mode_calcul automatiquement
+ const onTypeChange = (typeId) => {
+ const t = typesResultatsCles.find(x => String(x.id) === String(typeId));
+ const nextUnite = t?.unite || '';
+ const nextMode = t?.type_valeur === 'boolean' ? 'boolean'
+  : t?.type_valeur === 'percent' ? 'pourcentage'
+  : 'pourcentage';
+ setForm(p => ({ ...p, type_resultat_cle_id: typeId || '', unite: nextUnite, mode_calcul: nextMode,
+  valeur_cible: t?.type_valeur === 'percent' ? 100 : p.valeur_cible }));
+ };
 
  const handleSubmit = (e) => {
  e.preventDefault();
@@ -1562,13 +1622,13 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateur
  description: form.description,
  description_detaillee: form.description_detaillee || null,
  type_resultat_cle_id: form.type_resultat_cle_id || null,
- valeur_cible: form.valeur_cible || 100,
- poids: form.poids || 1,
- unite: form.unite || null,
- source_crm: form.source_crm ?? false,
- source_crm_filtre: form.source_crm
-   ? { type_deal: form.source_crm_type_deal || null }
-   : null,
+ mode_calcul: form.mode_calcul || 'pourcentage',
+ valeur_cible: isBoolean ? 1 : (form.valeur_cible || 100),
+ poids: isBoolean ? 1 : (form.poids || 1),
+ unite: isBoolean ? null : (form.unite || null),
+ source_crm: form.source_auto ? false : (form.source_crm ?? false),
+ source_crm_filtre: form.source_crm_filtre_auto || null,
+ source_auto: form.source_auto || null,
  responsable_id: form.responsable_id || null,
  }, {
  preserveScroll: true,
@@ -1579,20 +1639,25 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateur
  };
 
  const inputCls = "mt-1 w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500";
+ const uniteOptions = [...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }));
 
  return (
  <Dialog open={open} onOpenChange={(v) => { if (!v) { setError(''); onClose(); } }}>
- <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden">
- <form onSubmit={handleSubmit} className="flex flex-col">
- <div className="px-5 pt-5 pb-4 space-y-3">
+ <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden max-h-[90vh] flex flex-col">
+ <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+ {/* ── Header ── */}
+ <div className="px-5 pt-5 pb-3 shrink-0">
  <DialogHeader>
  <DialogTitle className="text-sm">Modifier le résultat clé</DialogTitle>
  </DialogHeader>
  {error && (
- <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg">
+ <div className="mt-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg">
  <p className="text-[11px] text-red-600 dark:text-red-400">{error}</p>
  </div>
  )}
+ </div>
+ {/* ── Body scrollable ── */}
+ <div className="px-5 pb-5 overflow-y-auto flex-1 min-h-0 space-y-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description *</label>
  <input type="text" value={form.description || ''} onChange={e => setF('description', e.target.value)}
@@ -1615,50 +1680,58 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateur
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type de KR</label>
  <div className="mt-1">
- <SearchableSelect value={form.type_resultat_cle_id||""} onChange={v=>setForm(prev=>({...prev,type_resultat_cle_id:v}))} nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
+ <SearchableSelect value={form.type_resultat_cle_id||""} onChange={onTypeChange} nullable nullLabel="Type…" options={typesResultatsCles.map(t=>({value:String(t.id),label:t.nom}))} />
  </div>
+ {typeInfo && (
+ <p className="mt-1 text-[10px] text-gray-400">
+ {isBoolean && 'Objectif binaire — atteint ou non atteint. Pas de valeur numérique.'}
+ {isPercent && 'Progression en % — cible fixée à 100 par convention.'}
+ {typeInfo.type_valeur === 'currency' && `Valeur financière — unité : ${typeInfo.unite || 'devise'}.`}
+ {typeInfo.type_valeur === 'number' && 'Valeur quantitative — saisissez la cible numérique.'}
+ </p>
+ )}
  </div>
  )}
- <div className="grid grid-cols-3 gap-3">
+ {/* Cible / Poids / Unité — masqués pour Booléen */}
+ {!isBoolean && (
+ <div className={`grid gap-3 ${isPercent ? 'grid-cols-2' : 'grid-cols-3'}`}>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cible</label>
  <input type="number" value={form.valeur_cible ?? ''} onChange={e => setF('valeur_cible', e.target.value)}
- className={inputCls} placeholder="100" min="0" />
+ className={inputCls} placeholder={isPercent ? '100' : '0'} min="0" max={isPercent ? 100 : undefined}
+ readOnly={isPercent} />
  </div>
  <div>
- <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Poids</label>
+ <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider" title="Importance relative de ce KR dans l'objectif (1 = neutre)">
+ Poids <span className="normal-case font-normal text-gray-300">pondération</span>
+ </label>
  <input type="number" value={form.poids ?? ''} onChange={e => setF('poids', e.target.value)}
- className={inputCls} placeholder="1" min="0" max="100" step="0.1" />
+ className={inputCls} placeholder="1" min="0" step="0.1" />
  </div>
+ {!isPercent && (
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unité</label>
  <div className="mt-1">
- <SearchableSelect value={form.unite||""} onChange={v=>setForm(prev=>({...prev,unite:v}))} nullable nullLabel="—" options={[...new Set(typesResultatsCles.filter(t=>t.unite).map(t=>t.unite))].map(u=>({value:u,label:u}))} />
+ <SearchableSelect value={form.unite||""} onChange={v=>setF('unite',v)} nullable nullLabel="—" options={uniteOptions} />
  </div>
- </div>
- </div>
- {/* Source CRM */}
- <div className="space-y-2">
- <label className="flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer select-none w-fit">
- <input type="checkbox" checked={!!form.source_crm} onChange={e => setF('source_crm', e.target.checked)}
- className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
- Alimenter depuis le CRM (deals gagnés)
- </label>
- {form.source_crm && (
- <div className="flex items-center gap-1.5 ml-5">
- <span className="text-[10px] text-gray-400">Type de deal</span>
- <select value={form.source_crm_type_deal || ''} onChange={e => setF('source_crm_type_deal', e.target.value)}
- className="px-2 py-1 text-sm bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/30">
- <option value="">Tous les types</option>
- <option value="nouveau_client">Nouveau client</option>
- <option value="upsell">Upsell</option>
- <option value="renouvellement">Renouvellement</option>
- </select>
  </div>
  )}
  </div>
+ )}
+ {isBoolean && (
+ <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg">
+ <p className="text-[11px] text-amber-700 dark:text-amber-400">Type Booléen : ce KR sera à 100% quand il sera marqué comme atteint, 0% sinon.</p>
  </div>
- <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+ )}
+ {/* Source automatique */}
+ <SourceAutoConfig
+  sourceAuto={form.source_auto}
+  filtre={form.source_crm_filtre_auto}
+  onChange={(src, flt) => setForm(p => ({ ...p, source_auto: src, source_crm_filtre_auto: flt }))}
+ />
+ </div>
+ {/* ── Footer ── */}
+ <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 shrink-0">
  <button type="button" onClick={onClose} className="px-4 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 transition-all">Annuler</button>
  <button type="submit" disabled={submitting} className="px-5 py-1.5 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg shadow-sm transition-all disabled:opacity-50">
  {submitting ? 'Enregistrement...' : 'Enregistrer'}
@@ -1698,9 +1771,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
  <div className="relative flex items-center justify-between h-full px-3">
  <span className="text-[11px] font-semibold truncate z-10" style={{ color: krColor }}>{kr.description}</span>
  <div className="flex items-center gap-2 shrink-0 z-10">
- {kr.source_crm && (
- <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-400">CRM</span>
- )}
+ <SourceAutoBadge kr={kr} />
  <span className="text-[10px] text-gray-400 dark:text-gray-500">
  {krTerminees}/{krTaches.length} tâches
  </span>
@@ -1714,6 +1785,8 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
  </div>
  </button>
  {canEdit && (
+ <>
+ <SyncKrButton kr={kr} canSync={canEdit} router={router} />
  <button
  onClick={(e) => { e.stopPropagation(); onEditKr?.(kr); }}
  className="shrink-0 p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors opacity-0 group-hover/kr:opacity-100"
@@ -1721,6 +1794,7 @@ function KRRow({ kr, krIdx, seuils, onAddTaskForKr, onViewTask, onEditKr, object
  >
  <Pencil className="h-3 w-3 text-gray-400" />
  </button>
+ </>
  )}
  </div>
 
@@ -2026,33 +2100,66 @@ function ObjectifCard({ obj, seuils, handleDelete, defaultExpanded = false, onAd
 
 // ─── Modal ajout rapide de KR ────────────────────────────────
 function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], defaultObjectifId = null, collaborateurs = [] }) {
- const [objId, setObjId] = useState('');
- const [description, setDescription] = useState('');
- const [unite, setUnite] = useState('');
- const [valeurCible, setValeurCible] = useState(100);
- const [sourceCrm, setSourceCrm] = useState(false);
- const [sourceCrmTypeDeal, setSourceCrmTypeDeal] = useState('');
- const [responsableId, setResponsableId] = useState('');
+ const [form, setForm] = useState({});
  const [error, setError] = useState('');
  const [submitting, setSubmitting] = useState(false);
 
  useEffect(() => {
-  if (open) { setObjId(defaultObjectifId ? String(defaultObjectifId) : ''); setDescription(''); setUnite(''); setValeurCible(100); setSourceCrm(false); setSourceCrmTypeDeal(''); setResponsableId(''); setError(''); }
+  if (open) {
+   setForm({
+    obj_id: defaultObjectifId ? String(defaultObjectifId) : '',
+    description: '',
+    description_detaillee: '',
+    type_resultat_cle_id: '',
+    valeur_cible: 100,
+    poids: 1,
+    unite: '',
+    source_auto: null,
+    source_crm_filtre_auto: null,
+    responsable_id: '',
+   });
+   setError('');
+  }
  }, [open, defaultObjectifId]);
+
+ const setF = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+ // Infos du type sélectionné
+ const typeInfo = typesResultatsCles.find(t => String(t.id) === String(form.type_resultat_cle_id)) || null;
+ const isBoolean = typeInfo?.type_valeur === 'boolean';
+ const isPercent = typeInfo?.type_valeur === 'percent';
+
+ // Quand le type change → aligner unite et mode_calcul
+ const onTypeChange = (typeId) => {
+  const t = typesResultatsCles.find(x => String(x.id) === String(typeId));
+  const nextMode = t?.type_valeur === 'boolean' ? 'boolean'
+   : t?.type_valeur === 'percent' ? 'pourcentage' : 'pourcentage';
+  setForm(p => ({
+   ...p,
+   type_resultat_cle_id: typeId || '',
+   unite: t?.unite || '',
+   mode_calcul: nextMode,
+   valeur_cible: t?.type_valeur === 'percent' ? 100 : p.valeur_cible,
+  }));
+ };
 
  const handleSubmit = (e) => {
   e.preventDefault();
-  if (!objId) { setError('Sélectionnez un objectif.'); return; }
-  if (!description.trim()) { setError('La description est obligatoire.'); return; }
+  if (!form.obj_id) { setError('Sélectionnez un objectif.'); return; }
+  if (!form.description.trim()) { setError('La description est obligatoire.'); return; }
   setSubmitting(true);
-  router.post(route('objectifs.kr.store', objId), {
-   description,
-   valeur_cible: valeurCible || 100,
-   unite: unite || null,
-   poids: 1,
-   source_crm: sourceCrm,
-   source_crm_filtre: sourceCrm ? { type_deal: sourceCrmTypeDeal || null } : null,
-   responsable_id: responsableId || null,
+  router.post(route('objectifs.kr.store', form.obj_id), {
+   description: form.description,
+   description_detaillee: form.description_detaillee || null,
+   type_resultat_cle_id: form.type_resultat_cle_id || null,
+   mode_calcul: form.mode_calcul || 'pourcentage',
+   valeur_cible: isBoolean ? 1 : (form.valeur_cible || 100),
+   poids: isBoolean ? 1 : (form.poids || 1),
+   unite: isBoolean ? null : (form.unite || null),
+   source_auto: form.source_auto || null,
+   source_crm: false,
+   source_crm_filtre: form.source_crm_filtre_auto || null,
+   responsable_id: form.responsable_id || null,
   }, {
    preserveState: true, preserveScroll: true,
    onSuccess: () => { toast.success('Résultat clé ajouté'); onClose(); setSubmitting(false); },
@@ -2061,66 +2168,97 @@ function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], 
   });
  };
 
+ const inputCls = "mt-1 w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500";
  const objOptions = objectifs.map(o => ({ value: String(o.id), label: o.titre }));
  const uniteOptions = [...new Set(typesResultatsCles.filter(t => t.unite).map(t => t.unite))].map(u => ({ value: u, label: u }));
 
  return (
-  <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-   <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden">
-    <form onSubmit={handleSubmit} className="flex flex-col">
-     <div className="px-5 pt-5 pb-4 space-y-3">
+  <Dialog open={open} onOpenChange={v => { if (!v) { setError(''); onClose(); } }}>
+   <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden max-h-[90vh] flex flex-col">
+    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+     {/* ── Header ── */}
+     <div className="px-5 pt-5 pb-3 shrink-0">
       <DialogHeader><DialogTitle className="text-sm">Nouveau Résultat Clé</DialogTitle></DialogHeader>
-      {error && <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 rounded-lg"><p className="text-[11px] text-red-600">{error}</p></div>}
+      {error && (
+       <div className="mt-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg">
+        <p className="text-[11px] text-red-600 dark:text-red-400">{error}</p>
+       </div>
+      )}
+     </div>
+     {/* ── Body scrollable ── */}
+     <div className="px-5 pb-5 overflow-y-auto flex-1 min-h-0 space-y-3">
       <div>
        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Objectif *</label>
-       <div className="mt-1"><SearchableSelect value={objId} onChange={setObjId} options={objOptions} placeholder="Sélectionner un objectif..." /></div>
+       <div className="mt-1"><SearchableSelect value={form.obj_id||''} onChange={v => setF('obj_id', v)} options={objOptions} placeholder="Sélectionner un objectif..." /></div>
       </div>
       <div>
-       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description du KR *</label>
-       <input autoFocus type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Atteindre 150M GNF de CA..."
-        className="mt-1 w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500" />
+       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description *</label>
+       <input autoFocus type="text" value={form.description||''} onChange={e => setF('description', e.target.value)}
+        placeholder="Ex: Atteindre 150M GNF de CA..." className={inputCls} />
+      </div>
+      <div>
+       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Description détaillée</label>
+       <textarea value={form.description_detaillee||''} onChange={e => setF('description_detaillee', e.target.value)}
+        rows={2} className={`${inputCls} resize-none`} placeholder="Contexte, critères de succès..." />
       </div>
       {collaborateurs.length > 0 && (
        <div>
         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Responsable du KR</label>
-        <div className="mt-1"><SearchableSelect value={responsableId} onChange={setResponsableId} nullable nullLabel="— Non assigné —" options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} /></div>
+        <div className="mt-1"><SearchableSelect value={form.responsable_id||''} onChange={v => setF('responsable_id', v)} nullable nullLabel="— Non assigné —" options={collaborateurs.map(c => ({ value: String(c.id), label: c.prenom + ' ' + c.nom }))} /></div>
        </div>
       )}
-      <div className="grid grid-cols-2 gap-3">
+      {typesResultatsCles.length > 0 && (
        <div>
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Valeur cible</label>
-        <input type="number" value={valeurCible} onChange={e => setValeurCible(Number(e.target.value))}
-         className="mt-1 w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type de KR</label>
+        <div className="mt-1"><SearchableSelect value={form.type_resultat_cle_id||''} onChange={onTypeChange} nullable nullLabel="Type…" options={typesResultatsCles.map(t => ({ value: String(t.id), label: t.nom }))} /></div>
+        {typeInfo && (
+         <p className="mt-1 text-[10px] text-gray-400">
+          {isBoolean && 'Objectif binaire — atteint ou non atteint. Pas de valeur numérique.'}
+          {isPercent && 'Progression en % — cible fixée à 100 par convention.'}
+          {typeInfo.type_valeur === 'currency' && `Valeur financière — unité : ${typeInfo.unite || 'devise'}.`}
+          {typeInfo.type_valeur === 'number' && 'Valeur quantitative — saisissez la cible numérique.'}
+         </p>
+        )}
        </div>
-       <div>
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unité</label>
-        <div className="mt-1">
-         <SearchableSelect value={unite} onChange={setUnite} nullable nullLabel="—" placeholder="—" options={uniteOptions} />
+      )}
+      {/* Cible / Poids / Unité — masqués pour Booléen */}
+      {!isBoolean && (
+       <div className={`grid gap-3 ${isPercent ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        <div>
+         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cible</label>
+         <input type="number" value={form.valeur_cible??''} onChange={e => setF('valeur_cible', e.target.value)}
+          className={inputCls} placeholder={isPercent ? '100' : '0'} min="0" max={isPercent ? 100 : undefined}
+          readOnly={isPercent} />
         </div>
+        <div>
+         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider" title="Importance relative de ce KR dans l'objectif (1 = neutre)">
+          Poids <span className="normal-case font-normal text-gray-300">pondération</span>
+         </label>
+         <input type="number" value={form.poids??''} onChange={e => setF('poids', e.target.value)}
+          className={inputCls} placeholder="1" min="0" step="0.1" />
+        </div>
+        {!isPercent && (
+         <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unité</label>
+          <div className="mt-1"><SearchableSelect value={form.unite||''} onChange={v => setF('unite', v)} nullable nullLabel="—" options={uniteOptions} /></div>
+         </div>
+        )}
        </div>
-      </div>
-
-      {/* Source CRM */}
-      <div className="mt-1 pt-3 border-t border-gray-100 dark:border-dark-700">
-       <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-        <input type="checkbox" checked={sourceCrm} onChange={e => setSourceCrm(e.target.checked)}
-         className="rounded border-gray-300 text-teal-500 focus:ring-teal-500 bg-white dark:bg-dark-800" />
-        Alimenter depuis le CRM (deals gagnés)
-       </label>
-       {sourceCrm && (
-        <div className="mt-2 pl-6">
-         <select value={sourceCrmTypeDeal} onChange={e => setSourceCrmTypeDeal(e.target.value)}
-          className="w-full text-xs py-1.5 px-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/30">
-          <option value="">Tous les types</option>
-          <option value="licence">Licences SaaS</option>
-          <option value="setup">Setup & Onboarding</option>
-          <option value="service">Services pro</option>
-         </select>
-        </div>
-       )}
-      </div>
+      )}
+      {isBoolean && (
+       <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg">
+        <p className="text-[11px] text-amber-700 dark:text-amber-400">Type Booléen : ce KR sera à 100% quand il sera marqué comme atteint, 0% sinon.</p>
+       </div>
+      )}
+      {/* Source automatique */}
+      <SourceAutoConfig
+       sourceAuto={form.source_auto}
+       filtre={form.source_crm_filtre_auto}
+       onChange={(src, flt) => setForm(p => ({ ...p, source_auto: src, source_crm_filtre_auto: flt }))}
+      />
      </div>
-     <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+     {/* ── Footer ── */}
+     <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 shrink-0">
       <button type="button" onClick={onClose} className="px-4 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 dark:border-dark-700 rounded-lg hover:bg-gray-100 transition-all">Annuler</button>
       <button type="submit" disabled={submitting} className="px-5 py-1.5 text-xs font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-lg shadow-sm transition-all disabled:opacity-50">
        {submitting ? 'Enregistrement...' : 'Ajouter le KR'}

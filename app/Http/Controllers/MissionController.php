@@ -182,6 +182,7 @@ class MissionController extends Controller
             'statut'              => 'sometimes|in:draft,review,validated,sent,feedback,approved,archived',
             'dir_validated'       => 'sometimes|boolean',
             'ar_count'            => 'sometimes|integer|min:0',
+            'poids'               => 'sometimes|numeric|min:0.01|max:99.99',
             'responsable_id'      => 'nullable|exists:collaborateurs,id',
             'deadline_envoi'      => 'nullable|date',
             'deadline_validation' => 'nullable|date',

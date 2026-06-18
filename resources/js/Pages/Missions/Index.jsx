@@ -687,6 +687,7 @@ function EditLivrableForm({ livrable, missionId, collaborateurs, onCancel }) {
         url:                 livrable.url          || '',
         dir_validated:       livrable.dir_validated || false,
         ar_count:            livrable.ar_count      ?? 0,
+        poids:               livrable.poids         ?? 1,
     });
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors]         = useState({});
@@ -781,6 +782,12 @@ function EditLivrableForm({ livrable, missionId, collaborateurs, onCancel }) {
                     <input type="number" min="0" value={form.ar_count}
                         onChange={e => set('ar_count', parseInt(e.target.value) || 0)}
                         className="h-7 w-14 rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 text-sm px-2 text-center focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <Label className="text-[10px]" title="Poids pour le calcul OKR pondéré">Poids</Label>
+                    <input type="number" min="0.01" step="0.01" value={form.poids}
+                        onChange={e => set('poids', parseFloat(e.target.value) || 1)}
+                        className="h-7 w-16 rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-800 text-sm px-2 text-center focus:outline-none focus:ring-2 focus:ring-sky-500" />
                 </div>
             </div>
             <div className="flex gap-2 pt-1">

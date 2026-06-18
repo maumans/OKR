@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import AppLayout from '@/Layouts/AppLayout';
@@ -11,6 +11,7 @@ import {
     Briefcase, Plus, Search, RefreshCw, MoreVertical,
     Pencil, Trash2, Users, Target, Award, Building2,
     ChevronRight, Phone, Mail, FileText, Clock,
+    Activity, Monitor, Tag, CheckCheck, XCircle, RefreshCcw, Filter,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -35,13 +36,24 @@ const TYPE_DEAL = {
 };
 
 const SIDEBAR_VIEWS = [
-    { key: 'kanban',   label: 'Pipeline Kanban',      icon: LayoutGrid },
-    { key: 'liste',    label: 'Liste des deals',       icon: List },
-    { key: 'clients',  label: 'Clients',               icon: Building2 },
-    { key: 'nouveaux', label: 'Nouveaux clients',      icon: UserPlus },
-    { key: 'upsells',  label: 'Upsells',               icon: TrendingUp },
-    { key: 'stats',    label: 'Stats',                 icon: BarChart3 },
+    { key: 'kanban',    label: 'Pipeline Kanban',       icon: LayoutGrid },
+    { key: 'liste',     label: 'Liste des deals',        icon: List },
+    { key: 'activites', label: 'Activités commerciales', icon: Activity },
+    { key: 'clients',   label: 'Clients',                icon: Building2 },
+    { key: 'nouveaux',  label: 'Nouveaux clients',       icon: UserPlus },
+    { key: 'upsells',   label: 'Upsells',                icon: TrendingUp },
+    { key: 'stats',     label: 'Stats',                  icon: BarChart3 },
 ];
+
+const ACTIVITE_TYPES = {
+    contact_initie:      { label: 'Contact initié',      icon: Phone,       color: '#ec4899', bg: 'bg-pink-100 dark:bg-pink-900/30',    text: 'text-pink-700 dark:text-pink-300' },
+    demo_realisee:       { label: 'Démo réalisée',       icon: Monitor,     color: '#8b5cf6', bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-700 dark:text-violet-300' },
+    proposition_envoyee: { label: 'Proposition envoyée', icon: FileText,    color: '#6b7280', bg: 'bg-gray-100 dark:bg-gray-700/30',     text: 'text-gray-600 dark:text-gray-300' },
+    relance_effectuee:   { label: 'Relance effectuée',   icon: RefreshCw,   color: '#3b82f6', bg: 'bg-blue-100 dark:bg-blue-900/30',     text: 'text-blue-700 dark:text-blue-300' },
+    negociation_engagee: { label: 'Négociation engagée', icon: Tag,         color: '#f59e0b', bg: 'bg-amber-100 dark:bg-amber-900/30',   text: 'text-amber-700 dark:text-amber-300' },
+    deal_signe:          { label: 'Deal signé',           icon: CheckCheck,  color: '#22c55e', bg: 'bg-green-100 dark:bg-green-900/30',   text: 'text-green-700 dark:text-green-300' },
+    deal_perdu:          { label: 'Deal perdu',           icon: XCircle,     color: '#ef4444', bg: 'bg-red-100 dark:bg-red-900/30',       text: 'text-red-700 dark:text-red-300' },
+};
 
 const ACTION_TYPES = {
     appel:    { label: 'Appel',    icon: Phone,      cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
@@ -1140,8 +1152,450 @@ function VueStats({ prospects, stats, deviseCode }) {
     );
 }
 
+// ── Modal Logger une activité ───────────────────────────────────────────────
+function LogActiviteModal({ open, onClose, collaborateurs = [], prospects = [], clients = [], deviseCode = 'GNF' }) {
+    const today = new Date().toISOString().split('T')[0];
+    const emptyForm = {
+        collaborateur_id: '',
+        type: 'contact_initie',
+        prospect_id: '',
+        client_id: '',
+        prospect_client: '',
+        montant: '',
+        note: '',
+        date_activite: today,
+    };
+    const [form, setForm] = useState(emptyForm);
+    const [submitting, setSubmitting] = useState(false);
+    const setF = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+    // Reset form when modal opens
+    useEffect(() => { if (open) setForm({ ...emptyForm, date_activite: new Date().toISOString().split('T')[0] }); }, [open]);
+
+    // When prospect changes, clear client & free text (prospect already implies a client)
+    const handleProspectChange = (val) => {
+        setForm(p => ({ ...p, prospect_id: val, client_id: '', prospect_client: '' }));
+    };
+    // When client changes, clear free text
+    const handleClientChange = (val) => {
+        setForm(p => ({ ...p, client_id: val, prospect_client: '' }));
+    };
+
+    const cycleAuto = () => {
+        if (!form.date_activite) return '';
+        const d = new Date(form.date_activite);
+        return `Q${Math.ceil((d.getMonth() + 1) / 3)} ${d.getFullYear()}`;
+    };
+
+    // Find selected prospect info for display hint
+    const selectedProspect = form.prospect_id ? prospects.find(p => String(p.id) === String(form.prospect_id)) : null;
+    const selectedClient   = form.client_id   ? clients.find(c => String(c.id) === String(form.client_id))     : null;
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!form.collaborateur_id || !form.type || !form.date_activite) return;
+        setSubmitting(true);
+        router.post(route('activites.store'), {
+            collaborateur_id: form.collaborateur_id,
+            type:             form.type,
+            date_activite:    form.date_activite,
+            prospect_id:      form.prospect_id  || null,
+            client_id:        form.client_id    || null,
+            prospect_client:  (!form.prospect_id && !form.client_id) ? (form.prospect_client || null) : null,
+            montant:          form.montant !== '' ? Number(form.montant) : null,
+            note:             form.note || null,
+        }, {
+            preserveState: true,
+            onSuccess: () => { onClose(); setSubmitting(false); toast.success('Activité enregistrée.'); },
+            onError: () => setSubmitting(false),
+        });
+    };
+
+    const inputCls = 'w-full px-3 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500';
+    const labelCls = 'block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1';
+
+    return (
+        <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+            <DialogContent aria-describedby={undefined} className="max-w-lg p-0 overflow-hidden">
+                <form onSubmit={handleSubmit} className="flex flex-col">
+                    <div className="px-6 pt-5 pb-2 border-b border-gray-100 dark:border-dark-700">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-sm">
+                                <Activity className="h-4 w-4 text-cyan-500" />
+                                Logger une activité commerciale
+                            </DialogTitle>
+                        </DialogHeader>
+                    </div>
+                    <div className="px-6 py-4 space-y-4 overflow-y-auto max-h-[70vh]">
+
+                        {/* Collaborateur + Date */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className={labelCls}>Collaborateur *</label>
+                                <select value={form.collaborateur_id} onChange={e => setF('collaborateur_id', e.target.value)} required className={inputCls}>
+                                    <option value="">— Sélectionner —</option>
+                                    {collaborateurs.map(c => (
+                                        <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className={labelCls}>Date *</label>
+                                <input type="date" value={form.date_activite} onChange={e => setF('date_activite', e.target.value)} required className={inputCls} />
+                            </div>
+                        </div>
+
+                        {/* Type + Deal lié */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className={labelCls}>Type d'activité *</label>
+                                <select value={form.type} onChange={e => setF('type', e.target.value)} required className={inputCls}>
+                                    {Object.entries(ACTIVITE_TYPES).map(([key, def]) => (
+                                        <option key={key} value={key}>{def.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className={labelCls}>Deal lié (optionnel)</label>
+                                <select value={form.prospect_id} onChange={e => handleProspectChange(e.target.value)} className={inputCls}>
+                                    <option value="">— Aucun deal —</option>
+                                    {prospects.map(p => (
+                                        <option key={p.id} value={p.id}>{p.titre || p.nom}</option>
+                                    ))}
+                                </select>
+                                {selectedProspect && (
+                                    <p className="mt-1 text-[10px] text-gray-400 truncate">
+                                        {selectedProspect.nom}{selectedProspect.contact ? ` · ${selectedProspect.contact}` : ''}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Si pas de deal : Client existant ou nouveau contact */}
+                        {!form.prospect_id && (
+                            <div className="space-y-3">
+                                <div>
+                                    <label className={labelCls}>Client existant</label>
+                                    <select value={form.client_id} onChange={e => handleClientChange(e.target.value)} className={inputCls}>
+                                        <option value="">— Sélectionner un client —</option>
+                                        {clients.map(c => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.nom}{c.contact ? ` — ${c.contact}` : ''}{c.secteur ? ` (${c.secteur})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {selectedClient && (
+                                        <p className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                                            ✓ {selectedClient.nom}{selectedClient.contact ? ` · ${selectedClient.contact}` : ''}
+                                        </p>
+                                    )}
+                                </div>
+                                {!form.client_id && (
+                                    <div>
+                                        <label className={labelCls}>Ou — Nouveau prospect / contact libre</label>
+                                        <input type="text" value={form.prospect_client}
+                                            onChange={e => setF('prospect_client', e.target.value)}
+                                            placeholder="Ex: BICIGUI — DG M. Soumah"
+                                            className={inputCls} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Montant + Cycle */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className={labelCls}>Montant ({deviseCode}) — si proposition ou deal</label>
+                                <input type="number" value={form.montant} onChange={e => setF('montant', e.target.value)}
+                                    placeholder="Ex: 95 000 000" className={inputCls} min="0" />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Cycle (auto-calculé)</label>
+                                <input type="text" value={cycleAuto()} readOnly
+                                    className={`${inputCls} bg-gray-50 dark:bg-dark-700 text-gray-500 cursor-default`} />
+                            </div>
+                        </div>
+
+                        {/* Note */}
+                        <div>
+                            <label className={labelCls}>Note</label>
+                            <textarea value={form.note} onChange={e => setF('note', e.target.value)}
+                                rows={3} placeholder="Contexte, résultat, prochaine étape..."
+                                className={`${inputCls} resize-none`} />
+                        </div>
+
+                        <div className="flex items-start gap-2 px-3 py-2.5 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-100 dark:border-cyan-900/30 rounded-lg">
+                            <CheckCheck className="h-3.5 w-3.5 text-cyan-500 mt-0.5 shrink-0" />
+                            <p className="text-[11px] text-cyan-700 dark:text-cyan-300">Les KRs CRM du collaborateur seront mis à jour automatiquement dès l'enregistrement.</p>
+                        </div>
+                    </div>
+                    <div className="px-6 py-3 border-t border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50 flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
+                        <Button type="submit" disabled={submitting || !form.collaborateur_id || !form.date_activite}>
+                            {submitting ? 'Enregistrement...' : 'Enregistrer'}
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// ── Vue Activités Commerciales ───────────────────────────────────────────────
+function VueActivites({ activites = [], statsActivites = {}, collaborateurs = [], prospects = [], clients = [], deviseCode = 'GNF' }) {
+    const [filterCollab, setFilterCollab] = useState('');
+    const [filterCycle, setFilterCycle]   = useState('');
+    const [filterType, setFilterType]     = useState('');
+    const [filterClient, setFilterClient] = useState('');
+    const [logOpen, setLogOpen]           = useState(false);
+    const [syncLoading, setSyncLoading]   = useState(false);
+    const [deleting, setDeleting]         = useState(null);
+
+    const cycles = [...new Set(activites.map(a => a.cycle))].sort().reverse();
+
+    const filtered = activites.filter(a =>
+        (!filterCollab || String(a.collaborateur_id) === filterCollab) &&
+        (!filterCycle  || a.cycle === filterCycle) &&
+        (!filterType   || a.type === filterType) &&
+        (!filterClient || String(a.client_id) === filterClient)
+    );
+
+    const montantFiltre = filtered.reduce((s, a) => s + (a.montant || 0), 0);
+    const hasFilters = filterCollab || filterCycle || filterType || filterClient;
+
+    const handleSync = () => {
+        setSyncLoading(true);
+        router.post(route('activites.sync-krs'), {}, {
+            preserveState: true,
+            onSuccess: () => { setSyncLoading(false); toast.success('KRs synchronisés avec succès.'); },
+            onError:   () => setSyncLoading(false),
+        });
+    };
+
+    const handleDelete = (a) => {
+        if (!window.confirm(`Supprimer l'activité "${ACTIVITE_TYPES[a.type]?.label || a.type}" du ${a.date_activite} ?`)) return;
+        setDeleting(a.id);
+        router.delete(route('activites.destroy', a.id), {
+            preserveState: true,
+            onSuccess: () => { setDeleting(null); toast.success('Activité supprimée.'); },
+            onError:   () => setDeleting(null),
+        });
+    };
+
+    return (
+        <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white">Activités Commerciales</h2>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                        {statsActivites.total || 0} interaction(s) · cycle actuel : {statsActivites.cycle_actuel || '—'}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={handleSync} disabled={syncLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-700 rounded-lg hover:bg-cyan-100 transition-all disabled:opacity-50">
+                        <RefreshCcw className={`h-3.5 w-3.5 ${syncLoading ? 'animate-spin' : ''}`} />
+                        Sync KRs
+                    </button>
+                    <button onClick={() => setLogOpen(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gray-900 dark:bg-dark-700 rounded-lg hover:bg-gray-800 transition-all shadow-sm">
+                        <Plus className="h-3.5 w-3.5" />
+                        Logger une activité
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats cards */}
+            <div className="grid grid-cols-7 gap-2">
+                {Object.entries(ACTIVITE_TYPES).map(([key, def]) => {
+                    const Icon = def.icon;
+                    const count = statsActivites[key] || 0;
+                    return (
+                        <button key={key} onClick={() => setFilterType(filterType === key ? '' : key)}
+                            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                                filterType === key
+                                    ? 'border-2 shadow-md'
+                                    : 'border-gray-100 dark:border-dark-700 bg-white dark:bg-dark-900 hover:border-gray-200'
+                            }`}
+                            style={filterType === key ? { borderColor: def.color, backgroundColor: def.color + '18' } : {}}>
+                            <div className="h-9 w-9 rounded-full flex items-center justify-center" style={{ backgroundColor: def.color + '22' }}>
+                                <Icon className="h-4 w-4" style={{ color: def.color }} />
+                            </div>
+                            <span className="text-xl font-bold text-gray-800 dark:text-white leading-none">{count}</span>
+                            <span className="text-[9px] text-gray-400 text-center leading-tight">{def.label}</span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Résumé montants */}
+            <div className="grid grid-cols-3 gap-3">
+                <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
+                        <Monitor className="h-4 w-4 text-emerald-500" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Montant total</p>
+                        <p className="text-sm font-bold text-gray-800 dark:text-white tabular-nums">{fmt(statsActivites.montant_total || 0)} {deviseCode}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700">
+                    <div className="h-8 w-8 rounded-lg bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
+                        <Activity className="h-4 w-4 text-primary-500" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Cycle actuel ({statsActivites.cycle_actuel || '—'})</p>
+                        <p className="text-sm font-bold text-gray-800 dark:text-white tabular-nums">{fmt(statsActivites.montant_cycle || 0)} {deviseCode}</p>
+                    </div>
+                </div>
+                {hasFilters && (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                        <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                            <Filter className="h-4 w-4 text-amber-500" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold tracking-wider">Sélection filtrée</p>
+                            <p className="text-sm font-bold text-amber-700 dark:text-amber-300 tabular-nums">{fmt(montantFiltre)} {deviseCode}</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Filters */}
+            <div className="flex items-center gap-3 flex-wrap">
+                <Filter className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <select value={filterCollab} onChange={e => setFilterCollab(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none">
+                    <option value="">Tous les collaborateurs</option>
+                    {collaborateurs.map(c => <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>)}
+                </select>
+                <select value={filterCycle} onChange={e => setFilterCycle(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none">
+                    <option value="">Tous les cycles</option>
+                    {cycles.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none">
+                    <option value="">Tous les types</option>
+                    {Object.entries(ACTIVITE_TYPES).map(([key, def]) => <option key={key} value={key}>{def.label}</option>)}
+                </select>
+                <select value={filterClient} onChange={e => setFilterClient(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg focus:outline-none">
+                    <option value="">Tous les clients</option>
+                    {clients.map(c => <option key={c.id} value={String(c.id)}>{c.nom}</option>)}
+                </select>
+                {hasFilters && (
+                    <button onClick={() => { setFilterCollab(''); setFilterCycle(''); setFilterType(''); setFilterClient(''); }}
+                        className="text-[11px] text-gray-400 hover:text-red-500 transition-colors">
+                        Effacer
+                    </button>
+                )}
+                <span className="ml-auto text-[11px] text-gray-400">{filtered.length} résultat(s)</span>
+            </div>
+
+            {/* List */}
+            <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700 overflow-hidden">
+                {filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="h-12 w-12 rounded-2xl bg-cyan-50 dark:bg-cyan-900/20 flex items-center justify-center mb-3">
+                            <Activity className="h-6 w-6 text-cyan-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Aucune activité trouvée</p>
+                        <p className="text-[11px] text-gray-400 mt-1">Loggez votre première activité commerciale.</p>
+                        <button onClick={() => setLogOpen(true)}
+                            className="mt-4 px-4 py-2 text-xs font-semibold text-white bg-gray-900 dark:bg-dark-700 rounded-lg hover:bg-gray-800 transition-all">
+                            + Logger une activité
+                        </button>
+                    </div>
+                ) : (
+                    <table className="w-full text-xs">
+                        <thead>
+                            <tr className="border-b border-gray-100 dark:border-dark-700 bg-gray-50/50 dark:bg-dark-800/50">
+                                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date</th>
+                                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Collaborateur</th>
+                                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Type</th>
+                                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prospect / Client</th>
+                                <th className="text-right px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Montant</th>
+                                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cycle</th>
+                                <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Note</th>
+                                <th className="px-4 py-2.5"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.map((a, idx) => {
+                                const def = ACTIVITE_TYPES[a.type] || {};
+                                const Icon = def.icon;
+                                const isDeleting = deleting === a.id;
+                                return (
+                                    <tr key={a.id} className={`border-b border-gray-50 dark:border-dark-800 hover:bg-gray-50/50 dark:hover:bg-dark-800/30 transition-colors ${isDeleting ? 'opacity-40' : ''} ${idx % 2 === 0 ? '' : 'bg-gray-50/20 dark:bg-dark-800/10'}`}>
+                                        <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{a.date_activite}</td>
+                                        <td className="px-4 py-2.5">
+                                            <div className="flex items-center gap-2">
+                                                <CollabAvatar prenom={a.collaborateur_prenom} nom={a.collaborateur_nom} cls="h-6 w-6 text-[10px]" />
+                                                <span className="text-gray-700 dark:text-gray-300 font-medium">
+                                                    {a.collaborateur_prenom} {a.collaborateur_nom}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-2.5">
+                                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${def.bg} ${def.text}`}>
+                                                {Icon && <Icon className="h-3 w-3" />}
+                                                {def.label}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 max-w-[180px]">
+                                            {a.prospect_titre
+                                                ? <span className="flex items-center gap-1 truncate"><Tag className="h-2.5 w-2.5 text-primary-400 shrink-0" />{a.prospect_titre}</span>
+                                                : a.client_nom
+                                                    ? <span className="flex items-center gap-1 truncate"><CheckCheck className="h-2.5 w-2.5 text-emerald-400 shrink-0" />{a.client_nom}{a.client_contact ? <span className="text-gray-400 text-[10px] shrink-0"> · {a.client_contact}</span> : ''}</span>
+                                                    : a.prospect_client
+                                                        ? <span className="text-gray-500 italic truncate block">{a.prospect_client}</span>
+                                                        : <span className="text-gray-300">—</span>
+                                            }
+                                        </td>
+                                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 text-right tabular-nums whitespace-nowrap">
+                                            {a.montant > 0 ? <span className="font-semibold">{fmt(a.montant)} <span className="font-normal text-gray-400">{deviseCode}</span></span> : <span className="text-gray-300">—</span>}
+                                        </td>
+                                        <td className="px-4 py-2.5">
+                                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-dark-700 text-gray-500 rounded-full text-[10px] font-medium">{a.cycle}</span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-gray-500 max-w-[160px] truncate">
+                                            {a.note || <span className="text-gray-300">—</span>}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right">
+                                            <button onClick={() => handleDelete(a)} disabled={isDeleting}
+                                                title="Supprimer"
+                                                className="p-1 text-gray-300 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors disabled:opacity-30">
+                                                <XCircle className="h-3.5 w-3.5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                        {filtered.some(a => a.montant > 0) && (
+                            <tfoot>
+                                <tr className="border-t-2 border-gray-200 dark:border-dark-600 bg-gray-50/70 dark:bg-dark-800/50">
+                                    <td colSpan={4} className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total sélection</td>
+                                    <td className="px-4 py-2 text-right font-bold text-gray-700 dark:text-gray-300 tabular-nums">
+                                        {fmt(montantFiltre)} {deviseCode}
+                                    </td>
+                                    <td colSpan={3}></td>
+                                </tr>
+                            </tfoot>
+                        )}
+                    </table>
+                )}
+            </div>
+
+            <LogActiviteModal open={logOpen} onClose={() => setLogOpen(false)} collaborateurs={collaborateurs} prospects={prospects} clients={clients} deviseCode={deviseCode} />
+        </div>
+    );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────
-export default function ProspectionIndex({ prospects, filters, collaborateurs, clients = [], stats, pipelineParCollab, auth }) {
+export default function ProspectionIndex({ prospects, filters, collaborateurs, clients = [], stats, pipelineParCollab, activites = [], statsActivites = {}, auth }) {
     const deviseCode = auth?.societe?.devise?.code || 'GNF';
     const [activeView, setActiveView] = useState('kanban');
     const [collabFilter, setCollabFilter] = useState(String(filters?.collaborateur_id || ''));
@@ -1263,6 +1717,16 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                     )}
                     {activeView === 'stats' && (
                         <VueStats prospects={prospects} stats={stats} deviseCode={deviseCode} />
+                    )}
+                    {activeView === 'activites' && (
+                        <VueActivites
+                            activites={activites}
+                            statsActivites={statsActivites}
+                            collaborateurs={collaborateurs}
+                            prospects={prospects}
+                            clients={clients}
+                            deviseCode={deviseCode}
+                        />
                     )}
                 </div>
             </div>

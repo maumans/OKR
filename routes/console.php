@@ -13,3 +13,6 @@ Schedule::command('livrable:alerts')->dailyAt('08:00');
 
 // Rappel Daily : chaque jour ouvré à 11h00
 Schedule::command('daily:rappel')->dailyAt('11:00');
+
+// Consolidation KRs automatiques : toutes les heures
+Schedule::command('okr:consolider')->hourly();

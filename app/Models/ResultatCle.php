@@ -22,6 +22,7 @@ class ResultatCle extends Model
         'mode_calcul',
         'source_crm',
         'source_crm_filtre',
+        'source_auto',
         'milestones',
         'progression',
         'justification',

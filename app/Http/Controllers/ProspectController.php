@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActiviteCommerciale;
 use App\Models\Client;
 use App\Models\Prospect;
 use App\Models\Collaborateur;
 use App\Events\ProspectStatutChange;
+use App\Services\ConsolidationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -137,6 +139,39 @@ class ProspectController extends Controller
             ];
         })->filter(fn ($c) => $c['objectif'] > 0 || $c['ca_signe'] > 0)->values();
 
+        // ── Activités commerciales
+        $activites = ActiviteCommerciale::where('societe_id', $societeId)
+            ->with('collaborateur:id,nom,prenom', 'prospect:id,titre,nom', 'client:id,nom,contact')
+            ->orderByDesc('date_activite')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($a) => [
+                'id'                   => $a->id,
+                'collaborateur_id'     => $a->collaborateur_id,
+                'collaborateur_prenom' => $a->collaborateur?->prenom,
+                'collaborateur_nom'    => $a->collaborateur?->nom,
+                'type'                 => $a->type,
+                'prospect_id'          => $a->prospect_id,
+                'prospect_titre'       => $a->prospect?->titre ?? $a->prospect?->nom,
+                'client_id'            => $a->client_id,
+                'client_nom'           => $a->client?->nom,
+                'client_contact'       => $a->client?->contact,
+                'prospect_client'      => $a->prospect_client,
+                'montant'              => (float) ($a->montant ?? 0),
+                'cycle'                => $a->cycle,
+                'note'                 => $a->note,
+                'date_activite'        => $a->date_activite?->format('Y-m-d'),
+                'created_at'           => $a->created_at?->format('d/m/Y H:i'),
+            ]);
+
+        $cycleActuel = 'Q' . (int) ceil(now()->month / 3) . ' ' . now()->year;
+        $statsActivites = collect(ActiviteCommerciale::TYPES)
+            ->mapWithKeys(fn ($t) => [$t => $activites->where('type', $t)->count()])
+            ->put('total', $activites->count())
+            ->put('montant_total', (float) $activites->sum('montant'))
+            ->put('montant_cycle', (float) $activites->where('cycle', $cycleActuel)->sum('montant'))
+            ->put('cycle_actuel', $cycleActuel);
+
         return Inertia::render('Prospection/Index', [
             'prospects'         => $prospects,
             'filters'           => $request->only(['search', 'collaborateur_id']),
@@ -144,6 +179,8 @@ class ProspectController extends Controller
             'clients'           => $clients,
             'stats'             => $stats,
             'pipelineParCollab' => $pipelineParCollab,
+            'activites'         => $activites,
+            'statsActivites'    => $statsActivites,
         ]);
     }
 
@@ -273,6 +310,57 @@ class ProspectController extends Controller
         }
 
         return redirect()->back()->with('success', 'Action enregistrée.');
+    }
+
+    public function storeActivite(Request $request)
+    {
+        $societeId = session('societe_id');
+        $validated = $request->validate([
+            'collaborateur_id'  => 'required|exists:collaborateurs,id',
+            'type'              => 'required|in:contact_initie,demo_realisee,proposition_envoyee,relance_effectuee,negociation_engagee,deal_signe,deal_perdu',
+            'prospect_id'       => 'nullable|exists:prospects,id',
+            'client_id'         => 'nullable|exists:clients,id',
+            'prospect_client'   => 'nullable|string|max:255',
+            'montant'           => 'nullable|numeric|min:0',
+            'note'              => 'nullable|string',
+            'date_activite'     => 'required|date',
+        ]);
+
+        ActiviteCommerciale::create([
+            'societe_id'       => $societeId,
+            'collaborateur_id' => $validated['collaborateur_id'],
+            'type'             => $validated['type'],
+            'prospect_id'      => $validated['prospect_id'] ?? null,
+            'client_id'        => $validated['client_id'] ?? null,
+            'prospect_client'  => $validated['prospect_client'] ?? null,
+            'montant'          => $validated['montant'] ?? null,
+            'cycle'            => ActiviteCommerciale::cycleFromDate($validated['date_activite']),
+            'note'             => $validated['note'] ?? null,
+            'date_activite'    => $validated['date_activite'],
+        ]);
+
+        app(ConsolidationService::class)->syncKrsParCollaborateur(
+            $validated['collaborateur_id'],
+            'crm_activites',
+            $societeId
+        );
+
+        return redirect()->back()->with('success', 'Activité enregistrée et KRs mis à jour.');
+    }
+
+    public function syncKrsActivites(Request $request)
+    {
+        $societeId = session('societe_id');
+        $updated   = app(ConsolidationService::class)->syncKrsParSociete($societeId, 'crm_activites');
+        return redirect()->back()->with('success', "{$updated} KR(s) mis à jour depuis les activités commerciales.");
+    }
+
+    public function destroyActivite(ActiviteCommerciale $activite)
+    {
+        $societeId = session('societe_id');
+        abort_if($activite->societe_id !== $societeId, 403);
+        $activite->delete();
+        return redirect()->back()->with('success', 'Activité supprimée.');
     }
 
     public function destroy(Prospect $prospect)

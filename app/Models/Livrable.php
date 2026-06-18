@@ -20,6 +20,7 @@ class Livrable extends Model
         'statut',
         'dir_validated',
         'ar_count',
+        'poids',
         'url',
         'deadline_envoi',
         'deadline_validation',
@@ -30,6 +31,7 @@ class Livrable extends Model
         return [
             'dir_validated'       => 'boolean',
             'ar_count'            => 'integer',
+            'poids'               => 'float',
             'deadline_envoi'      => 'date',
             'deadline_validation' => 'date',
         ];
