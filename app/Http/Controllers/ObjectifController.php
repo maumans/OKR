@@ -12,6 +12,7 @@ use App\Models\TypeResultatCle;
 use App\Models\StatutObjectif;
 use App\Models\ConfigurationOkr;
 use App\Models\Mission;
+use App\Models\OpsIndicateur;
 use App\Events\ProgressionKrMiseAJour;
 use App\Services\ConsolidationService;
 use App\Services\OkrService;
@@ -211,6 +212,10 @@ class ObjectifController extends Controller
             'velocite' => $velocite,
             'defaultCollaborateurId' => $defaultCollaborateurId,
             'missions' => $missions,
+            'opsIndicateurs' => OpsIndicateur::where('societe_id', $societeId)
+                ->where('actif', true)
+                ->orderBy('ordre')
+                ->get(['id', 'nom', 'categorie', 'unite']),
         ]);
     }
 

@@ -220,7 +220,11 @@ class ConsolidationService
             ->where('collaborateur_id', $kr->responsable_id)
             ->where('cycle', $cycle);
 
-        if ($typeActivite) {
+        // Support multi-valeur (type_activites) + fallback legacy (type_activite)
+        $typeActivites = $filtre['type_activites'] ?? null;
+        if (! empty($typeActivites)) {
+            $query->whereIn('type', (array) $typeActivites);
+        } elseif ($typeActivite) {
             $query->where('type', $typeActivite);
         }
 

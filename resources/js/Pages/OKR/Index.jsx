@@ -156,7 +156,7 @@ function formatPeriodDates(p) {
 }
 
 // ─── KR Block Editor (partagé par Create/Edit Objectif) ─────
-function KRBlockEditor({ kr, index, onChange, onRemove, canRemove, typesResultatsCles, collaborateurs, moisPeriode = [] }) {
+function KRBlockEditor({ kr, index, onChange, onRemove, canRemove, typesResultatsCles, collaborateurs, opsIndicateurs = [], moisPeriode = [] }) {
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     const typeInfo = typesResultatsCles.find(t => String(t.id) === String(kr.type_resultat_cle_id)) || null;
@@ -285,6 +285,8 @@ function KRBlockEditor({ kr, index, onChange, onRemove, canRemove, typesResultat
                             sourceAuto={kr.source_auto}
                             filtre={kr.source_crm_filtre}
                             onChange={(src, flt) => { onChange('source_auto', src); onChange('source_crm_filtre', flt); }}
+                            collaborateurs={collaborateurs}
+                            opsIndicateurs={opsIndicateurs}
                         />
                     </div>
                 )}
@@ -294,7 +296,7 @@ function KRBlockEditor({ kr, index, onChange, onRemove, canRemove, typesResultat
 }
 
 // ─── Modal de création rapide d'objectif ────────────────────
-function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, collaborateurs, axes = [], typesObjectifs = [], typesResultatsCles = [], configuration, auth, missions = [] }) {
+function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, collaborateurs, axes = [], typesObjectifs = [], typesResultatsCles = [], opsIndicateurs = [], configuration, auth, missions = [] }) {
  const devise = auth?.societe?.devise;
  const isPondere = configuration?.mode_calcul === 'pondere';
  const [error, setError] = useState('');
@@ -578,6 +580,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  canRemove={formData.resultats_cles.length > 1}
  typesResultatsCles={typesResultatsCles}
  collaborateurs={collaborateurs}
+ opsIndicateurs={opsIndicateurs}
  moisPeriode={moisPeriode}
  />
  ))}
@@ -820,7 +823,7 @@ function AddTaskModal({ open, onClose, objectifId, resultatsCles = [], defaultRe
 }
 
 // ─── Modal d'édition complète d'un objectif ─────────────────
-function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, axes, typesObjectifs = [], typesResultatsCles = [], configuration, auth }) {
+function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, axes, typesObjectifs = [], typesResultatsCles = [], opsIndicateurs = [], configuration, auth }) {
  const devise = auth?.societe?.devise;
  const [error, setError] = useState('');
  const [submitting, setSubmitting] = useState(false);
@@ -994,6 +997,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  canRemove={(formData.resultats_cles || []).length > 1}
  typesResultatsCles={typesResultatsCles}
  collaborateurs={collaborateurs}
+ opsIndicateurs={opsIndicateurs}
  />
  ))}
  </div>
@@ -1571,7 +1575,7 @@ function TaskDetailPanel({ tache, onClose, objectifTitre, collaborateurs = [], a
 }
 
 // ─── Modal d'édition directe d'un KR ────────────────────────
-function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateurs = [] }) {
+function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateurs = [], opsIndicateurs = [] }) {
  const [error, setError] = useState('');
  const [submitting, setSubmitting] = useState(false);
  const [form, setForm] = useState({});
@@ -1728,6 +1732,8 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateur
   sourceAuto={form.source_auto}
   filtre={form.source_crm_filtre_auto}
   onChange={(src, flt) => setForm(p => ({ ...p, source_auto: src, source_crm_filtre_auto: flt }))}
+  collaborateurs={collaborateurs}
+  opsIndicateurs={opsIndicateurs}
  />
  </div>
  {/* ── Footer ── */}
@@ -2354,7 +2360,7 @@ function QuickTaskModal({ open, onClose, objectifs = [], collaborateurs = [], de
 }
 
 // ─── Page principale ───────────────────────────────────────
-export default function OKRIndex({ objectifs, filters, collaborateurs, periodes = [], axes = [], seuils = [], typesObjectifs = [], typesResultatsCles = [], configuration, vueOkr = 'cards', progressionGlobale = 0, velocite = 0, defaultCollaborateurId, auth, missions = [] }) {
+export default function OKRIndex({ objectifs, filters, collaborateurs, periodes = [], axes = [], seuils = [], typesObjectifs = [], typesResultatsCles = [], opsIndicateurs = [], configuration, vueOkr = 'cards', progressionGlobale = 0, velocite = 0, defaultCollaborateurId, auth, missions = [] }) {
  const devise = auth?.societe?.devise;
  const [search, setSearch] = useState(filters?.search || '');
  const [statutFilter, setStatutFilter] = useState(filters?.statut || '');
@@ -2646,6 +2652,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  axes={axes}
  typesObjectifs={typesObjectifs}
  typesResultatsCles={typesResultatsCles}
+ opsIndicateurs={opsIndicateurs}
  configuration={configuration}
  auth={auth}
  missions={missions}
@@ -2695,6 +2702,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  axes={axes}
  typesObjectifs={typesObjectifs}
  typesResultatsCles={typesResultatsCles}
+ opsIndicateurs={opsIndicateurs}
  configuration={configuration}
  auth={auth}
  />
@@ -2719,6 +2727,7 @@ export default function OKRIndex({ objectifs, filters, collaborateurs, periodes 
  kr={editKrModal.kr}
  typesResultatsCles={typesResultatsCles}
  collaborateurs={collaborateurs}
+ opsIndicateurs={opsIndicateurs}
  />
  </AppLayout>
  );
