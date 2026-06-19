@@ -10,6 +10,7 @@ import EmptyState from '@/Components/EmptyState';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
 import { CustomDatePicker } from '@/Components/ui/CustomDatePicker';
 import { SearchableSelect } from '@/Components/ui/SearchableSelect';
+import { NumberInput } from '@/Components/ui/NumberInput';
 import { motion, AnimatePresence } from 'framer-motion';
 import SourceAutoConfig, { SourceAutoBadge, SyncKrButton } from '@/Components/okr/SourceAutoConfig';
 import {
@@ -206,9 +207,12 @@ function KRBlockEditor({ kr, index, onChange, onRemove, canRemove, typesResultat
                 <div className="flex items-center gap-2 ml-7 flex-wrap">
                     <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-gray-400">Cible</span>
-                        <input type="number" value={kr.valeur_cible ?? ''} readOnly={isPercent}
-                            onChange={e => onChange('valeur_cible', e.target.value)}
-                            className={`w-20 ${inputNum}`} />
+                        <div className="w-20">
+                            <NumberInput value={kr.valeur_cible ?? ''} readOnly={isPercent}
+                                onChange={v => onChange('valeur_cible', v)}
+                                decimals={0}
+                                className={`text-xs text-right py-1 px-2 ${isPercent ? 'opacity-60' : ''}`} />
+                        </div>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-gray-400">Poids</span>
@@ -251,11 +255,16 @@ function KRBlockEditor({ kr, index, onChange, onRemove, canRemove, typesResultat
                     {(kr.milestones || []).map((m, mi) => (
                         <div key={m.mois} className="flex items-center gap-1 bg-white dark:bg-dark-800 rounded px-2 py-1 border border-gray-200 dark:border-dark-700">
                             <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 shrink-0">{m.label}</span>
-                            <input type="number" value={m.cible} onChange={e => {
-                                const ms = [...(kr.milestones || [])];
-                                ms[mi] = { ...ms[mi], cible: Number(e.target.value) || 0 };
-                                onChange('milestones', ms);
-                            }} className="w-16 text-xs text-right bg-transparent border-none outline-none" />
+                            <div className="w-16">
+                                <NumberInput value={m.cible || 0}
+                                    onChange={v => {
+                                        const ms = [...(kr.milestones || [])];
+                                        ms[mi] = { ...ms[mi], cible: Number(v) || 0 };
+                                        onChange('milestones', ms);
+                                    }}
+                                    decimals={0}
+                                    className="w-full text-xs text-right bg-transparent border-transparent hover:border-transparent focus:border-gray-300 focus:ring-1 py-0 px-1" />
+                            </div>
                         </div>
                     ))}
                     <span className="text-[10px] text-gray-400">
@@ -552,8 +561,9 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prime ({devise?.code || 'GNF'})</label>
- <input type="number" value={formData.prime} onChange={e => setField('prime', e.target.value)} placeholder="0"
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs" />
+ <NumberInput value={formData.prime} onChange={v => setField('prime', v)} placeholder="0"
+ decimals={devise?.decimales ?? 0}
+ className="mt-1 text-xs py-2" />
  </div>
  </div>
  {missions.length > 0 && (
@@ -976,8 +986,9 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prime ({devise?.code || 'GNF'})</label>
- <input type="number" value={formData.prime || ''} onChange={e => setField('prime', e.target.value)} placeholder="0"
- className="w-full mt-1 px-2.5 py-2 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg text-xs" />
+ <NumberInput value={formData.prime || ''} onChange={v => setField('prime', v)} placeholder="0"
+ decimals={devise?.decimales ?? 0}
+ className="mt-1 text-xs py-2" />
  </div>
  </div>
 
@@ -1701,9 +1712,9 @@ function EditKRModal({ open, onClose, kr, typesResultatsCles = [], collaborateur
  <div className={`grid gap-3 ${isPercent ? 'grid-cols-2' : 'grid-cols-3'}`}>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cible</label>
- <input type="number" value={form.valeur_cible ?? ''} onChange={e => setF('valeur_cible', e.target.value)}
- className={inputCls} placeholder={isPercent ? '100' : '0'} min="0" max={isPercent ? 100 : undefined}
- readOnly={isPercent} />
+ <NumberInput value={form.valeur_cible ?? ''} onChange={v => setF('valeur_cible', v)}
+ decimals={0} placeholder={isPercent ? '100' : '0'}
+ readOnly={isPercent} className={`mt-1${isPercent ? ' opacity-60' : ''}`} />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider" title="Importance relative de ce KR dans l'objectif (1 = neutre)">
@@ -2232,9 +2243,9 @@ function QuickKRModal({ open, onClose, objectifs = [], typesResultatsCles = [], 
        <div className={`grid gap-3 ${isPercent ? 'grid-cols-2' : 'grid-cols-3'}`}>
         <div>
          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cible</label>
-         <input type="number" value={form.valeur_cible??''} onChange={e => setF('valeur_cible', e.target.value)}
-          className={inputCls} placeholder={isPercent ? '100' : '0'} min="0" max={isPercent ? 100 : undefined}
-          readOnly={isPercent} />
+         <NumberInput value={form.valeur_cible ?? ''} onChange={v => setF('valeur_cible', v)}
+          decimals={0} placeholder={isPercent ? '100' : '0'}
+          readOnly={isPercent} className={`mt-1${isPercent ? ' opacity-60' : ''}`} />
         </div>
         <div>
          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider" title="Importance relative de ce KR dans l'objectif (1 = neutre)">

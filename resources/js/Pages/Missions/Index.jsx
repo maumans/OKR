@@ -88,7 +88,7 @@ function StatutBadge({ statut }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function MissionsIndex({ missions, collaborateurs, filters = {} }) {
+export default function MissionsIndex({ missions, collaborateurs, filters = {}, practices = [], typesLivrable = [] }) {
     const { auth, flash } = usePage().props;
     const devise = auth?.societe?.devise;
 
@@ -311,6 +311,8 @@ export default function MissionsIndex({ missions, collaborateurs, filters = {} }
                                 devise={devise}
                                 onClose={() => setSelectedMission(null)}
                                 highlightLivrableId={highlightLivrableId}
+                                practices={practices}
+                                typesLivrable={typesLivrable}
                             />
                         )}
                     </AnimatePresence>
@@ -322,6 +324,7 @@ export default function MissionsIndex({ missions, collaborateurs, filters = {} }
                 open={isCreateOpen}
                 onClose={() => setIsCreateOpen(false)}
                 collaborateurs={collaborateurs}
+                practices={practices}
                 devise={devise}
             />
         </AppLayout>
@@ -541,7 +544,7 @@ function NPSView({ missions, onUpdateNps }) {
 
 // ─── Side Panel ────────────────────────────────────────────────────────────────
 
-function MissionPanel({ mission, collaborateurs, devise, onClose, highlightLivrableId }) {
+function MissionPanel({ mission, collaborateurs, devise, onClose, highlightLivrableId, practices = [], typesLivrable = [] }) {
     const [activeTab, setActiveTab] = useState('livrables');
     const cfg = PRESSURE_CONFIG[mission.pressure] || PRESSURE_CONFIG.ok;
 
@@ -637,10 +640,10 @@ function MissionPanel({ mission, collaborateurs, devise, onClose, highlightLivra
 
             <div className="flex-1 overflow-y-auto">
                 {activeTab === 'livrables' && (
-                    <div className="p-4"><LivrablesTab mission={mission} collaborateurs={collaborateurs} highlightLivrableId={highlightLivrableId} /></div>
+                    <div className="p-4"><LivrablesTab mission={mission} collaborateurs={collaborateurs} highlightLivrableId={highlightLivrableId} typesLivrable={typesLivrable} /></div>
                 )}
                 {activeTab === 'infos' && (
-                    <div className="p-4"><InfosTab mission={mission} collaborateurs={collaborateurs} devise={devise} /></div>
+                    <div className="p-4"><InfosTab mission={mission} collaborateurs={collaborateurs} devise={devise} practices={practices} /></div>
                 )}
                 {activeTab === 'log' && (
                     <div className="p-4"><LogTab mission={mission} /></div>
@@ -676,7 +679,7 @@ const LIVRABLE_COLORS = {
     archived:  'bg-gray-100 text-gray-400 dark:bg-gray-900 dark:text-gray-500',
 };
 
-function EditLivrableForm({ livrable, missionId, collaborateurs, onCancel }) {
+function EditLivrableForm({ livrable, missionId, collaborateurs, typesLivrable = [], onCancel }) {
     const [form, setForm] = useState({
         nom:                 livrable.nom         || '',
         type_livrable:       livrable.type_livrable || '',
@@ -730,7 +733,15 @@ function EditLivrableForm({ livrable, missionId, collaborateurs, onCancel }) {
             <div className="grid grid-cols-2 gap-2">
                 <div>
                     <Label className="text-[10px]">Type</Label>
-                    <Input value={form.type_livrable} onChange={e => set('type_livrable', e.target.value)} placeholder="rapport, démo…" className="h-8 text-sm mt-0.5" />
+                    <SearchableSelect
+                        value={form.type_livrable || ''}
+                        onChange={v => set('type_livrable', v)}
+                        options={(typesLivrable || []).map(t => ({ value: t.nom, label: t.nom }))}
+                        nullable nullLabel="— Aucun —"
+                        placeholder="Sélectionner…"
+                        size="sm"
+                        className="mt-0.5"
+                    />
                 </div>
                 <div>
                     <Label className="text-[10px]">Statut</Label>
@@ -800,7 +811,7 @@ function EditLivrableForm({ livrable, missionId, collaborateurs, onCancel }) {
     );
 }
 
-function LivrablesTab({ mission, collaborateurs, highlightLivrableId }) {
+function LivrablesTab({ mission, collaborateurs, highlightLivrableId, typesLivrable = [] }) {
     const [addOpen, setAddOpen]     = useState(false);
     const [editingId, setEditingId] = useState(null);
 
@@ -840,8 +851,10 @@ function LivrablesTab({ mission, collaborateurs, highlightLivrableId }) {
                             livrable={livrable}
                             missionId={mission.id}
                             collaborateurs={collaborateurs}
+                            typesLivrable={typesLivrable}
                             onCancel={() => setEditingId(null)}
                         />
+
                     ) : (
                 <div id={"livrable-" + livrable.id} className={`p-3 rounded-lg border bg-gray-50 dark:bg-dark-950 group transition-colors ${highlightLivrableId === livrable.id ? 'border-amber-400 ring-2 ring-amber-300/50 dark:border-amber-500' : 'border-gray-100 dark:border-dark-800'}`}>
                     <div className="flex items-start justify-between gap-2">
@@ -912,7 +925,14 @@ function LivrablesTab({ mission, collaborateurs, highlightLivrableId }) {
                         {errors.nom && <p className="text-[10px] text-red-500 mt-0.5">{errors.nom}</p>}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                        <Input placeholder="Type (rapport, démo…)" value={data.type_livrable} onChange={e => setData('type_livrable', e.target.value)} className="h-8 text-sm" />
+                        <SearchableSelect
+                            value={data.type_livrable || ''}
+                            onChange={v => setData('type_livrable', v)}
+                            options={(typesLivrable || []).map(t => ({ value: t.nom, label: t.nom }))}
+                            nullable nullLabel="— Aucun —"
+                            placeholder="Type de livrable…"
+                            size="sm"
+                        />
                         <SearchableSelect
                             value={String(data.responsable_id || '')}
                             onChange={val => setData('responsable_id', val)}
@@ -956,7 +976,7 @@ function LivrablesTab({ mission, collaborateurs, highlightLivrableId }) {
 
 // ─── Infos Tab ─────────────────────────────────────────────────────────────────
 
-function InfosTab({ mission, collaborateurs, devise }) {
+function InfosTab({ mission, collaborateurs, devise, practices = [] }) {
     const { data, setData, put, processing } = useForm({
         client:           mission.client,
         titre:            mission.titre,
@@ -1023,6 +1043,19 @@ function InfosTab({ mission, collaborateurs, devise }) {
                         className="mt-1"
                     />
                 </div>
+            </div>
+            <div>
+                <Label className="text-[10px] uppercase tracking-wider text-gray-400">Pratique</Label>
+                <SearchableSelect
+                    value={data.practice || ''}
+                    onChange={val => setData('practice', val)}
+                    options={(practices || []).map(p => ({ value: p.nom, label: p.nom }))}
+                    nullable
+                    nullLabel="— Aucune —"
+                    placeholder="— Choisir une pratique —"
+                    size="sm"
+                    className="mt-1"
+                />
             </div>
             <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -1153,7 +1186,7 @@ function LogTab({ mission }) {
 
 // ─── Create Project Modal ──────────────────────────────────────────────────────
 
-function CreateProjectModal({ open, onClose, collaborateurs, devise }) {
+function CreateProjectModal({ open, onClose, collaborateurs, devise, practices = [] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         titre:            '',
         client:           '',
@@ -1215,6 +1248,18 @@ function CreateProjectModal({ open, onClose, collaborateurs, devise }) {
                                 className="mt-1"
                             />
                         </div>
+                    </div>
+                    <div>
+                        <Label>PRATIQUE</Label>
+                        <SearchableSelect
+                            value={data.practice || ''}
+                            onChange={val => setData('practice', val)}
+                            options={(practices || []).map(p => ({ value: p.nom, label: p.nom }))}
+                            nullable
+                            nullLabel="— Aucune —"
+                            placeholder="— Choisir une pratique —"
+                            className="mt-1"
+                        />
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                         <div>

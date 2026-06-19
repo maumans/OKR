@@ -6,6 +6,7 @@ use App\Models\ActiviteCommerciale;
 use App\Models\Client;
 use App\Models\Prospect;
 use App\Models\Collaborateur;
+use App\Models\SecteurActivite;
 use App\Events\ProspectStatutChange;
 use App\Services\ConsolidationService;
 use Illuminate\Http\Request;
@@ -181,6 +182,7 @@ class ProspectController extends Controller
             'pipelineParCollab' => $pipelineParCollab,
             'activites'         => $activites,
             'statsActivites'    => $statsActivites,
+            'secteursActivite'  => SecteurActivite::where('societe_id', session('societe_id'))->actifs()->ordonne()->get(['id', 'nom']),
         ]);
     }
 
@@ -273,8 +275,26 @@ class ProspectController extends Controller
             'statut' => 'required|in:decouverte,proposition,negociation,gagne,perdu',
         ]);
 
+        // Probabilités normalisées par stade
+        $probaParStade = [
+            'decouverte'  => 20,
+            'proposition' => 40,
+            'negociation' => 70,
+            'gagne'       => 100,
+            'perdu'       => 0,
+        ];
+
         $ancienStatut = $prospect->statut;
-        $prospect->update(['statut' => $validated['statut']]);
+        $updates = ['statut' => $validated['statut']];
+
+        // Mettre à jour la proba seulement si elle n'a pas été saisie manuellement
+        // (= correspond encore à la valeur par défaut de l'ancien stade)
+        $ancienneProbaDefaut = $probaParStade[$ancienStatut] ?? null;
+        if ($ancienneProbaDefaut !== null && (int) $prospect->probabilite === $ancienneProbaDefaut) {
+            $updates['probabilite'] = $probaParStade[$validated['statut']];
+        }
+
+        $prospect->update($updates);
 
         if ($ancienStatut !== $validated['statut']) {
             event(new ProspectStatutChange($prospect, $ancienStatut, $validated['statut'], $request->user()->collaborateurActuel()?->id));

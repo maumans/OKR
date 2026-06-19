@@ -300,6 +300,7 @@ export default function ParametresIndex({
     axes = [], periodes = [], typesObjectifs = [], typesResultatsCles = [],
     statuts = [], seuils = [], configuration, configurationPrime, templates = [],
     modulesDisponibles = [], departements = [],
+    secteursActivite = [], practices = [], typesLivrable = [],
 }) {
     const { flash, auth } = usePage().props;
     const devise = auth?.societe?.devise;
@@ -349,13 +350,35 @@ export default function ParametresIndex({
         paliers: configurationPrime?.paliers || [],
     });
 
-    const deptForm = useForm({ nom: '', description: '', couleur: '#6366f1', ordre: 0 });
+    const deptForm          = useForm({ nom: '', description: '', couleur: '#6366f1', ordre: 0 });
+    const secteurForm       = useForm({ nom: '', ordre: 0, actif: true });
+    const practiceForm      = useForm({ nom: '', ordre: 0, actif: true });
+    const typeLivrableForm  = useForm({ nom: '', ordre: 0, actif: true });
 
     const submitDept = (e) => {
         e.preventDefault();
         editingItem
             ? deptForm.put(route('departements.update', editingItem.id), { onSuccess: () => setActiveDialog(null) })
             : deptForm.post(route('departements.store'), { onSuccess: () => setActiveDialog(null) });
+    };
+
+    const submitSecteur = (e) => {
+        e.preventDefault();
+        editingItem
+            ? secteurForm.put(route('parametres.crm.secteurs.update', editingItem.id), { onSuccess: () => setActiveDialog(null) })
+            : secteurForm.post(route('parametres.crm.secteurs.store'), { onSuccess: () => setActiveDialog(null) });
+    };
+    const submitPractice = (e) => {
+        e.preventDefault();
+        editingItem
+            ? practiceForm.put(route('parametres.crm.practices.update', editingItem.id), { onSuccess: () => setActiveDialog(null) })
+            : practiceForm.post(route('parametres.crm.practices.store'), { onSuccess: () => setActiveDialog(null) });
+    };
+    const submitTypeLivrable = (e) => {
+        e.preventDefault();
+        editingItem
+            ? typeLivrableForm.put(route('parametres.crm.types-livrable.update', editingItem.id), { onSuccess: () => setActiveDialog(null) })
+            : typeLivrableForm.post(route('parametres.crm.types-livrable.store'), { onSuccess: () => setActiveDialog(null) });
     };
 
     // ─── Helpers dialog OKR ─────────────────────────────
@@ -442,6 +465,11 @@ export default function ParametresIndex({
                     {aAccesGlobal && (
                         <TabsTrigger value="departements">
                             <Network className="h-4 w-4 mr-1.5" />Départements
+                        </TabsTrigger>
+                    )}
+                    {aAccesGlobal && (
+                        <TabsTrigger value="crm">
+                            <Briefcase className="h-4 w-4 mr-1.5" />Référentiels CRM
                         </TabsTrigger>
                     )}
                     {aAccesGlobal && (
@@ -656,6 +684,45 @@ export default function ParametresIndex({
                                 ))}
                             </div>
                         )}
+                    </div>
+                </TabsContent>
+
+                {/* ══════════════ ONGLET CRM ══════════════ */}
+                <TabsContent value="crm">
+                    <div className="space-y-6">
+                        <CrudSection title="Secteurs d'activité" icon={Building2} items={secteursActivite}
+                            columns={[{ label: 'Nom' }, { label: 'Ordre', className: 'w-20' }, { label: 'Actif', className: 'w-20' }]}
+                            renderRow={item => (<>
+                                <TableCell className="font-medium">{item.nom}</TableCell>
+                                <TableCell>{item.ordre}</TableCell>
+                                <TableCell><Badge variant={item.actif ? 'success' : 'secondary'}>{item.actif ? 'Actif' : 'Inactif'}</Badge></TableCell>
+                            </>)}
+                            onAdd={() => openAdd('secteur', secteurForm)}
+                            onEdit={item => openEdit('secteur', secteurForm, item, ['nom', 'ordre', 'actif'])}
+                            onDelete={item => { if (confirm(`Supprimer « ${item.nom} » ?`)) router.delete(route('parametres.crm.secteurs.destroy', item.id)); }}
+                        />
+                        <CrudSection title="Pratiques (Missions)" icon={Briefcase} items={practices}
+                            columns={[{ label: 'Nom' }, { label: 'Ordre', className: 'w-20' }, { label: 'Actif', className: 'w-20' }]}
+                            renderRow={item => (<>
+                                <TableCell className="font-medium">{item.nom}</TableCell>
+                                <TableCell>{item.ordre}</TableCell>
+                                <TableCell><Badge variant={item.actif ? 'success' : 'secondary'}>{item.actif ? 'Actif' : 'Inactif'}</Badge></TableCell>
+                            </>)}
+                            onAdd={() => openAdd('practice', practiceForm)}
+                            onEdit={item => openEdit('practice', practiceForm, item, ['nom', 'ordre', 'actif'])}
+                            onDelete={item => { if (confirm(`Supprimer « ${item.nom} » ?`)) router.delete(route('parametres.crm.practices.destroy', item.id)); }}
+                        />
+                        <CrudSection title="Types de livrable" icon={Package} items={typesLivrable}
+                            columns={[{ label: 'Nom' }, { label: 'Ordre', className: 'w-20' }, { label: 'Actif', className: 'w-20' }]}
+                            renderRow={item => (<>
+                                <TableCell className="font-medium">{item.nom}</TableCell>
+                                <TableCell>{item.ordre}</TableCell>
+                                <TableCell><Badge variant={item.actif ? 'success' : 'secondary'}>{item.actif ? 'Actif' : 'Inactif'}</Badge></TableCell>
+                            </>)}
+                            onAdd={() => openAdd('typeLivrable', typeLivrableForm)}
+                            onEdit={item => openEdit('typeLivrable', typeLivrableForm, item, ['nom', 'ordre', 'actif'])}
+                            onDelete={item => { if (confirm(`Supprimer « ${item.nom} » ?`)) router.delete(route('parametres.crm.types-livrable.destroy', item.id)); }}
+                        />
                     </div>
                 </TabsContent>
 
@@ -1036,6 +1103,67 @@ export default function ParametresIndex({
                         <div className="flex justify-end gap-2 pt-2">
                             <Button type="button" variant="outline" onClick={() => setActiveDialog(null)}>Annuler</Button>
                             <Button type="submit" disabled={seuilForm.processing}>{editingItem ? 'Enregistrer' : 'Créer'}</Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Dialogs CRM ── */}
+            <Dialog open={activeDialog === 'secteur'} onOpenChange={(o) => !o && setActiveDialog(null)}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un secteur d'activité</DialogTitle></DialogHeader>
+                    <form onSubmit={submitSecteur} className="space-y-4 mt-4">
+                        <div><Label>Nom *</Label><Input value={secteurForm.data.nom} onChange={e => secteurForm.setData('nom', e.target.value)} error={secteurForm.errors.nom} placeholder="Ex: Banque, Télécoms…" /></div>
+                        <div><Label>Ordre</Label><NumberInput value={secteurForm.data.ordre} onChange={v => secteurForm.setData('ordre', v)} className="mt-1.5" decimals={0} /></div>
+                        {editingItem && (
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={secteurForm.data.actif} onChange={e => secteurForm.setData('actif', e.target.checked)} className="rounded border-slate-300 text-primary-600" />
+                                <Label>Actif</Label>
+                            </div>
+                        )}
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button type="button" variant="outline" onClick={() => setActiveDialog(null)}>Annuler</Button>
+                            <Button type="submit" disabled={secteurForm.processing}>{editingItem ? 'Enregistrer' : 'Créer'}</Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={activeDialog === 'practice'} onOpenChange={(o) => !o && setActiveDialog(null)}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} une pratique</DialogTitle></DialogHeader>
+                    <form onSubmit={submitPractice} className="space-y-4 mt-4">
+                        <div><Label>Nom *</Label><Input value={practiceForm.data.nom} onChange={e => practiceForm.setData('nom', e.target.value)} error={practiceForm.errors.nom} placeholder="Ex: Conseil, Audit, Développement…" /></div>
+                        <div><Label>Ordre</Label><NumberInput value={practiceForm.data.ordre} onChange={v => practiceForm.setData('ordre', v)} className="mt-1.5" decimals={0} /></div>
+                        {editingItem && (
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={practiceForm.data.actif} onChange={e => practiceForm.setData('actif', e.target.checked)} className="rounded border-slate-300 text-primary-600" />
+                                <Label>Actif</Label>
+                            </div>
+                        )}
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button type="button" variant="outline" onClick={() => setActiveDialog(null)}>Annuler</Button>
+                            <Button type="submit" disabled={practiceForm.processing}>{editingItem ? 'Enregistrer' : 'Créer'}</Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={activeDialog === 'typeLivrable'} onOpenChange={(o) => !o && setActiveDialog(null)}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>{editingItem ? 'Modifier' : 'Ajouter'} un type de livrable</DialogTitle></DialogHeader>
+                    <form onSubmit={submitTypeLivrable} className="space-y-4 mt-4">
+                        <div><Label>Nom *</Label><Input value={typeLivrableForm.data.nom} onChange={e => typeLivrableForm.setData('nom', e.target.value)} error={typeLivrableForm.errors.nom} placeholder="Ex: Rapport, Démo, Présentation…" /></div>
+                        <div><Label>Ordre</Label><NumberInput value={typeLivrableForm.data.ordre} onChange={v => typeLivrableForm.setData('ordre', v)} className="mt-1.5" decimals={0} /></div>
+                        {editingItem && (
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={typeLivrableForm.data.actif} onChange={e => typeLivrableForm.setData('actif', e.target.checked)} className="rounded border-slate-300 text-primary-600" />
+                                <Label>Actif</Label>
+                            </div>
+                        )}
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button type="button" variant="outline" onClick={() => setActiveDialog(null)}>Annuler</Button>
+                            <Button type="submit" disabled={typeLivrableForm.processing}>{editingItem ? 'Enregistrer' : 'Créer'}</Button>
                         </div>
                     </form>
                 </DialogContent>

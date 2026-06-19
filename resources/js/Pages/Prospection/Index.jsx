@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { router } from '@inertiajs/react';
+import { router, Link } from '@inertiajs/react';
 import { toast } from 'sonner';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
@@ -11,7 +11,7 @@ import {
     Briefcase, Plus, Search, RefreshCw, MoreVertical,
     Pencil, Trash2, Users, Target, Award, Building2,
     ChevronRight, Phone, Mail, FileText, Clock,
-    Activity, Monitor, Tag, CheckCheck, XCircle, RefreshCcw, Filter,
+    Activity, Monitor, Tag, CheckCheck, XCircle, RefreshCcw, Filter, Upload,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -22,11 +22,11 @@ import {
 const ACTIF_STATUTS = ['decouverte', 'proposition', 'negociation'];
 
 const KANBAN_COLS = [
-    { key: 'decouverte',  label: 'Découverte',  color: '#6b7280', dot: 'bg-gray-400',   headerBg: 'bg-gray-100 dark:bg-dark-800' },
-    { key: 'proposition', label: 'Proposition', color: '#f59e0b', dot: 'bg-amber-400',  headerBg: 'bg-amber-50 dark:bg-amber-900/20' },
-    { key: 'negociation', label: 'Négociation', color: '#eab308', dot: 'bg-yellow-400', headerBg: 'bg-yellow-50 dark:bg-yellow-900/20' },
-    { key: 'gagne',       label: 'Gagné',       color: '#22c55e', dot: 'bg-green-400',  headerBg: 'bg-green-50 dark:bg-green-900/20' },
-    { key: 'perdu',       label: 'Perdu',       color: '#ef4444', dot: 'bg-red-400',    headerBg: 'bg-red-50 dark:bg-red-900/20' },
+    { key: 'decouverte',  label: 'Découverte',  color: '#6b7280', dot: 'bg-gray-400',   headerBg: 'bg-gray-100 dark:bg-dark-800',          defaultProba: 20  },
+    { key: 'proposition', label: 'Proposition', color: '#f59e0b', dot: 'bg-amber-400',  headerBg: 'bg-amber-50 dark:bg-amber-900/20',       defaultProba: 40  },
+    { key: 'negociation', label: 'Négociation', color: '#eab308', dot: 'bg-yellow-400', headerBg: 'bg-yellow-50 dark:bg-yellow-900/20',    defaultProba: 70  },
+    { key: 'gagne',       label: 'Gagné',       color: '#22c55e', dot: 'bg-green-400',  headerBg: 'bg-green-50 dark:bg-green-900/20',       defaultProba: 100 },
+    { key: 'perdu',       label: 'Perdu',       color: '#ef4444', dot: 'bg-red-400',    headerBg: 'bg-red-50 dark:bg-red-900/20',           defaultProba: 0   },
 ];
 
 const TYPE_DEAL = {
@@ -38,11 +38,10 @@ const TYPE_DEAL = {
 const SIDEBAR_VIEWS = [
     { key: 'kanban',    label: 'Pipeline Kanban',       icon: LayoutGrid },
     { key: 'liste',     label: 'Liste des deals',        icon: List },
-    { key: 'activites', label: 'Activités commerciales', icon: Activity },
-    { key: 'clients',   label: 'Clients',                icon: Building2 },
-    { key: 'nouveaux',  label: 'Nouveaux clients',       icon: UserPlus },
-    { key: 'upsells',   label: 'Upsells',                icon: TrendingUp },
-    { key: 'stats',     label: 'Stats',                  icon: BarChart3 },
+    { key: 'activites',    label: 'Activités commerciales', icon: Activity },
+    { key: 'clients_hub', label: 'Clients & Deals',       icon: Building2 },
+    { key: 'stats',       label: 'Stats',                  icon: BarChart3 },
+    { key: 'import',    label: 'Importer XLSX',          icon: Upload },
 ];
 
 const ACTIVITE_TYPES = {
@@ -335,8 +334,11 @@ function KanbanColumn({ col, deals, onEdit, onDelete, onStatusChange, onDetail, 
                 </div>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white dark:bg-dark-700 text-gray-600 dark:text-gray-300 shadow-sm">{deals.length}</span>
             </div>
-            <div className="px-3 py-1.5 bg-white/60 dark:bg-dark-900/60 border-x border-gray-100 dark:border-dark-700">
+            <div className="px-3 py-1.5 bg-white/60 dark:bg-dark-900/60 border-x border-gray-100 dark:border-dark-700 flex items-center justify-between">
                 <p className="text-[11px] font-semibold text-gray-400">{fmt(total)} {deviseCode}</p>
+                {col.defaultProba !== undefined && (
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">{col.defaultProba}%</span>
+                )}
             </div>
             <div className="flex-1 border-x border-b border-gray-100 dark:border-dark-700 rounded-b-xl p-2 space-y-2 bg-gray-50/40 dark:bg-dark-800/30" style={{ minHeight: 220 }}>
                 <AnimatePresence initial={false}>
@@ -361,7 +363,7 @@ function KanbanColumn({ col, deals, onEdit, onDelete, onStatusChange, onDetail, 
 }
 
 // ── ClientModal (Create / Edit) ────────────────────────────────────────────
-function ClientModal({ open, onClose, client = null }) {
+function ClientModal({ open, onClose, client = null, secteursActivite = [] }) {
     const isEdit = !!client;
     const [form, setForm] = useState({
         nom:     client?.nom      || '',
@@ -412,8 +414,14 @@ function ClientModal({ open, onClose, client = null }) {
                         </div>
                         <div>
                             <label className={lCls}>Secteur</label>
-                            <input value={form.secteur} onChange={e => setF('secteur', e.target.value)}
-                                placeholder="Banque, Télécoms..." className={iCls} />
+                            <SearchableSelect
+                                value={form.secteur || ''}
+                                onChange={v => setF('secteur', v)}
+                                options={(secteursActivite || []).map(s => ({ value: s.nom, label: s.nom }))}
+                                nullable nullLabel="— Aucun secteur —"
+                                placeholder="Sélectionner un secteur..."
+                                className="mt-1"
+                            />
                         </div>
                     </div>
                     <div>
@@ -438,7 +446,7 @@ function ClientModal({ open, onClose, client = null }) {
 }
 
 // ── DealModal (Create / Edit) ──────────────────────────────────────────────
-function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaults = null, deviseCode }) {
+function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaults = null, deviseCode, secteursActivite = [] }) {
     const isEdit = !!deal;
     const [form, setForm] = useState({
         titre:            deal?.titre || '',
@@ -454,7 +462,17 @@ function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaul
         note:             deal?.note || '',
     });
     const [errors, setErrors] = useState({});
-    const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const [probaManuelle, setProbaManuelle] = useState(false);
+
+    const setF = (k, v) => {
+        if (k === 'statut' && !probaManuelle) {
+            const col = KANBAN_COLS.find(c => c.key === v);
+            setForm(f => ({ ...f, statut: v, probabilite: col?.defaultProba ?? f.probabilite }));
+        } else {
+            if (k === 'probabilite') setProbaManuelle(true);
+            setForm(f => ({ ...f, [k]: v }));
+        }
+    };
 
     const handleClientSelect = (clientId) => {
         const cl = (clients || []).find(c => String(c.id) === clientId);
@@ -587,8 +605,14 @@ function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaul
                         </div>
                         <div>
                             <label className={lCls}>Secteur</label>
-                            <input value={form.secteur} onChange={e => setF('secteur', e.target.value)}
-                                placeholder="Banque, Télécoms..." className={iCls} />
+                            <SearchableSelect
+                                value={form.secteur || ''}
+                                onChange={v => setF('secteur', v)}
+                                options={(secteursActivite || []).map(s => ({ value: s.nom, label: s.nom }))}
+                                nullable nullLabel="— Aucun secteur —"
+                                placeholder="Sélectionner un secteur..."
+                                className="mt-1"
+                            />
                         </div>
                     </div>
 
@@ -646,6 +670,62 @@ function PipelineParCollab({ data, deviseCode }) {
                 <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-emerald-500" /><span className="text-[10px] text-gray-400">CA signé</span></div>
                 <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-primary-300" /><span className="text-[10px] text-gray-400">Pipeline pondéré</span></div>
             </div>
+        </div>
+    );
+}
+
+// ── Vue Clients Hub (Clients + Deals par type) ─────────────────────────────
+const DEAL_TABS = [
+    { key: 'clients',   label: 'Clients',         filter: null },
+    { key: 'nouveaux',  label: 'En prospection',   filter: 'nouveau_client' },
+    { key: 'upsells',   label: 'Upsells',          filter: 'upsell' },
+    { key: 'renouv',    label: 'Renouvellements',  filter: 'renouvellement' },
+];
+
+function VueClientsHub({ clients, prospects, listProps, onEdit, onDelete, onNew, onNewDeal, deviseCode }) {
+    const [tab, setTab] = useState('clients');
+    const current = DEAL_TABS.find(t => t.key === tab);
+
+    return (
+        <div>
+            {/* Onglets */}
+            <div className="flex items-center gap-1 mb-5 border-b border-gray-100 dark:border-dark-700">
+                {DEAL_TABS.map(t => (
+                    <button key={t.key} onClick={() => setTab(t.key)}
+                        className={`px-4 py-2 text-[12px] font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                            tab === t.key
+                                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                        }`}>
+                        {t.label}
+                        {t.key === 'clients' && clients.length > 0 && (
+                            <span className="ml-1.5 text-[10px] font-bold bg-gray-100 dark:bg-dark-700 text-gray-500 px-1.5 py-0.5 rounded-full">
+                                {clients.length}
+                            </span>
+                        )}
+                        {t.filter && (() => {
+                            const cnt = prospects.filter(p => p.type_deal === t.filter).length;
+                            return cnt > 0 ? (
+                                <span className="ml-1.5 text-[10px] font-bold bg-gray-100 dark:bg-dark-700 text-gray-500 px-1.5 py-0.5 rounded-full">
+                                    {cnt}
+                                </span>
+                            ) : null;
+                        })()}
+                    </button>
+                ))}
+            </div>
+
+            {/* Contenu */}
+            {tab === 'clients' ? (
+                <VueClients
+                    clients={clients} prospects={prospects} deviseCode={deviseCode}
+                    onEdit={onEdit} onDelete={onDelete} onNew={onNew} onNewDeal={onNewDeal} />
+            ) : (
+                <VueListe
+                    {...listProps}
+                    typeDealFilter={current.filter}
+                    title={current.label} />
+            )}
         </div>
     );
 }
@@ -985,7 +1065,7 @@ function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, de
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-800">
-                            {['Deal', 'Client', 'Valeur', 'Proba', 'Responsable', 'Étape', 'Type', 'Actions', ''].map(h => (
+                            {['Deal', 'Client', 'Valeur', 'Proba', 'Responsable', 'Étape', 'Type', 'Actions'].map(h => (
                                 <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide">{h}</th>
                             ))}
                         </tr>
@@ -1027,13 +1107,12 @@ function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, de
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tDef.cls}`}>{tDef.label}</span>
                                     </td>
                                     <td className="px-4 py-2.5">
-                                        {deal.actions_count > 0 && (
-                                            <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                                                <Clock className="h-3.5 w-3.5" />{deal.actions_count}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-2.5">
+                                        <div className="flex items-center gap-2">
+                                            {deal.actions_count > 0 && (
+                                                <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                                                    <Clock className="h-3.5 w-3.5" />{deal.actions_count}
+                                                </span>
+                                            )}
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-700">
@@ -1057,13 +1136,14 @@ function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, de
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
+                                        </div>
                                     </td>
                                 </tr>
                             );
                         })}
                         {shown.length === 0 && (
                             <tr>
-                                <td colSpan={9} className="text-center py-10 text-[12px] text-gray-400">
+                                <td colSpan={8} className="text-center py-10 text-[12px] text-gray-400">
                                     Aucun deal trouvé
                                 </td>
                             </tr>
@@ -1242,6 +1322,9 @@ function LogActiviteModal({ open, onClose, collaborateurs = [], prospects = [], 
                             <div>
                                 <label className={labelCls}>Date *</label>
                                 <input type="date" value={form.date_activite} onChange={e => setF('date_activite', e.target.value)} required className={inputCls} />
+                                {cycleAuto() && (
+                                    <p className="mt-1 text-[10px] text-gray-400">Cycle : {cycleAuto()}</p>
+                                )}
                             </div>
                         </div>
 
@@ -1302,18 +1385,11 @@ function LogActiviteModal({ open, onClose, collaborateurs = [], prospects = [], 
                             </div>
                         )}
 
-                        {/* Montant + Cycle */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className={labelCls}>Montant ({deviseCode}) — si proposition ou deal</label>
-                                <input type="number" value={form.montant} onChange={e => setF('montant', e.target.value)}
-                                    placeholder="Ex: 95 000 000" className={inputCls} min="0" />
-                            </div>
-                            <div>
-                                <label className={labelCls}>Cycle (auto-calculé)</label>
-                                <input type="text" value={cycleAuto()} readOnly
-                                    className={`${inputCls} bg-gray-50 dark:bg-dark-700 text-gray-500 cursor-default`} />
-                            </div>
+                        {/* Montant */}
+                        <div>
+                            <label className={labelCls}>Montant ({deviseCode}) — si proposition ou deal</label>
+                            <NumberInput value={form.montant} onChange={v => setF('montant', v)}
+                                decimals={0} placeholder="Ex: 95 000 000" className="mt-1" />
                         </div>
 
                         {/* Note */}
@@ -1407,7 +1483,7 @@ function VueActivites({ activites = [], statsActivites = {}, collaborateurs = []
             </div>
 
             {/* Stats cards */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
                 {Object.entries(ACTIVITE_TYPES).map(([key, def]) => {
                     const Icon = def.icon;
                     const count = statsActivites[key] || 0;
@@ -1430,8 +1506,8 @@ function VueActivites({ activites = [], statsActivites = {}, collaborateurs = []
             </div>
 
             {/* Résumé montants */}
-            <div className="grid grid-cols-3 gap-3">
-                <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700">
+            <div className="flex gap-3 flex-wrap">
+                <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700 flex-1 min-w-[180px]">
                     <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
                         <Monitor className="h-4 w-4 text-emerald-500" />
                     </div>
@@ -1440,7 +1516,7 @@ function VueActivites({ activites = [], statsActivites = {}, collaborateurs = []
                         <p className="text-sm font-bold text-gray-800 dark:text-white tabular-nums">{fmt(statsActivites.montant_total || 0)} {deviseCode}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700">
+                <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700 flex-1 min-w-[180px]">
                     <div className="h-8 w-8 rounded-lg bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
                         <Activity className="h-4 w-4 text-primary-500" />
                     </div>
@@ -1450,7 +1526,7 @@ function VueActivites({ activites = [], statsActivites = {}, collaborateurs = []
                     </div>
                 </div>
                 {hasFilters && (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30 flex-1 min-w-[180px]">
                         <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
                             <Filter className="h-4 w-4 text-amber-500" />
                         </div>
@@ -1595,7 +1671,7 @@ function VueActivites({ activites = [], statsActivites = {}, collaborateurs = []
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────
-export default function ProspectionIndex({ prospects, filters, collaborateurs, clients = [], stats, pipelineParCollab, activites = [], statsActivites = {}, auth }) {
+export default function ProspectionIndex({ prospects, filters, collaborateurs, clients = [], stats, pipelineParCollab, activites = [], statsActivites = {}, auth, secteursActivite = [] }) {
     const deviseCode = auth?.societe?.devise?.code || 'GNF';
     const [activeView, setActiveView] = useState('kanban');
     const [collabFilter, setCollabFilter] = useState(String(filters?.collaborateur_id || ''));
@@ -1649,19 +1725,19 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
         <AppLayout title="CRM">
             <div className="flex gap-0">
                 {/* ── Sidebar interne */}
-                <aside className="w-44 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5 sticky top-20 self-start z-10 bg-gray-50 dark:bg-dark-950">
+                <aside className="w-52 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5 sticky top-20 self-start z-10 bg-gray-50 dark:bg-dark-950">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">CRM</p>
                     <nav className="space-y-0.5">
                         {SIDEBAR_VIEWS.map(v => (
-                            <button key={v.key} onClick={() => setActiveView(v.key)}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all ${
+                            <button key={v.key} onClick={() => v.key === 'import' ? router.visit(route('prospects.import.index')) : setActiveView(v.key)}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap ${
                                     activeView === v.key
                                         ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
                                         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-800'
                                 }`}>
                                 <v.icon className="h-4 w-4 shrink-0" />
                                 {v.label}
-                                {v.key === 'clients' && clients.length > 0 && (
+                                {v.key === 'clients_hub' && clients.length > 0 && (
                                     <span className="ml-auto text-[10px] font-bold bg-gray-100 dark:bg-dark-700 text-gray-500 px-1.5 py-0.5 rounded-full">
                                         {clients.length}
                                     </span>
@@ -1701,19 +1777,14 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                     {activeView === 'liste' && (
                         <VueListe {...listProps} title="Liste des deals" />
                     )}
-                    {activeView === 'clients' && (
-                        <VueClients
+                    {activeView === 'clients_hub' && (
+                        <VueClientsHub
                             clients={clients} prospects={prospects} deviseCode={deviseCode}
+                            listProps={listProps}
                             onEdit={c => setClientModal(c)}
                             onDelete={handleDeleteClient}
                             onNew={() => setClientModal('create')}
                             onNewDeal={handleNewDealForClient} />
-                    )}
-                    {activeView === 'nouveaux' && (
-                        <VueListe {...listProps} typeDealFilter="nouveau_client" title="Nouveaux clients" />
-                    )}
-                    {activeView === 'upsells' && (
-                        <VueListe {...listProps} typeDealFilter="upsell" title="Upsells" />
                     )}
                     {activeView === 'stats' && (
                         <VueStats prospects={prospects} stats={stats} deviseCode={deviseCode} />
@@ -1746,11 +1817,11 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
             {/* ── Deal modals */}
             <DealModal key={`create-${createKey}`} open={createOpen} onClose={() => setCreateOpen(false)}
                 collaborateurs={collaborateurs} clients={clients} deviseCode={deviseCode}
-                defaults={createDefaults} />
+                defaults={createDefaults} secteursActivite={secteursActivite} />
 
             {editDeal && (
                 <DealModal key={editDeal.id} open={!!editDeal} onClose={() => setEditDeal(null)}
-                    collaborateurs={collaborateurs} clients={clients} deal={editDeal} deviseCode={deviseCode} />
+                    collaborateurs={collaborateurs} clients={clients} deal={editDeal} deviseCode={deviseCode} secteursActivite={secteursActivite} />
             )}
 
             {/* ── Client modal */}
@@ -1758,7 +1829,8 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                 key={clientModal === 'create' ? 'new-client' : `client-${clientModal?.id}`}
                 open={!!clientModal}
                 onClose={() => setClientModal(null)}
-                client={clientModal !== 'create' ? clientModal : null} />
+                client={clientModal !== 'create' ? clientModal : null}
+                secteursActivite={secteursActivite} />
         </AppLayout>
     );
 }

@@ -299,8 +299,10 @@ export default function OKRCreate({ collaborateurs, axes = [], periodes = [], ty
                                                 <div className="flex items-center gap-3 ml-7 flex-wrap">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-[10px] text-gray-400">Cible</span>
-                                                        <input type="number" value={kr.valeur_cible} onChange={e => updateKr(i, 'valeur_cible', Number(e.target.value))}
-                                                            className="w-20 px-2 py-1 text-xs bg-white dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-lg text-right" />
+                                                        <div className="w-20">
+                                                            <NumberInput value={kr.valeur_cible} onChange={v => updateKr(i, 'valeur_cible', Number(v) || 0)}
+                                                                decimals={0} className="text-xs text-right py-1 px-2" />
+                                                        </div>
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-[10px] text-gray-400">Unité</span>
@@ -341,11 +343,16 @@ export default function OKRCreate({ collaborateurs, axes = [], periodes = [], ty
                                                     {(kr.milestones || []).map((m, mi) => (
                                                         <div key={m.mois} className="flex items-center gap-1 bg-white dark:bg-dark-800 rounded px-2 py-1 border border-gray-200 dark:border-dark-700">
                                                             <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 shrink-0">{m.label}</span>
-                                                            <input type="number" value={m.cible} onChange={e => {
-                                                                const ms = [...(kr.milestones || [])];
-                                                                ms[mi] = { ...ms[mi], cible: Number(e.target.value) || 0 };
-                                                                updateKr(i, 'milestones', ms);
-                                                            }} className="w-16 text-xs text-right bg-transparent border-none outline-none" />
+                                                            <div className="w-16">
+                                                                <NumberInput value={m.cible || 0}
+                                                                    onChange={v => {
+                                                                        const ms = [...(kr.milestones || [])];
+                                                                        ms[mi] = { ...ms[mi], cible: Number(v) || 0 };
+                                                                        updateKr(i, 'milestones', ms);
+                                                                    }}
+                                                                    decimals={0}
+                                                                    className="w-full text-xs text-right bg-transparent border-transparent hover:border-transparent focus:border-gray-300 focus:ring-1 py-0 px-1" />
+                                                            </div>
                                                         </div>
                                                     ))}
                                                     <span className="text-[10px] text-gray-400">

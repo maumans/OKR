@@ -6,6 +6,8 @@ use App\Models\Collaborateur;
 use App\Models\Livrable;
 use App\Models\Mission;
 use App\Models\MissionLog;
+use App\Models\Practice;
+use App\Models\TypeLivrable;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -51,6 +53,8 @@ class MissionController extends Controller
             'collaborateurs' => $collaborateurs,
             'filters'        => $request->only(['search', 'statut', 'type', 'responsable_id']),
             'stats'          => $stats,
+            'practices'      => Practice::where('societe_id', $societeId)->actifs()->ordonne()->get(['id', 'nom']),
+            'typesLivrable'  => TypeLivrable::where('societe_id', $societeId)->actifs()->ordonne()->get(['id', 'nom']),
         ]);
     }
 

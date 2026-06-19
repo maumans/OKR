@@ -7,6 +7,9 @@ use App\Models\ConfigurationOkr;
 use App\Models\ConfigurationPrime;
 use App\Models\Departement;
 use App\Models\Devise;
+use App\Models\Practice;
+use App\Models\SecteurActivite;
+use App\Models\TypeLivrable;
 use App\Models\Module;
 use App\Models\Periode;
 use App\Models\SeuilPerformance;
@@ -46,6 +49,9 @@ class SocieteController extends Controller
             'tab'                => request('tab', 'societe'),
             'modulesDisponibles' => $this->buildModulesDisponibles($societe),
             'departements'       => Departement::where('societe_id', $societeId)->withCount('collaborateurs')->ordonne()->get(),
+            'secteursActivite'   => SecteurActivite::where('societe_id', $societeId)->ordonne()->get(['id', 'nom', 'ordre', 'actif']),
+            'practices'          => Practice::where('societe_id', $societeId)->ordonne()->get(['id', 'nom', 'ordre', 'actif']),
+            'typesLivrable'      => TypeLivrable::where('societe_id', $societeId)->ordonne()->get(['id', 'nom', 'ordre', 'actif']),
         ]);
     }
 

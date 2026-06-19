@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import AppLayout from '@/Layouts/AppLayout';
 import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import { Button } from '@/Components/ui/Button';
+import { NumberInput } from '@/Components/ui/NumberInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/Dialog';
 import { BarChart3, Plus, Pencil, Trash2, Save, Table2, List } from 'lucide-react';
 
@@ -87,9 +88,12 @@ function CelluleSaisie({ saisie, indicateur, collaborateurId, periode, onSave })
 
     return (
         <div className="flex items-center gap-1 min-w-[120px]">
-            <input type="number" value={valeur} onChange={e => setValeur(e.target.value)} autoFocus
-                onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
-                className="w-20 h-7 px-2 text-sm text-right rounded-lg border border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 bg-white dark:bg-dark-800" />
+            <div className="w-20">
+                <NumberInput value={valeur} onChange={v => setValeur(v)} autoFocus
+                    decimals={2}
+                    onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+                    className="h-7 px-2 text-sm text-right border-emerald-300 hover:border-emerald-400 focus:ring-emerald-500/30 focus:border-emerald-400" />
+            </div>
             <button onClick={save} className="p-1 rounded bg-emerald-500 hover:bg-emerald-600 text-white">
                 <Save className="h-3 w-3" />
             </button>

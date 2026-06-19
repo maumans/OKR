@@ -21,6 +21,8 @@ use App\Http\Controllers\SyntheseController;
 use App\Http\Controllers\PrimeMensuelleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PerformanceController;
+use App\Http\Controllers\ParametreCrmController;
+use App\Http\Controllers\ProspectImportController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -62,6 +64,21 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     Route::post('/departements', [DepartementController::class, 'store'])->name('departements.store');
     Route::put('/departements/{departement}', [DepartementController::class, 'update'])->name('departements.update');
     Route::delete('/departements/{departement}', [DepartementController::class, 'destroy'])->name('departements.destroy');
+
+    // Référentiels CRM — Secteurs d'activité
+    Route::post('/parametres/crm/secteurs', [ParametreCrmController::class, 'storeSecteur'])->name('parametres.crm.secteurs.store');
+    Route::put('/parametres/crm/secteurs/{secteur}', [ParametreCrmController::class, 'updateSecteur'])->name('parametres.crm.secteurs.update');
+    Route::delete('/parametres/crm/secteurs/{secteur}', [ParametreCrmController::class, 'destroySecteur'])->name('parametres.crm.secteurs.destroy');
+
+    // Référentiels CRM — Pratiques (Missions)
+    Route::post('/parametres/crm/practices', [ParametreCrmController::class, 'storePractice'])->name('parametres.crm.practices.store');
+    Route::put('/parametres/crm/practices/{practice}', [ParametreCrmController::class, 'updatePractice'])->name('parametres.crm.practices.update');
+    Route::delete('/parametres/crm/practices/{practice}', [ParametreCrmController::class, 'destroyPractice'])->name('parametres.crm.practices.destroy');
+
+    // Référentiels CRM — Types de livrable
+    Route::post('/parametres/crm/types-livrable', [ParametreCrmController::class, 'storeTypeLivrable'])->name('parametres.crm.types-livrable.store');
+    Route::put('/parametres/crm/types-livrable/{typeLivrable}', [ParametreCrmController::class, 'updateTypeLivrable'])->name('parametres.crm.types-livrable.update');
+    Route::delete('/parametres/crm/types-livrable/{typeLivrable}', [ParametreCrmController::class, 'destroyTypeLivrable'])->name('parametres.crm.types-livrable.destroy');
 
     // Paramètres société
     Route::get('/parametres', [SocieteController::class, 'edit'])->name('parametres.index');
@@ -159,6 +176,13 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     Route::middleware('module:prospection')->group(function () {
         Route::get('/prospects', [ProspectController::class, 'index'])->name('prospects.index');
         Route::post('/prospects', [ProspectController::class, 'store'])->name('prospects.store');
+
+        // Import XLSX/CSV — avant les routes {prospect} pour éviter les conflits
+        Route::get('/prospects/import', [ProspectImportController::class, 'index'])->name('prospects.import.index');
+        Route::post('/prospects/import/parse', [ProspectImportController::class, 'parse'])->name('prospects.import.parse');
+        Route::post('/prospects/import/commit', [ProspectImportController::class, 'commit'])->name('prospects.import.commit');
+        Route::post('/prospects/import/reset', [ProspectImportController::class, 'reset'])->name('prospects.import.reset');
+
         Route::put('/prospects/{prospect}', [ProspectController::class, 'update'])->name('prospects.update');
         Route::put('/prospects/{prospect}/status', [ProspectController::class, 'updateStatus'])->name('prospects.status');
         Route::post('/prospects/{prospect}/actions', [ProspectController::class, 'storeAction'])->name('prospects.actions.store');

@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, forwardRef, useCallback } from 'react';
 import { cn, formatNumber, parseFormattedNumber } from '@/lib/utils';
 
+// Matches any whitespace including narrow no-break space (U+202F) used by fr-FR Intl
+const WS_RE = /[\s  ]/g;
+
 const NumberInput = forwardRef(({ className, value, onChange, decimals = 2, suffix, icon: Icon, error, ...props }, ref) => {
     const innerRef = useRef(null);
     const inputRef = ref || innerRef;
@@ -20,10 +23,81 @@ const NumberInput = forwardRef(({ className, value, onChange, decimals = 2, suff
     }, [value, focused, toDisplay]);
 
     const handleChange = (e) => {
-        const raw = e.target.value.replace(/[^\d\s,.\-]/g, '');
-        setDisplayValue(raw);
-        const parsed = parseFormattedNumber(raw);
-        if (onChange) onChange(parsed);
+        const input = e.target;
+        const rawValue = input.value;
+        const cursorPos = input.selectionStart;
+
+        // Strip disallowed characters. For decimals=0, also discard comma/dot.
+        const allowed = decimals === 0
+            ? /[^\d\s  \-]/g
+            : /[^\d\s  ,.\-]/g;
+        const cleaned = rawValue.replace(allowed, '');
+
+        if (cleaned === '') {
+            setDisplayValue('');
+            if (onChange) onChange('');
+            return;
+        }
+
+        // Allow lone minus while user is still typing
+        if (cleaned === '-') {
+            setDisplayValue('-');
+            if (onChange) onChange('');
+            return;
+        }
+
+        // Detect trailing decimal separator (user is still typing fractional part)
+        const hasTrailingDecimal = decimals > 0 && /[,.]$/.test(cleaned);
+
+        // Normalize to JS number string: strip spaces, convert comma → dot
+        const normalized = cleaned.replace(WS_RE, '').replace(',', '.');
+        const numVal = parseFloat(normalized);
+
+        if (isNaN(numVal)) return;
+
+        // How many decimal places has the user typed so far
+        const dotIdx = normalized.indexOf('.');
+        const typedDec = dotIdx >= 0
+            ? Math.min(normalized.length - dotIdx - 1, decimals)
+            : 0;
+
+        // Build the formatted display value
+        let formatted;
+        if (hasTrailingDecimal) {
+            const intStr = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(numVal);
+            formatted = intStr + ',';
+        } else {
+            formatted = new Intl.NumberFormat('fr-FR', {
+                minimumFractionDigits: typedDec,
+                maximumFractionDigits: decimals,
+            }).format(numVal);
+        }
+
+        // Count significant chars (digits + comma) before the cursor in the raw input.
+        // This is used to reposition the cursor in the reformatted string.
+        const sigCount = (rawValue.slice(0, cursorPos).match(/[\d,]/g) || []).length;
+
+        setDisplayValue(formatted);
+        if (onChange) onChange(String(numVal));
+
+        // Reposition cursor after React re-renders the input value
+        requestAnimationFrame(() => {
+            const el = inputRef && typeof inputRef !== 'function' ? inputRef.current : null;
+            if (!el || document.activeElement !== el) return;
+            let count = 0;
+            let newPos = formatted.length;
+            if (sigCount === 0) {
+                newPos = 0;
+            } else {
+                for (let i = 0; i < formatted.length; i++) {
+                    if (/[\d,]/.test(formatted[i])) {
+                        count++;
+                        if (count === sigCount) { newPos = i + 1; break; }
+                    }
+                }
+            }
+            el.setSelectionRange(newPos, newPos);
+        });
     };
 
     const handleBlur = () => {
@@ -31,6 +105,8 @@ const NumberInput = forwardRef(({ className, value, onChange, decimals = 2, suff
         const parsed = parseFormattedNumber(displayValue);
         if (parsed !== '' && !isNaN(Number(parsed))) {
             setDisplayValue(formatNumber(parsed, decimals));
+        } else if (displayValue === '-') {
+            setDisplayValue('');
         }
     };
 
