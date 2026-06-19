@@ -546,7 +546,7 @@ function CreateObjectifModal({ open, onClose, periodes, defaultCollaborateurId, 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visibilité</label>
- <SearchableSelect value={formData.visibilite} onChange={v => setField('visibilite', v)} options={[{ value: 'tous', label: 'Tous' }, { value: 'equipe', label: 'Équipe' }, { value: 'prive', label: 'Privé' }]} />
+ <SearchableSelect value={formData.visibilite} onChange={v => setField('visibilite', v)} className="mt-1" options={[{ value: 'tous', label: 'Tous' }, { value: 'equipe', label: 'Équipe' }, { value: 'prive', label: 'Privé' }]} />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prime ({devise?.code || 'GNF'})</label>
@@ -969,7 +969,7 @@ function EditObjectifModal({ open, onClose, objectif, collaborateurs, periodes, 
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visibilité</label>
- <SearchableSelect value={formData.visibilite || 'equipe'} onChange={v => setField('visibilite', v)} options={[{ value: 'tous', label: 'Tous' }, { value: 'equipe', label: 'Équipe' }, { value: 'prive', label: 'Privé' }]} />
+ <SearchableSelect value={formData.visibilite || 'equipe'} onChange={v => setField('visibilite', v)} className="mt-1" options={[{ value: 'tous', label: 'Tous' }, { value: 'equipe', label: 'Équipe' }, { value: 'prive', label: 'Privé' }]} />
  </div>
  <div>
  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Prime ({devise?.code || 'GNF'})</label>

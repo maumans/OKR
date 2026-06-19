@@ -159,10 +159,14 @@ export function SearchableSelect({
                         )}
 
                         {/* ── Liste des options ──────────────────── */}
-                        <div className={cn(
-                            'overflow-y-auto overscroll-contain pb-1 px-1',
-                            showSearch ? 'max-h-[260px]' : 'max-h-[300px]'
-                        )}>
+                        <div
+                            className={cn(
+                                'overflow-y-auto overscroll-contain pb-1 px-1',
+                                showSearch ? 'max-h-[260px]' : 'max-h-[300px]'
+                            )}
+                            onWheel={(e) => e.stopPropagation()}
+                            onTouchMove={(e) => e.stopPropagation()}
+                        >
                             {filtered.length === 0 ? (
                                 <p className="px-3 py-4 text-center text-xs text-gray-400">
                                     Aucun résultat pour « {query} »
