@@ -6,9 +6,11 @@ use App\Models\ActiviteCommerciale;
 use App\Models\Client;
 use App\Models\Prospect;
 use App\Models\Collaborateur;
+use App\Models\RegleScoring;
 use App\Models\SecteurActivite;
 use App\Events\ProspectStatutChange;
 use App\Services\ConsolidationService;
+use App\Services\ScoreService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -52,6 +54,9 @@ class ProspectController extends Controller
                 'montant_final'        => (float) ($p->montant_final ?? 0),
                 'note'                 => $p->note,
                 'created_at'           => $p->created_at?->format('Y-m-d'),
+                'poste_contact'        => $p->poste_contact,
+                'score_fit'            => $p->score_fit,
+                'score_engagement'     => $p->score_engagement,
                 'actions_count'        => $p->actionsCommerciales->count(),
                 'actions'              => $p->actionsCommerciales
                     ->sortByDesc('date_action')
@@ -98,6 +103,19 @@ class ProspectController extends Controller
             ->filter(fn ($p) => $p->valeur === null || $p->valeur == 0)
             ->count();
 
+        // Stats scoring pour le bandeau Performances Commerciales
+        $allDealsScoring = Prospect::where('societe_id', $societeId)
+            ->whereIn('statut', self::ACTIF_STATUTS)
+            ->get(['statut', 'type_deal', 'valeur', 'probabilite', 'montant_final', 'collaborateur_id', 'score_fit', 'score_engagement']);
+
+        // Seuls les deals avec les deux scores renseignés sont classifiés dans un quadrant
+        $scoredDeals = $allDealsScoring->filter(fn ($p) => $p->score_fit !== null && $p->score_engagement !== null);
+        $hotLeads   = $scoredDeals->filter(fn ($p) => $p->score_fit >= 60 && $p->score_engagement >= 60)->count();
+        $nurture    = $scoredDeals->filter(fn ($p) => $p->score_fit >= 60 && $p->score_engagement < 60)->count();
+        $quickWin   = $scoredDeals->filter(fn ($p) => $p->score_fit < 60 && $p->score_engagement >= 60)->count();
+        $cold       = $scoredDeals->filter(fn ($p) => $p->score_fit < 60 && $p->score_engagement < 60)->count();
+        $qualifies  = $scoredDeals->filter(fn ($p) => $p->score_fit >= 60)->count();
+
         $stats = [
             'ca_signe'               => (float) $caSigne,
             'pipeline_previsionnel'  => (int) round((float) $pipelinePrevisif),
@@ -106,6 +124,12 @@ class ProspectController extends Controller
             'deals_sans_valeur'      => $dealsSansValeur,
             'nouveaux_clients'       => $nouveauxClients,
             'upsells'                => $upsells,
+            // Scoring
+            'hot_leads'              => $hotLeads,
+            'nurture'                => $nurture,
+            'quick_win'              => $quickWin,
+            'cold'                   => $cold,
+            'qualifies'              => $qualifies,
         ];
 
         // ── Pipeline par responsable
@@ -183,6 +207,9 @@ class ProspectController extends Controller
             'activites'         => $activites,
             'statsActivites'    => $statsActivites,
             'secteursActivite'  => SecteurActivite::where('societe_id', session('societe_id'))->actifs()->ordonne()->get(['id', 'nom']),
+            'reglesScoring'     => RegleScoring::where('societe_id', session('societe_id'))
+                ->whereIn('contexte', [RegleScoring::CTX_PROSPECT_FIT, RegleScoring::CTX_PROSPECT_ENGAGEMENT])
+                ->get(['id', 'contexte', 'critere', 'points', 'actif']),
         ]);
     }
 
@@ -195,6 +222,7 @@ class ProspectController extends Controller
             'nom'              => 'nullable|string|max:255',
             'client_id'        => 'nullable|exists:clients,id',
             'contact'          => 'nullable|string|max:255',
+            'poste_contact'    => 'nullable|string|max:255',
             'secteur'          => 'nullable|string|max:255',
             'valeur'           => 'nullable|numeric|min:0',
             'probabilite'      => 'nullable|integer|min:0|max:100',
@@ -217,12 +245,13 @@ class ProspectController extends Controller
             return back()->withErrors(['nom' => 'Le nom de l\'entreprise est requis.']);
         }
 
-        Prospect::create([
+        $prospect = Prospect::create([
             'societe_id'       => session('societe_id'),
             'titre'            => $validated['titre'] ?? null,
             'nom'              => $validated['nom'],
             'client_id'        => $validated['client_id'] ?? null,
             'contact'          => $validated['contact'] ?? null,
+            'poste_contact'    => $validated['poste_contact'] ?? null,
             'secteur'          => $validated['secteur'] ?? null,
             'valeur'           => $validated['valeur'] ?? null,
             'probabilite'      => $validated['probabilite'] ?? 20,
@@ -232,6 +261,8 @@ class ProspectController extends Controller
             'note'             => $validated['note'] ?? null,
             'prochain_rdv'     => $validated['prochain_rdv'] ?? null,
         ]);
+
+        app(ScoreService::class)->recalculerEtSauvegarder($prospect);
 
         return redirect()->back()->with('success', 'Deal ajouté au pipeline.');
     }
@@ -245,6 +276,7 @@ class ProspectController extends Controller
             'nom'              => 'nullable|string|max:255',
             'client_id'        => 'nullable|exists:clients,id',
             'contact'          => 'nullable|string|max:255',
+            'poste_contact'    => 'nullable|string|max:255',
             'secteur'          => 'nullable|string|max:255',
             'valeur'           => 'nullable|numeric|min:0',
             'probabilite'      => 'nullable|integer|min:0|max:100',
@@ -263,6 +295,7 @@ class ProspectController extends Controller
         }
 
         $prospect->update($validated);
+        app(ScoreService::class)->recalculerEtSauvegarder($prospect->fresh());
 
         return redirect()->back()->with('success', 'Deal mis à jour.');
     }
@@ -298,6 +331,10 @@ class ProspectController extends Controller
 
         if ($ancienStatut !== $validated['statut']) {
             event(new ProspectStatutChange($prospect, $ancienStatut, $validated['statut'], $request->user()->collaborateurActuel()?->id));
+            // Recalculer le score d'engagement (impacté par le changement de statut)
+            if (in_array($validated['statut'], self::ACTIF_STATUTS)) {
+                app(ScoreService::class)->recalculerEtSauvegarder($prospect->fresh());
+            }
         }
 
         return redirect()->back();
@@ -328,6 +365,9 @@ class ProspectController extends Controller
         if ($prospect->date_premier_contact === null) {
             $prospect->update(['date_premier_contact' => $validated['date_action']]);
         }
+
+        // Recalculer le score engagement (nouvelles actions = +points)
+        app(ScoreService::class)->recalculerEtSauvegarder($prospect->fresh());
 
         return redirect()->back()->with('success', 'Action enregistrée.');
     }
@@ -373,6 +413,13 @@ class ProspectController extends Controller
         $societeId = session('societe_id');
         $updated   = app(ConsolidationService::class)->syncKrsParSociete($societeId, 'crm_activites');
         return redirect()->back()->with('success', "{$updated} KR(s) mis à jour depuis les activités commerciales.");
+    }
+
+    public function recalculerTousScores()
+    {
+        Gate::authorize('viewAny', Prospect::class);
+        $count = app(ScoreService::class)->recalculerTousActifs(session('societe_id'));
+        return redirect()->back()->with('success', "{$count} score(s) recalculé(s).");
     }
 
     public function destroyActivite(ActiviteCommerciale $activite)

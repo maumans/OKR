@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { router, usePage, Link } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/Components/ui/Button';
 import { Label } from '@/Components/ui/Label';
@@ -7,8 +7,8 @@ import { NativeSelect as Select } from '@/Components/ui/Select';
 import { SearchableSelect } from '@/Components/ui/SearchableSelect';
 import {
     Upload, CheckCircle2, AlertCircle, Download, X,
-    LayoutGrid, List, Activity, Building2, UserPlus,
-    TrendingUp, BarChart3, Briefcase, FileSpreadsheet,
+    LayoutGrid, Activity, Building2, Crosshair,
+    BarChart3, Briefcase, FileSpreadsheet,
     ArrowLeft, Info,
 } from 'lucide-react';
 
@@ -30,16 +30,13 @@ const COLONNES = [
     { name: 'note',    requis: false, desc: 'Notes libres' },
 ];
 
-const SIDEBAR_ITEMS = [
-    { key: 'crm',      label: 'Prospects & Clients',   icon: Briefcase,  href: 'prospects.index' },
-    { key: 'import',   label: 'Importer XLSX',          icon: Upload,     href: 'prospects.import.index', active: true },
-    { key: 'kanban',   label: 'Pipeline Kanban',        icon: LayoutGrid, href: 'prospects.index' },
-    { key: 'liste',    label: 'Liste des deals',         icon: List,       href: 'prospects.index' },
-    { key: 'activites',label: 'Activités commerciales', icon: Activity,   href: 'prospects.index' },
-    { key: 'clients',  label: 'Clients',                 icon: Building2,  href: 'prospects.index' },
-    { key: 'nouveaux', label: 'Nouveaux clients',        icon: UserPlus,   href: 'prospects.index' },
-    { key: 'upsells',  label: 'Upsells',                 icon: TrendingUp, href: 'prospects.index' },
-    { key: 'stats',    label: 'Stats & Consolidation',   icon: BarChart3,  href: 'prospects.index' },
+const SIDEBAR_VIEWS = [
+    { key: 'kanban',      label: 'Pipeline Kanban',        icon: LayoutGrid },
+    { key: 'matrice',     label: 'Matrice Scoring',        icon: Crosshair },
+    { key: 'activites',   label: 'Activités commerciales', icon: Activity },
+    { key: 'clients_hub', label: 'Clients & Deals',        icon: Building2 },
+    { key: 'stats',       label: 'Stats',                  icon: BarChart3 },
+    { key: 'import',      label: 'Importer XLSX',          icon: Upload },
 ];
 
 function fmt(n) {
@@ -124,9 +121,9 @@ export default function ProspectionImport({
 
     const downloadTemplate = () => {
         const lines = [
-            'nom;secteur;contact;valeur;titre;source;note',
-            'BICIGUI;banque;Mamadou Diallo;95000000;Intégration SI;referral;Banque prioritaire',
-            'Orange Guinée;telecom;Kadiatou Bah;50000000;;linkedin;',
+            'nom;secteur;contact;poste;valeur;titre;source;note',
+            'BICIGUI;banque;Mamadou Diallo;PDG;95000000;Intégration SI;referral;Banque prioritaire',
+            'Orange Guinée;telecom;Kadiatou Bah;Directrice Commerciale;50000000;;linkedin;',
         ];
         const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -142,21 +139,24 @@ export default function ProspectionImport({
             <div className="flex gap-0">
 
                 {/* ── Sidebar ─────────────────────────────────────────── */}
-                <aside className="w-52 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5 sticky top-20 self-start">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">MINI CRM</p>
+                <aside className="w-52 shrink-0 border-r border-gray-100 dark:border-dark-700 pr-3 mr-5 sticky top-20 self-start z-10 bg-gray-50 dark:bg-dark-950">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">CRM</p>
                     <nav className="space-y-0.5">
-                        {SIDEBAR_ITEMS.map(item => {
-                            const Icon = item.icon;
+                        {SIDEBAR_VIEWS.map(v => {
+                            const isActive = v.key === 'import';
                             return (
-                                <Link key={item.key} href={route(item.href)}
+                                <button key={v.key}
+                                    onClick={() => v.key === 'import'
+                                        ? null
+                                        : router.visit(route('prospects.index'))}
                                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap ${
-                                        item.active
+                                        isActive
                                             ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
                                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-800'
                                     }`}>
-                                    <Icon className="h-4 w-4 shrink-0" />
-                                    {item.label}
-                                </Link>
+                                    <v.icon className="h-4 w-4 shrink-0" />
+                                    {v.label}
+                                </button>
                             );
                         })}
                     </nav>
@@ -340,9 +340,9 @@ export default function ProspectionImport({
 
                             {/* Bouton analyser */}
                             <div className="flex justify-end gap-3">
-                                <Link href={route('prospects.index')}>
-                                    <Button variant="outline"><ArrowLeft className="h-4 w-4 mr-1.5" />Retour au CRM</Button>
-                                </Link>
+                                <Button variant="outline" onClick={() => router.visit(route('prospects.index'))}>
+                                    <ArrowLeft className="h-4 w-4 mr-1.5" />Retour au CRM
+                                </Button>
                                 <Button onClick={handleParse} disabled={!file || parsing} className="min-w-[180px]">
                                     {parsing ? (
                                         <span className="flex items-center gap-2">

@@ -8,6 +8,7 @@ use App\Models\ConfigurationPrime;
 use App\Models\Departement;
 use App\Models\Devise;
 use App\Models\Practice;
+use App\Models\RegleScoring;
 use App\Models\SecteurActivite;
 use App\Models\TypeLivrable;
 use App\Models\Module;
@@ -49,9 +50,13 @@ class SocieteController extends Controller
             'tab'                => request('tab', 'societe'),
             'modulesDisponibles' => $this->buildModulesDisponibles($societe),
             'departements'       => Departement::where('societe_id', $societeId)->withCount('collaborateurs')->ordonne()->get(),
-            'secteursActivite'   => SecteurActivite::where('societe_id', $societeId)->ordonne()->get(['id', 'nom', 'ordre', 'actif']),
+            'secteursActivite'   => SecteurActivite::where('societe_id', $societeId)->ordonne()->get(['id', 'nom', 'ordre', 'actif', 'est_cible']),
             'practices'          => Practice::where('societe_id', $societeId)->ordonne()->get(['id', 'nom', 'ordre', 'actif']),
             'typesLivrable'      => TypeLivrable::where('societe_id', $societeId)->ordonne()->get(['id', 'nom', 'ordre', 'actif']),
+            'reglesScoring'      => RegleScoring::where('societe_id', $societeId)
+                ->whereIn('contexte', [RegleScoring::CTX_PROSPECT_FIT, RegleScoring::CTX_PROSPECT_ENGAGEMENT])
+                ->orderBy('contexte')->orderBy('critere')
+                ->get(['id', 'contexte', 'critere', 'points', 'actif']),
         ]);
     }
 

@@ -559,6 +559,64 @@ Le module OKR est **entièrement configurable** par société, sans aucune valeu
 
 ---
 
+### Phase 4m : Référentiels CRM — Secteurs, Pratiques, Types livrable (Juin 2026) ✅
+
+**Contexte** : Les champs `secteur` (Prospection), `practice` (Missions), et `type_livrable` (Missions livrables) étaient des inputs texte libre. Conversion en `SearchableSelect` alimentés par des listes paramétrables dans Paramètres.
+
+- [x] **3 migrations** : tables `secteurs_activite`, `practices`, `types_livrable` — pattern identique à `departements` (`societe_id`, `nom`, `ordre`, `actif`).
+- [x] **3 modèles** : `SecteurActivite`, `Practice`, `TypeLivrable` — trait `BelongsToSociete`, scopes `actifs()` et `ordonne()`, fillable, casts actif boolean. `TypeLivrable` : `protected $table = 'types_livrable'` (Laravel pluralise incorrectement en `type_livrables`).
+- [x] **`ParametreCrmController`** (9 méthodes) : `store/update/destroy` pour chacune des 3 listes. 9 routes dans `routes/web.php` (`/parametres/crm/secteurs`, `/parametres/crm/practices`, `/parametres/crm/types-livrable`).
+- [x] **`SocieteController::edit()`** : expose `secteursActivite`, `practices`, `typesLivrable` comme props Inertia à la page Paramètres.
+- [x] **`ProspectController::index()`** : expose `secteursActivite` aux composants Prospection.
+- [x] **`MissionController::index()`** : expose `practices` et `typesLivrable` aux composants Missions.
+- [x] **Onglet "Référentiels CRM"** dans `Parametres/Index.jsx` : 3 `CrudSection` (Secteurs d'activité / Pratiques / Types de livrable) avec CRUD inline complet (dialog modal, champs nom/ordre/actif).
+- [x] **`ClientModal` + `DealModal`** : champ `secteur` → `SearchableSelect` alimenté par `secteursActivite`.
+- [x] **`CreateProjectModal` + `InfosTab`** (Missions) : champ `practice` → `SearchableSelect` alimenté par `practices`.
+- [x] **`LivrableForm` + formulaire inline** (Missions) : champ `type_livrable` → `SearchableSelect` alimenté par `typesLivrable`.
+
+**Stratégie DB** : pas de FK — valeur stockée en texte (`nom`). Les options viennent de la liste paramétrée ; les enregistrements existants conservent leur valeur si une option est supprimée.
+
+---
+
+### Phase 4n : Import XLSX Prospects (Juin 2026) ✅
+
+**Contexte** : Permettre l'import en masse de prospects depuis un fichier Excel ou CSV.
+
+- [x] **`ProspectImportController`** : 4 méthodes — `index()` (page + session preview), `parse()` (lit le fichier, stocke aperçu en session), `commit()` (crée les prospects), `reset()` (vide la session).
+- [x] **4 routes** : `prospects.import.index` (GET), `prospects.import.parse` (POST), `prospects.import.commit` (POST), `prospects.import.reset` (POST).
+- [x] **Validation fichier** : règle `mimes:` retirée (silencieuse sur Windows — détection MIME peu fiable) ; remplacée par vérification manuelle de l'extension (`in_array($ext, ['xlsx','xls','csv'])`).
+- [x] **Session-based preview** : `parse()` stocke les lignes dans `session(['import_prospects_preview' => $rows])`. `index()` passe la session à Inertia. `commit()` consomme la session pour créer les prospects.
+- [x] **Déduplication** : option `dedup` — saute les lignes dont le `nom` existe déjà pour la société.
+- [x] **Options d'import** : `statut_initial` (decouverte/proposition/negociation), `collaborateur_id` (responsable assigné), `dedup` (checkbox, actif par défaut).
+- [x] **Page `Prospection/Import.jsx`** — flux 2 étapes :
+  - **Étape 1 (Upload)** : zone drag & drop, panneau options (NativeSelect statut, SearchableSelect responsable, checkbox dedup), tableau de format attendu, bouton "Télécharger template CSV" (génère un blob inline, sans requête serveur), bouton "Analyser le fichier".
+  - **Étape 2 (Aperçu)** : tableau scrollable des lignes parsées + boutons "Importer X prospects" / "Recommencer".
+- [x] **Entrée sidebar** : icône `Upload`, click → `router.visit(route('prospects.import.index'))` (navigation complète, hors gestion de vue locale).
+
+---
+
+### Phase 4o : Pipeline normalisé — probabilité automatique par stade (Juin 2026) ✅
+
+**Contexte** : Finalisation du Chantier 1 Laawol — normalisation du pipeline et pondération automatique.
+
+- [x] **5 stades normalisés** avec probabilité par défaut : `decouverte` → 20%, `proposition` → 40%, `negociation` → 70%, `gagne` → 100%, `perdu` → 0%.
+- [x] **`KANBAN_COLS` avec `defaultProba`** : chaque objet colonne porte `defaultProba`. Affiché en `XX%` dans le header de la colonne Kanban.
+- [x] **Auto-probabilité backend** (`ProspectController::updateStatus()`) : lors d'un changement de stade (drag Kanban), si la probabilité actuelle correspond au `defaultProba` de l'ancien stade (= jamais modifiée manuellement), la probabilité est mise à jour vers le `defaultProba` du nouveau stade. Sinon, elle est conservée.
+- [x] **Auto-probabilité frontend** (`DealModal`) : changement du champ `statut` → `setF('statut', v)` met à jour automatiquement `probabilite` si `!probaManuelle`. Si l'utilisateur touche manuellement le champ `probabilite`, `probaManuelle` passe à `true` et bloque toute mise à jour automatique pour cette session modal.
+
+---
+
+### Phase 4p : Sidebar CRM — hub "Clients & Deals" (Juin 2026) ✅
+
+**Contexte** : Les entrées "Clients" et "Nouveaux clients" dans la sidebar Prospection étaient redondantes et confusantes (1 client converti vs 10 deals en pipeline apparaissaient comme deux catégories distinctes).
+
+- [x] **Fusion en 1 entrée** : "Clients & Deals" (icône `Building2`) remplace les 3 entrées séparées.
+- [x] **Composant `VueClientsHub`** : wrapper interne avec barre d'onglets. Onglet "Clients" → `VueClients`. Autres onglets → `VueListe` avec `typeDealFilter`.
+- [x] **`DEAL_TABS`** : `{ key:'clients', label:'Clients', filter:null }`, `{ key:'nouveaux', label:'En prospection', filter:'nouveau_client' }`, `{ key:'upsells', label:'Upsells', filter:'upsell' }`, `{ key:'renouv', label:'Renouvellements', filter:'renouvellement' }`.
+- [x] **Renommage** : "Nouveaux clients" → "En prospection" (ces deals sont en cours de pipeline, pas encore convertis).
+
+---
+
 ### Phase 5 : LMS et Reporting ⏳
 - [ ] Module LMS : Formations et modules d'apprentissage (page placeholder, modèles et migration existants).
 - [ ] Module Reporting : Synthèses et graphiques avancés (page placeholder).
@@ -748,6 +806,28 @@ class MonController extends Controller implements HasMiddleware
 
 ---
 
+### `TypeLivrable` — mauvais nom de table (corrigé Juin 2026)
+
+**Fichier** : `app/Models/TypeLivrable.php`.
+
+**Problème** : Laravel pluralise `TypeLivrable` en `type_livrables` (convention Eloquent : camelCase → snake_case → pluriel). La table réelle s'appelle `types_livrable`. Résultat : `SQLSTATE[42S02]: Base table or view not found: 'addvalis_okr.type_livrables'` à chaque chargement d'une page qui touche ce modèle (ex: `SocieteController::edit()`) — ce qui cassait silencieusement des pages sans rapport apparent avec TypeLivrable.
+
+**Correctif** : Ajouter `protected $table = 'types_livrable';` dans le modèle.
+
+**Règle** : Tout modèle dont le nom pluriel Eloquent ne correspond pas au nom réel de la table **doit** déclarer `protected $table`. Vérifier systématiquement pour les tables dont le nom n'est pas un pluriel anglais standard.
+
+---
+
+### `NativeSelect` — double chevron superposé (corrigé Juin 2026)
+
+**Fichier** : `resources/js/Components/ui/Select.jsx` — composant `NativeSelect`.
+
+**Problème** : La classe Tailwind `appearance-none` est censée supprimer la flèche native du navigateur. Sur Chrome/Windows et Firefox, elle peut être insuffisante et laisser apparaître la flèche native en plus du `<ChevronDown>` Lucide ajouté en absolu — résultat : double chevron superposé.
+
+**Correctif** : Ajouter `style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}` en ligne sur le `<select>`, en complément de la classe `appearance-none`. Les deux sont nécessaires pour couvrir tous les navigateurs.
+
+---
+
 ### `useForm.post/put` sans `preserveState` ferme le panneau et avale les erreurs (corrigé Juin 2026)
 
 **Fichiers** : `Missions/Index.jsx` (LivrablesTab), `Prospection/Index.jsx` (modal prospect).
@@ -872,9 +952,12 @@ Object.keys(f).forEach(k => k !== 'periode_id' && f[k] === '' && delete f[k]);
 | `abonnements` | Abonnements SaaS par société (plan starter/pro/enterprise, prix_mensuel, limite_utilisateurs, statut) |
 | `fiches_performance` | Fiches de performance (collaborateur, cycle, statut workflow, 4 scores /5, poids, score_global, commentaires, validated_at) |
 | `historique_workflow_performance` | Journal horodaté des transitions de workflow (de_statut, vers_statut, user, commentaire) |
+| `secteurs_activite` | Référentiel secteurs d'activité par société (nom, ordre, actif) — alimente le champ `secteur` des clients et deals |
+| `practices` | Référentiel pratiques/expertises par société (nom, ordre, actif) — alimente le champ `practice` des missions |
+| `types_livrable` | Référentiel types de livrable par société (nom, ordre, actif) — alimente le champ `type_livrable` des livrables de mission |
 
 ---
 
-*Dernière mise à jour : 11 Juin 2026 — Rôle DRH visible dans Équipe (4 fichiers frontend + stats controller) ; fix email collaborateur sans User ; sync OKR → Performance opérationnelle (useEffect anti-staleness, okrOptions élargi, progression live, bouton Sync toujours visible) ; visibilité role-based module Performance (admin/dir/DRH tout, manager équipe, collab sa fiche)*
+*Dernière mise à jour : 22 Juin 2026 — Référentiels CRM paramétrables (secteurs_activite, practices, types_livrable) + ParametreCrmController + onglet Paramètres CRM ; Import XLSX Prospects (ProspectImportController, Import.jsx, flux drag-drop → aperçu → commit) ; Pipeline normalisé 5 stades avec probabilité automatique (KANBAN_COLS defaultProba, updateStatus backend, DealModal probaManuelle) ; sidebar "Clients & Deals" hub (VueClientsHub, 4 onglets, "En prospection") ; fix TypeLivrable table name (protected $table) ; fix NativeSelect double chevron (WebkitAppearance inline)*
 
-*Précédente mise à jour : 5 Juin 2026 — Refonte Module Missions → Projets & Delivery (sidebar navigation, workflow DIR, NPS, stats header, édition inline livrables) + enrichissement Module Prospection (scores commerciaux, actions_count, fix NumberInput valeur, preserveState) + corrections bugs (type="number" locale française, URL validation, text-right NumberInput)*
+*Précédente mise à jour : 11 Juin 2026 — Rôle DRH visible dans Équipe (4 fichiers frontend + stats controller) ; fix email collaborateur sans User ; sync OKR → Performance opérationnelle (useEffect anti-staleness, okrOptions élargi, progression live, bouton Sync toujours visible) ; visibilité role-based module Performance (admin/dir/DRH tout, manager équipe, collab sa fiche)*

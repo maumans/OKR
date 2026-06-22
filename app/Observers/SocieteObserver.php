@@ -3,9 +3,15 @@
 namespace App\Observers;
 
 use App\Models\Societe;
+use Database\Seeders\ScoringProspectSeeder;
 
 class SocieteObserver
 {
+    public function created(Societe $societe): void
+    {
+        ScoringProspectSeeder::seedForSociete($societe->id);
+    }
+
     public function updated(Societe $societe): void
     {
         // Enregistrer seulement les changements de statut

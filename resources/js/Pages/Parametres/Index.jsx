@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/Components/ui/Tabs';
@@ -21,8 +21,30 @@ import {
     Package, Search, Lock, CheckCircle, XCircle, Info,
     LayoutDashboard, User, ListChecks, CalendarCheck, Grid3x3,
     TrendingUp, Briefcase, Gift, GraduationCap, Users, Upload,
-    Network, Users2,
+    Network, Users2, Crosshair, Flame, Lightbulb, Zap, Snowflake, ToggleLeft, ToggleRight,
 } from 'lucide-react';
+
+const SCORING_LIBELLES = {
+    poste_executif:      'Poste exécutif (PDG, DG, CEO)',
+    poste_directeur:     'Poste directeur (Directeur, VP, DAF)',
+    poste_manager:       'Poste manager (Manager, Responsable)',
+    source_referral:     'Source : Référral / recommandation',
+    source_salon:        'Source : Salon / événement',
+    source_site_web:     'Source : Site web / inbound',
+    source_appel_froid:  'Source : Appel froid / prospection',
+    secteur_cible:       'Secteur d\'activité cible',
+    valeur_haute:        'Valeur deal ≥ 50 000',
+    valeur_moyenne:      'Valeur deal 10 000 – 50 000',
+    statut_negociation:  'Statut : Négociation',
+    statut_proposition:  'Statut : Proposition',
+    statut_decouverte:   'Statut : Découverte',
+    actions_cinq_plus:   '5+ actions commerciales',
+    actions_deux_quatre: '2 – 4 actions commerciales',
+    actions_une:         '1 action commerciale',
+    rdv_planifie:        'RDV planifié (date future)',
+    inactivite_faible:   'Inactivité ≤ 7 jours',
+    inactivite_elevee:   'Inactivité > 30 jours (malus)',
+};
 
 const LUCIDE_ICONS = {
     LayoutDashboard, Target, User, ListChecks, CalendarCheck,
@@ -294,13 +316,61 @@ function OngletModules({ modules = [], isAdmin }) {
     );
 }
 
+// ─── Ligne de règle scoring (input contrôlé) ─────────────
+function RegleScoringRow({ regle }) {
+    const [pts, setPts] = useState(regle.points);
+    // Resync si Inertia met à jour les props (après save)
+    const prevPoints = useRef(regle.points);
+    if (prevPoints.current !== regle.points) {
+        prevPoints.current = regle.points;
+        if (pts !== regle.points) setPts(regle.points);
+    }
+
+    const save = (newPts, newActif) => {
+        router.put(
+            route('parametres.crm.scoring.update', regle.id),
+            { points: newPts, actif: newActif },
+            { preserveState: true }
+        );
+    };
+
+    return (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-dark-800 border border-transparent hover:border-gray-200 dark:hover:border-dark-600 transition-colors">
+            <button onClick={() => save(pts, !regle.actif)} className="shrink-0">
+                {regle.actif
+                    ? <ToggleRight className="h-4 w-4 text-primary-500" />
+                    : <ToggleLeft className="h-4 w-4 text-gray-300" />}
+            </button>
+            <span className={`text-xs flex-1 ${regle.actif ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 line-through'}`}>
+                {SCORING_LIBELLES[regle.critere] ?? regle.critere.replace(/_/g, ' ')}
+            </span>
+            <div className="flex items-center gap-1 shrink-0">
+                <input
+                    type="number"
+                    value={pts}
+                    min={-100} max={100}
+                    disabled={!regle.actif}
+                    onChange={e => setPts(e.target.value)}
+                    onBlur={() => {
+                        const p = parseInt(pts, 10);
+                        if (!isNaN(p) && p !== regle.points) save(p, regle.actif);
+                    }}
+                    onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+                    className="w-16 text-center text-xs border border-gray-200 dark:border-dark-600 rounded px-1.5 py-1 bg-white dark:bg-dark-900 disabled:opacity-40"
+                />
+                <span className="text-[10px] text-gray-400">pts</span>
+            </div>
+        </div>
+    );
+}
+
 // ─── Page principale ─────────────────────────────────────
 export default function ParametresIndex({
     societe, devises = [], tab = 'societe',
     axes = [], periodes = [], typesObjectifs = [], typesResultatsCles = [],
     statuts = [], seuils = [], configuration, configurationPrime, templates = [],
     modulesDisponibles = [], departements = [],
-    secteursActivite = [], practices = [], typesLivrable = [],
+    secteursActivite = [], practices = [], typesLivrable = [], reglesScoring = [],
 }) {
     const { flash, auth } = usePage().props;
     const devise = auth?.societe?.devise;
@@ -691,11 +761,19 @@ export default function ParametresIndex({
                 <TabsContent value="crm">
                     <div className="space-y-6">
                         <CrudSection title="Secteurs d'activité" icon={Building2} items={secteursActivite}
-                            columns={[{ label: 'Nom' }, { label: 'Ordre', className: 'w-20' }, { label: 'Actif', className: 'w-20' }]}
+                            columns={[{ label: 'Nom' }, { label: 'Ordre', className: 'w-20' }, { label: 'Actif', className: 'w-20' }, { label: 'Cible scoring', className: 'w-28' }]}
                             renderRow={item => (<>
                                 <TableCell className="font-medium">{item.nom}</TableCell>
                                 <TableCell>{item.ordre}</TableCell>
                                 <TableCell><Badge variant={item.actif ? 'success' : 'secondary'}>{item.actif ? 'Actif' : 'Inactif'}</Badge></TableCell>
+                                <TableCell>
+                                    <button onClick={() => router.put(route('parametres.crm.secteurs.update', item.id), { nom: item.nom, ordre: item.ordre, actif: item.actif, est_cible: !item.est_cible }, { preserveState: true })}
+                                        className="flex items-center gap-1 text-xs transition-colors">
+                                        {item.est_cible
+                                            ? <><ToggleRight className="h-4 w-4 text-emerald-500" /><span className="text-emerald-600 font-medium">Oui</span></>
+                                            : <><ToggleLeft className="h-4 w-4 text-gray-300" /><span className="text-gray-400">Non</span></>}
+                                    </button>
+                                </TableCell>
                             </>)}
                             onAdd={() => openAdd('secteur', secteurForm)}
                             onEdit={item => openEdit('secteur', secteurForm, item, ['nom', 'ordre', 'actif'])}
@@ -723,6 +801,42 @@ export default function ParametresIndex({
                             onEdit={item => openEdit('typeLivrable', typeLivrableForm, item, ['nom', 'ordre', 'actif'])}
                             onDelete={item => { if (confirm(`Supprimer « ${item.nom} » ?`)) router.delete(route('parametres.crm.types-livrable.destroy', item.id)); }}
                         />
+
+                        {/* ── Scoring CRM ── */}
+                        {reglesScoring.length > 0 && (
+                            <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700 p-5">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Crosshair className="h-4 w-4 text-gray-400" />
+                                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Règles de scoring prospects</h3>
+                                    <span className="text-xs text-gray-400 ml-1">— Points attribués automatiquement à chaque deal</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-6">
+                                    {[
+                                        { ctx: 'prospect_fit',        label: 'Fit Score', sublabel: 'Qui est ce prospect ?', icon: Crosshair },
+                                        { ctx: 'prospect_engagement', label: 'Engagement Score', sublabel: 'Qu\'est-il en train de faire ?', icon: Zap },
+                                    ].map(({ ctx, label, sublabel, icon: Icon }) => {
+                                        const reglesDuContexte = reglesScoring.filter(r => r.contexte === ctx);
+                                        return (
+                                            <div key={ctx}>
+                                                <div className="flex items-center gap-1.5 mb-3">
+                                                    <Icon className="h-3.5 w-3.5 text-gray-400" />
+                                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</span>
+                                                    <span className="text-[10px] text-gray-400">— {sublabel}</span>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    {reglesDuContexte.map(regle => (
+                                                        <RegleScoringRow key={regle.id} regle={regle} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-4">
+                                    Les secteurs "cibles" se configurent dans la liste Secteurs d'activité ci-dessus (colonne Cible scoring).
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </TabsContent>
 

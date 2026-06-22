@@ -18,6 +18,7 @@ class Prospect extends Model
         'titre',
         'nom',
         'contact',
+        'poste_contact',
         'secteur',
         'valeur',
         'probabilite',
@@ -29,6 +30,8 @@ class Prospect extends Model
         'source',
         'montant_final',
         'note',
+        'score_fit',
+        'score_engagement',
     ];
 
     protected function casts(): array
@@ -40,6 +43,8 @@ class Prospect extends Model
             'valeur'               => 'decimal:2',
             'montant_final'        => 'decimal:2',
             'probabilite'          => 'integer',
+            'score_fit'            => 'integer',
+            'score_engagement'     => 'integer',
         ];
     }
 

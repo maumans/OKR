@@ -149,6 +149,7 @@ const NativeSelect = forwardRef(({ className, children, error, ...props }, ref) 
                     error && 'border-red-400 focus:ring-red-400/30 focus:border-red-400',
                     className
                 )}
+                style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                 ref={ref}
                 {...props}
             >

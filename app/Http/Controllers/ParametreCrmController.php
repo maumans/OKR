@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Practice;
+use App\Models\RegleScoring;
 use App\Models\SecteurActivite;
 use App\Models\TypeLivrable;
+use App\Services\ScoreService;
 use Illuminate\Http\Request;
 
 class ParametreCrmController extends Controller
@@ -33,12 +35,19 @@ class ParametreCrmController extends Controller
         $this->checkSociete($secteur->societe_id);
 
         $validated = $request->validate([
-            'nom'   => 'required|string|max:255',
-            'ordre' => 'nullable|integer|min:0',
-            'actif' => 'boolean',
+            'nom'       => 'required|string|max:255',
+            'ordre'     => 'nullable|integer|min:0',
+            'actif'     => 'boolean',
+            'est_cible' => 'boolean',
         ]);
 
+        $ancienEstCible = $secteur->est_cible;
         $secteur->update($validated);
+
+        // Si le marquage "secteur cible" a changé, recalculer les scores (impacte score_fit)
+        if (isset($validated['est_cible']) && $validated['est_cible'] !== $ancienEstCible) {
+            app(ScoreService::class)->recalculerTousActifs($secteur->societe_id);
+        }
 
         return redirect()->back()->with('success', 'Secteur mis à jour.');
     }
@@ -139,6 +148,26 @@ class ParametreCrmController extends Controller
         $typeLivrable->delete();
 
         return redirect()->back()->with('success', 'Type de livrable supprimé.');
+    }
+
+    // ─── Règles de scoring prospects ───────────────────────
+
+    public function updateRegleScoring(Request $request, RegleScoring $regle)
+    {
+        $this->authorizeAdmin();
+        $this->checkSociete($regle->societe_id);
+
+        $validated = $request->validate([
+            'points' => 'required|integer|min:-100|max:100',
+            'actif'  => 'boolean',
+        ]);
+
+        $regle->update($validated);
+
+        // Recalculer tous les scores actifs pour refléter la nouvelle pondération
+        app(ScoreService::class)->recalculerTousActifs($regle->societe_id);
+
+        return redirect()->back()->with('success', 'Règle mise à jour · scores recalculés.');
     }
 
     // ─── Helpers ────────────────────────────────────────────

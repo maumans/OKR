@@ -12,6 +12,7 @@ import {
     Pencil, Trash2, Users, Target, Award, Building2,
     ChevronRight, Phone, Mail, FileText, Clock,
     Activity, Monitor, Tag, CheckCheck, XCircle, RefreshCcw, Filter, Upload,
+    Flame, Snowflake, Zap, Lightbulb, Crosshair,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -36,13 +37,42 @@ const TYPE_DEAL = {
 };
 
 const SIDEBAR_VIEWS = [
-    { key: 'kanban',    label: 'Pipeline Kanban',       icon: LayoutGrid },
-    { key: 'liste',     label: 'Liste des deals',        icon: List },
-    { key: 'activites',    label: 'Activités commerciales', icon: Activity },
-    { key: 'clients_hub', label: 'Clients & Deals',       icon: Building2 },
+    { key: 'kanban',      label: 'Pipeline Kanban',        icon: LayoutGrid },
+    { key: 'matrice',     label: 'Matrice Scoring',        icon: Crosshair },
+    { key: 'activites',   label: 'Activités commerciales', icon: Activity },
+    { key: 'clients_hub', label: 'Clients & Deals',        icon: Building2 },
     { key: 'stats',       label: 'Stats',                  icon: BarChart3 },
-    { key: 'import',    label: 'Importer XLSX',          icon: Upload },
+    { key: 'import',      label: 'Importer XLSX',          icon: Upload },
 ];
+
+// ── Scoring helpers ────────────────────────────────────────────────────────
+const getQuadrant = (fit, engagement) => {
+    const f = fit ?? null;
+    const e = engagement ?? null;
+    if (f === null || e === null) return null;
+    if (f >= 60 && e >= 60) return { key: 'hot',     label: 'Hot Lead',  icon: Flame,      bg: 'bg-red-100 dark:bg-red-900/30',     text: 'text-red-600 dark:text-red-400',    border: 'border-red-200 dark:border-red-800' };
+    if (f >= 60 && e <  60) return { key: 'nurture', label: 'Nurture',   icon: Lightbulb,  bg: 'bg-blue-100 dark:bg-blue-900/30',   text: 'text-blue-600 dark:text-blue-400',  border: 'border-blue-200 dark:border-blue-800' };
+    if (f <  60 && e >= 60) return { key: 'quick',   label: 'Quick Win', icon: Zap,        bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-800' };
+    return                         { key: 'cold',    label: 'Cold',      icon: Snowflake,  bg: 'bg-gray-100 dark:bg-dark-700',      text: 'text-gray-400 dark:text-gray-500',  border: 'border-gray-200 dark:border-dark-600' };
+};
+
+function ScoreBadge({ fit, engagement, compact = false }) {
+    const q = getQuadrant(fit, engagement);
+    if (!q) return null;
+    const Icon = q.icon;
+    if (compact) {
+        return (
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold border ${q.bg} ${q.text} ${q.border}`}>
+                <Icon className="h-2.5 w-2.5" />{q.label}
+            </span>
+        );
+    }
+    return (
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border ${q.bg} ${q.text} ${q.border}`}>
+            <Icon className="h-3.5 w-3.5" />{q.label}
+        </span>
+    );
+}
 
 const ACTIVITE_TYPES = {
     contact_initie:      { label: 'Contact initié',      icon: Phone,       color: '#ec4899', bg: 'bg-pink-100 dark:bg-pink-900/30',    text: 'text-pink-700 dark:text-pink-300' },
@@ -311,13 +341,16 @@ function DealCard({ deal, onEdit, onDelete, onStatusChange, onDetail, onAction, 
                     {deal.note}
                 </p>
             )}
-            {/* Actions badge */}
-            {deal.actions_count > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-50 dark:border-dark-800 flex items-center gap-1 text-[10px] text-gray-400">
-                    <Clock className="h-3 w-3" />
-                    {deal.actions_count} action{deal.actions_count > 1 ? 's' : ''}
-                </div>
-            )}
+            {/* Score + actions footer */}
+            <div className="mt-2 pt-2 border-t border-gray-50 dark:border-dark-800 flex items-center justify-between gap-1">
+                <ScoreBadge fit={deal.score_fit} engagement={deal.score_engagement} compact />
+                {deal.actions_count > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                        <Clock className="h-3 w-3" />
+                        {deal.actions_count}
+                    </span>
+                )}
+            </div>
         </div>
     );
 }
@@ -453,12 +486,14 @@ function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaul
         nom:              deal?.nom || defaults?.nom || '',
         client_id:        deal?.client_id ? String(deal.client_id) : (defaults?.client_id || ''),
         contact:          deal?.contact || defaults?.contact || '',
+        poste_contact:    deal?.poste_contact || '',
         secteur:          deal?.secteur || defaults?.secteur || '',
         valeur:           deal?.valeur || '',
         probabilite:      deal?.probabilite ?? 20,
         type_deal:        deal?.type_deal || 'nouveau_client',
         statut:           deal?.statut || 'decouverte',
         collaborateur_id: deal?.collaborateur_id ? String(deal.collaborateur_id) : '',
+        prochain_rdv:     deal?.prochain_rdv ? String(deal.prochain_rdv).slice(0, 10) : '',
         note:             deal?.note || '',
     });
     const [errors, setErrors] = useState({});
@@ -604,16 +639,28 @@ function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaul
                                 placeholder="+224 6XX..." className={iCls} />
                         </div>
                         <div>
-                            <label className={lCls}>Secteur</label>
-                            <SearchableSelect
-                                value={form.secteur || ''}
-                                onChange={v => setF('secteur', v)}
-                                options={(secteursActivite || []).map(s => ({ value: s.nom, label: s.nom }))}
-                                nullable nullLabel="— Aucun secteur —"
-                                placeholder="Sélectionner un secteur..."
-                                className="mt-1"
-                            />
+                            <label className={lCls}>Poste du contact</label>
+                            <input value={form.poste_contact} onChange={e => setF('poste_contact', e.target.value)}
+                                placeholder="PDG, Directeur Commercial..." className={iCls} />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className={lCls}>Secteur</label>
+                        <SearchableSelect
+                            value={form.secteur || ''}
+                            onChange={v => setF('secteur', v)}
+                            options={(secteursActivite || []).map(s => ({ value: s.nom, label: s.nom }))}
+                            nullable nullLabel="— Aucun secteur —"
+                            placeholder="Sélectionner un secteur..."
+                            className="mt-1"
+                        />
+                    </div>
+
+                    <div>
+                        <label className={lCls}>Prochain RDV</label>
+                        <input type="date" value={form.prochain_rdv} onChange={e => setF('prochain_rdv', e.target.value)}
+                            className={iCls} />
                     </div>
 
                     <div>
@@ -629,6 +676,47 @@ function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaul
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+// ── Scoring Stats ─────────────────────────────────────────────────────────
+function ScoringStats({ stats, onRecalcul }) {
+    if (!stats) return null;
+    const total = (stats.hot_leads || 0) + (stats.nurture || 0) + (stats.quick_win || 0) + (stats.cold || 0);
+    if (total === 0) return null;
+
+    const quadrants = [
+        { key: 'hot_leads', label: 'Hot Leads',  icon: Flame,      bg: 'bg-red-50 dark:bg-red-900/20',     text: 'text-red-600 dark:text-red-400',     num: stats.hot_leads || 0 },
+        { key: 'nurture',   label: 'Nurture',     icon: Lightbulb,  bg: 'bg-blue-50 dark:bg-blue-900/20',   text: 'text-blue-600 dark:text-blue-400',   num: stats.nurture || 0 },
+        { key: 'quick_win', label: 'Quick Win',   icon: Zap,        bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', num: stats.quick_win || 0 },
+        { key: 'cold',      label: 'Cold',        icon: Snowflake,  bg: 'bg-gray-50 dark:bg-dark-800',     text: 'text-gray-500 dark:text-gray-400',   num: stats.cold || 0 },
+    ];
+
+    return (
+        <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700 p-3 mb-4">
+            <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-1.5">
+                    <Crosshair className="h-3.5 w-3.5 text-gray-400" />
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Scoring pipeline actif</span>
+                </div>
+                <button onClick={onRecalcul}
+                    className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-primary-600 transition-colors">
+                    <RefreshCcw className="h-3 w-3" /> Recalculer
+                </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+                {quadrants.map(q => {
+                    const Icon = q.icon;
+                    return (
+                        <div key={q.key} className={`${q.bg} rounded-lg p-2 text-center`}>
+                            <Icon className={`h-4 w-4 mx-auto mb-1 ${q.text}`} />
+                            <div className={`text-[18px] font-bold leading-none ${q.text}`}>{q.num}</div>
+                            <div className="text-[9px] text-gray-400 mt-0.5 font-medium">{q.label}</div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 }
 
@@ -676,10 +764,11 @@ function PipelineParCollab({ data, deviseCode }) {
 
 // ── Vue Clients Hub (Clients + Deals par type) ─────────────────────────────
 const DEAL_TABS = [
-    { key: 'clients',   label: 'Clients',         filter: null },
-    { key: 'nouveaux',  label: 'En prospection',   filter: 'nouveau_client' },
-    { key: 'upsells',   label: 'Upsells',          filter: 'upsell' },
-    { key: 'renouv',    label: 'Renouvellements',  filter: 'renouvellement' },
+    { key: 'clients',   label: 'Clients',         filter: null,             mode: 'clients' },
+    { key: 'tous',      label: 'Tous les deals',  filter: null,             mode: 'liste'   },
+    { key: 'nouveaux',  label: 'En prospection',  filter: 'nouveau_client', mode: 'liste'   },
+    { key: 'upsells',   label: 'Upsells',         filter: 'upsell',         mode: 'liste'   },
+    { key: 'renouv',    label: 'Renouvellements', filter: 'renouvellement', mode: 'liste'   },
 ];
 
 function VueClientsHub({ clients, prospects, listProps, onEdit, onDelete, onNew, onNewDeal, deviseCode }) {
@@ -716,7 +805,7 @@ function VueClientsHub({ clients, prospects, listProps, onEdit, onDelete, onNew,
             </div>
 
             {/* Contenu */}
-            {tab === 'clients' ? (
+            {current.mode === 'clients' ? (
                 <VueClients
                     clients={clients} prospects={prospects} deviseCode={deviseCode}
                     onEdit={onEdit} onDelete={onDelete} onNew={onNew} onNewDeal={onNewDeal} />
@@ -1023,7 +1112,7 @@ function VueKanban({ prospects, stats, pipelineParCollab, collaborateurs, client
 }
 
 // ── Vue Liste ──────────────────────────────────────────────────────────────
-function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, deviseCode, typeDealFilter = null, title = 'Liste des deals' }) {
+function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, onNew, deviseCode, typeDealFilter = null, title = 'Liste des deals' }) {
     const [search, setSearch] = useState('');
     const [clientFilter, setClientFilter] = useState('');
 
@@ -1043,7 +1132,15 @@ function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, de
     return (
         <div>
             <div className="flex flex-col gap-2 mb-4">
-                <h2 className="text-[14px] font-bold text-gray-800 dark:text-white">{title}</h2>
+                <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-[14px] font-bold text-gray-800 dark:text-white">{title}</h2>
+                    {onNew && (
+                        <button onClick={onNew}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-[12px] font-medium rounded-lg transition-colors shrink-0">
+                            <Plus className="h-3.5 w-3.5" /> Nouveau deal
+                        </button>
+                    )}
+                </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     {clients?.length > 0 && (
                         <div className="flex-1 min-w-[140px]">
@@ -1065,7 +1162,7 @@ function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, de
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-800">
-                            {['Deal', 'Client', 'Valeur', 'Proba', 'Responsable', 'Étape', 'Type', 'Actions'].map(h => (
+                            {['Deal', 'Client', 'Valeur', 'Proba', 'Score', 'Responsable', 'Étape', 'Type', 'Actions'].map(h => (
                                 <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide">{h}</th>
                             ))}
                         </tr>
@@ -1089,6 +1186,9 @@ function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, de
                                         {fmt(deal.valeur)} {deviseCode}
                                     </td>
                                     <td className="px-4 py-2.5 text-[12px] text-center text-gray-500">{deal.probabilite}%</td>
+                                    <td className="px-4 py-2.5">
+                                        <ScoreBadge fit={deal.score_fit} engagement={deal.score_engagement} compact />
+                                    </td>
                                     <td className="px-4 py-2.5">
                                         <div className="flex items-center gap-1.5">
                                             <CollabAvatar prenom={deal.collaborateur_prenom} nom={deal.collaborateur_nom} cls="h-5 w-5" />
@@ -1143,7 +1243,7 @@ function VueListe({ prospects, clients, onEdit, onDelete, onDetail, onAction, de
                         })}
                         {shown.length === 0 && (
                             <tr>
-                                <td colSpan={8} className="text-center py-10 text-[12px] text-gray-400">
+                                <td colSpan={9} className="text-center py-10 text-[12px] text-gray-400">
                                     Aucun deal trouvé
                                 </td>
                             </tr>
@@ -1670,8 +1770,150 @@ function VueActivites({ activites = [], statsActivites = {}, collaborateurs = []
     );
 }
 
+// ── Vue Matrice Scoring ────────────────────────────────────────────────────
+function VueMatriceScoring({ prospects, collaborateurs, deviseCode, onEdit, onDetail, onAction }) {
+    const [collabFilter, setCollabFilter] = useState('');
+    const [typeFilter, setTypeFilter] = useState('');
+
+    const actifs = prospects.filter(p => ACTIF_STATUTS.includes(p.statut));
+    const filtered = actifs.filter(p => {
+        if (collabFilter && String(p.collaborateur_id) !== collabFilter) return false;
+        if (typeFilter && p.type_deal !== typeFilter) return false;
+        return true;
+    });
+
+    const scored   = filtered.filter(p => p.score_fit !== null && p.score_engagement !== null);
+    const unscored = filtered.filter(p => p.score_fit === null || p.score_engagement === null);
+
+    const QUADRANTS = [
+        {
+            key: 'hot', label: 'Hot Leads', sublabel: 'Priorité absolue',
+            icon: Flame,
+            bg: 'bg-red-50 dark:bg-red-900/10', border: 'border-red-200 dark:border-red-800',
+            text: 'text-red-600 dark:text-red-400', numCls: 'text-red-700 dark:text-red-300',
+            match: p => p.score_fit >= 60 && p.score_engagement >= 60,
+        },
+        {
+            key: 'nurture', label: 'Nurture', sublabel: 'Bon profil, peu actif',
+            icon: Lightbulb,
+            bg: 'bg-blue-50 dark:bg-blue-900/10', border: 'border-blue-200 dark:border-blue-800',
+            text: 'text-blue-600 dark:text-blue-400', numCls: 'text-blue-700 dark:text-blue-300',
+            match: p => p.score_fit >= 60 && p.score_engagement < 60,
+        },
+        {
+            key: 'quick', label: 'Quick Win', sublabel: 'Convertir vite',
+            icon: Zap,
+            bg: 'bg-emerald-50 dark:bg-emerald-900/10', border: 'border-emerald-200 dark:border-emerald-800',
+            text: 'text-emerald-600 dark:text-emerald-400', numCls: 'text-emerald-700 dark:text-emerald-300',
+            match: p => p.score_fit < 60 && p.score_engagement >= 60,
+        },
+        {
+            key: 'cold', label: 'Cold', sublabel: 'Déprioritiser',
+            icon: Snowflake,
+            bg: 'bg-gray-50 dark:bg-dark-800', border: 'border-gray-200 dark:border-dark-600',
+            text: 'text-gray-500 dark:text-gray-400', numCls: 'text-gray-600 dark:text-gray-300',
+            match: p => p.score_fit < 60 && p.score_engagement < 60,
+        },
+    ];
+
+    const statutLabel = (s) => KANBAN_COLS.find(c => c.key === s)?.label || s;
+
+    return (
+        <div>
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+                <select value={collabFilter} onChange={e => setCollabFilter(e.target.value)}
+                    className="text-xs border border-gray-200 dark:border-dark-600 rounded-lg px-3 py-1.5 bg-white dark:bg-dark-900 text-gray-700 dark:text-gray-300">
+                    <option value="">Tous les responsables</option>
+                    {collaborateurs.map(c => (
+                        <option key={c.id} value={String(c.id)}>{c.prenom} {c.nom}</option>
+                    ))}
+                </select>
+                <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                    className="text-xs border border-gray-200 dark:border-dark-600 rounded-lg px-3 py-1.5 bg-white dark:bg-dark-900 text-gray-700 dark:text-gray-300">
+                    <option value="">Tous types</option>
+                    {Object.entries(TYPE_DEAL).map(([k, v]) => (
+                        <option key={k} value={k}>{v.label}</option>
+                    ))}
+                </select>
+                <span className="text-xs text-gray-400 ml-auto">{scored.length} deal(s) scoré(s) · {unscored.length} non scoré(s)</span>
+            </div>
+
+            {/* 2×2 Matrix */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+                {QUADRANTS.map(q => {
+                    const deals = scored.filter(q.match);
+                    const pipeline = deals.reduce((s, p) => s + (Number(p.valeur) || 0), 0);
+                    const Icon = q.icon;
+                    return (
+                        <div key={q.key} className={`rounded-xl border-2 ${q.border} ${q.bg} p-4`}>
+                            <div className="flex items-start justify-between gap-2 mb-3">
+                                <div className="flex items-center gap-2">
+                                    <Icon className={`h-4 w-4 ${q.text} shrink-0`} />
+                                    <div>
+                                        <div className={`text-sm font-bold ${q.text}`}>{q.label}</div>
+                                        <div className="text-[10px] text-gray-400">{q.sublabel}</div>
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <div className={`text-lg font-bold leading-none ${q.numCls}`}>{deals.length}</div>
+                                    {pipeline > 0 && (
+                                        <div className="text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">
+                                            {fmt(pipeline)} {deviseCode}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+                                {deals.length === 0 && (
+                                    <p className="text-xs text-gray-400 text-center py-6">Aucun deal dans ce quadrant</p>
+                                )}
+                                {deals.map(p => (
+                                    <button key={p.id} onClick={() => onDetail(p)}
+                                        className="w-full text-left bg-white dark:bg-dark-900 rounded-lg px-3 py-2 border border-gray-100 dark:border-dark-700 hover:border-primary-300 dark:hover:border-primary-600 transition-colors">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate leading-tight">{p.nom}</span>
+                                            <span className="text-[10px] text-gray-400 shrink-0">{statutLabel(p.statut)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            {p.contact && <span className="text-[10px] text-gray-400 truncate">{p.contact}</span>}
+                                            {p.valeur > 0 && <span className="text-[10px] text-gray-400 ml-auto shrink-0">{fmt(p.valeur)} {deviseCode}</span>}
+                                        </div>
+                                        <div className="flex gap-2 mt-1">
+                                            <span className="text-[9px] bg-white dark:bg-dark-800 border border-gray-100 dark:border-dark-600 px-1.5 py-0.5 rounded text-gray-500">F {p.score_fit}</span>
+                                            <span className="text-[9px] bg-white dark:bg-dark-800 border border-gray-100 dark:border-dark-600 px-1.5 py-0.5 rounded text-gray-500">E {p.score_engagement}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Unscored deals */}
+            {unscored.length > 0 && (
+                <div className="bg-white dark:bg-dark-900 rounded-xl border border-gray-100 dark:border-dark-700 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Non scorés ({unscored.length})</span>
+                        <span className="text-[10px] text-gray-400">— Complétez le poste du contact pour activer le scoring</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {unscored.map(p => (
+                            <button key={p.id} onClick={() => onDetail(p)}
+                                className="text-xs bg-gray-50 dark:bg-dark-800 border border-gray-100 dark:border-dark-700 rounded-lg px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:border-gray-300 transition-colors">
+                                {p.nom}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────
-export default function ProspectionIndex({ prospects, filters, collaborateurs, clients = [], stats, pipelineParCollab, activites = [], statsActivites = {}, auth, secteursActivite = [] }) {
+export default function ProspectionIndex({ prospects, filters, collaborateurs, clients = [], stats, pipelineParCollab, activites = [], statsActivites = {}, auth, secteursActivite = [], reglesScoring = [] }) {
     const deviseCode = auth?.societe?.devise?.code || 'GNF';
     const [activeView, setActiveView] = useState('kanban');
     const [collabFilter, setCollabFilter] = useState(String(filters?.collaborateur_id || ''));
@@ -1719,7 +1961,14 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
         setActiveView('kanban');
     };
 
-    const listProps = { prospects, clients, onEdit: setEditDeal, onDelete: handleDelete, onDetail: setDetailDeal, onAction: setActionDeal, deviseCode };
+    const handleRecalcul = () => {
+        router.post(route('prospects.scoring.recalculer'), {}, {
+            preserveState: true,
+            onSuccess: () => toast.success('Scores recalculés.'),
+        });
+    };
+
+    const listProps = { prospects, clients, onEdit: setEditDeal, onDelete: handleDelete, onDetail: setDetailDeal, onAction: setActionDeal, onNew: openCreate, deviseCode };
 
     return (
         <AppLayout title="CRM">
@@ -1763,6 +2012,9 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                     </div>
 
                     {/* Views */}
+                    {(activeView === 'kanban' || activeView === 'matrice') && (
+                        <ScoringStats stats={stats} onRecalcul={handleRecalcul} />
+                    )}
                     {activeView === 'kanban' && (
                         <VueKanban
                             prospects={prospects} stats={stats} pipelineParCollab={pipelineParCollab}
@@ -1774,8 +2026,14 @@ export default function ProspectionIndex({ prospects, filters, collaborateurs, c
                             onStatusChange={handleStatusChange} onNew={() => openCreate()}
                             onDetail={setDetailDeal} onAction={setActionDeal} />
                     )}
-                    {activeView === 'liste' && (
-                        <VueListe {...listProps} title="Liste des deals" />
+                    {activeView === 'matrice' && (
+                        <VueMatriceScoring
+                            prospects={prospects}
+                            collaborateurs={collaborateurs}
+                            deviseCode={deviseCode}
+                            onEdit={setEditDeal}
+                            onDetail={setDetailDeal}
+                            onAction={setActionDeal} />
                     )}
                     {activeView === 'clients_hub' && (
                         <VueClientsHub

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Collaborateur;
 use App\Models\Prospect;
+use App\Services\ScoreService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -13,13 +14,14 @@ class ProspectImportController extends Controller
 {
     // Aliases de colonnes acceptés (minuscules, underscores)
     private const ALIASES = [
-        'nom'     => ['nom', 'name', 'entreprise', 'company', 'raison_sociale', 'societe', 'organisation'],
-        'secteur' => ['secteur', 'sector', 'secteur_activite', 'industrie', 'domaine'],
-        'contact' => ['contact', 'contact_nom', 'responsable', 'interlocuteur', 'nom_contact', 'referent'],
-        'valeur'  => ['valeur', 'montant', 'value', 'budget', 'montant_deal', 'ca_potentiel'],
-        'note'    => ['note', 'notes', 'commentaire', 'commentaires', 'description', 'remarque', 'remarques'],
-        'titre'   => ['titre', 'title', 'objet', 'intitule', 'sujet', 'opportunite'],
-        'source'  => ['source', 'canal', 'origine', 'provenance'],
+        'nom'           => ['nom', 'name', 'entreprise', 'company', 'raison_sociale', 'societe', 'organisation'],
+        'secteur'       => ['secteur', 'sector', 'secteur_activite', 'industrie', 'domaine'],
+        'contact'       => ['contact', 'contact_nom', 'interlocuteur', 'nom_contact', 'referent'],
+        'poste_contact' => ['poste', 'poste_contact', 'fonction', 'titre_contact', 'job_title', 'role', 'position', 'responsable'],
+        'valeur'        => ['valeur', 'montant', 'value', 'budget', 'montant_deal', 'ca_potentiel'],
+        'note'          => ['note', 'notes', 'commentaire', 'commentaires', 'description', 'remarque', 'remarques'],
+        'titre'         => ['titre', 'title', 'objet', 'intitule', 'sujet', 'opportunite'],
+        'source'        => ['source', 'canal', 'origine', 'provenance'],
     ];
 
     // ─── Pages ──────────────────────────────────────────────
@@ -94,10 +96,12 @@ class ProspectImportController extends Controller
         $statut          = $options['statut_initial'] ?? 'decouverte';
         $collaborateurId = $options['collaborateur_id'] ?: null;
 
-        $imported = 0;
-        $skipped  = 0;
+        $imported     = 0;
+        $skipped      = 0;
+        $scoreService = app(ScoreService::class);
+        $prospectsCreated = [];
 
-        DB::transaction(function () use ($rows, $societeId, $dedup, $statut, $collaborateurId, &$imported, &$skipped) {
+        DB::transaction(function () use ($rows, $societeId, $dedup, $statut, $collaborateurId, &$imported, &$skipped, &$prospectsCreated) {
             foreach ($rows as $row) {
                 $nom = trim($row['nom'] ?? '');
                 if ($nom === '') continue;
@@ -116,12 +120,13 @@ class ProspectImportController extends Controller
                     $valeur = is_numeric($v) ? (float) $v : null;
                 }
 
-                Prospect::create([
+                $prospect = Prospect::create([
                     'societe_id'       => $societeId,
                     'nom'              => $nom,
                     'titre'            => $row['titre'] ?? null,
                     'secteur'          => $row['secteur'] ?? null,
                     'contact'          => $row['contact'] ?? null,
+                    'poste_contact'    => $row['poste_contact'] ?? null,
                     'valeur'           => $valeur,
                     'note'             => $row['note'] ?? null,
                     'source'           => $row['source'] ?? 'import',
@@ -130,9 +135,16 @@ class ProspectImportController extends Controller
                     'type_deal'        => 'nouveau_client',
                     'collaborateur_id' => $collaborateurId,
                 ]);
+                $prospectsCreated[] = $prospect->id;
                 $imported++;
             }
         });
+
+        // Calcul des scores après transaction (pour éviter de ralentir le commit)
+        if (!empty($prospectsCreated)) {
+            Prospect::whereIn('id', $prospectsCreated)->with('actionsCommerciales')->get()
+                ->each(fn ($p) => $scoreService->recalculerEtSauvegarder($p));
+        }
 
         session()->forget(['import_prospects_preview', 'import_prospects_options', 'import_prospects_fichier']);
 

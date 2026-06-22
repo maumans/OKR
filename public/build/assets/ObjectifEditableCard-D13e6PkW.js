@@ -1,0 +1,1 @@
+import{t as e}from"./ObjectifEditableCard-CMmJ0C5X.js";export{e as default};

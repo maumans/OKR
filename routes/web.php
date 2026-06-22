@@ -80,6 +80,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
     Route::put('/parametres/crm/types-livrable/{typeLivrable}', [ParametreCrmController::class, 'updateTypeLivrable'])->name('parametres.crm.types-livrable.update');
     Route::delete('/parametres/crm/types-livrable/{typeLivrable}', [ParametreCrmController::class, 'destroyTypeLivrable'])->name('parametres.crm.types-livrable.destroy');
 
+    // Référentiels CRM — Règles de scoring prospects
+    Route::put('/parametres/crm/scoring/{regle}', [ParametreCrmController::class, 'updateRegleScoring'])->name('parametres.crm.scoring.update');
+
     // Paramètres société
     Route::get('/parametres', [SocieteController::class, 'edit'])->name('parametres.index');
     Route::put('/parametres', [SocieteController::class, 'update'])->name('parametres.update');
@@ -182,6 +185,7 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\InjecterSociete::cla
         Route::post('/prospects/import/parse', [ProspectImportController::class, 'parse'])->name('prospects.import.parse');
         Route::post('/prospects/import/commit', [ProspectImportController::class, 'commit'])->name('prospects.import.commit');
         Route::post('/prospects/import/reset', [ProspectImportController::class, 'reset'])->name('prospects.import.reset');
+        Route::post('/prospects/scoring/recalculer', [ProspectController::class, 'recalculerTousScores'])->name('prospects.scoring.recalculer');
 
         Route::put('/prospects/{prospect}', [ProspectController::class, 'update'])->name('prospects.update');
         Route::put('/prospects/{prospect}/status', [ProspectController::class, 'updateStatus'])->name('prospects.status');

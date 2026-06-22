@@ -18,12 +18,14 @@ class SecteurActivite extends Model
         'nom',
         'ordre',
         'actif',
+        'est_cible',
     ];
 
     protected function casts(): array
     {
         return [
-            'actif' => 'boolean',
+            'actif'     => 'boolean',
+            'est_cible' => 'boolean',
         ];
     }
 
