@@ -549,13 +549,13 @@ function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaul
 
     return (
         <Dialog open={open} onOpenChange={v => !v && onClose()}>
-            <DialogContent className="max-w-lg">
-                <DialogHeader>
+            <DialogContent className="max-w-lg flex flex-col overflow-hidden">
+                <DialogHeader className="shrink-0">
                     <DialogTitle className="text-[15px]">
                         {isEdit ? 'Modifier le deal' : 'Nouveau deal'}
                     </DialogTitle>
                 </DialogHeader>
-                <div className="space-y-3 py-1">
+                <div className="space-y-3 py-1 overflow-y-auto flex-1 -mx-6 px-6 scrollbar-thin">
                     <div>
                         <label className={lCls}>Titre du deal</label>
                         <input value={form.titre} onChange={e => setF('titre', e.target.value)}
@@ -670,7 +670,7 @@ function DealModal({ open, onClose, collaborateurs, clients, deal = null, defaul
                             className={iCls + ' resize-none'} />
                     </div>
                 </div>
-                <div className="flex justify-end gap-2 pt-1">
+                <div className="flex justify-end gap-2 pt-3 mt-1 border-t border-gray-100 dark:border-dark-700 shrink-0">
                     <Button variant="ghost" onClick={onClose}>Annuler</Button>
                     <Button onClick={submit}>{isEdit ? 'Enregistrer' : 'Créer le deal'}</Button>
                 </div>

@@ -56,7 +56,7 @@ const DialogContent = forwardRef(({
                 'w-[calc(100%-2rem)] sm:w-full max-w-lg max-h-[90vh]',
                 'rounded-2xl border border-gray-200 dark:border-dark-700',
                 'bg-white dark:bg-dark-900 shadow-xl',
-                'p-6',
+                'p-6 flex flex-col overflow-hidden',
                 'data-[state=open]:animate-in data-[state=closed]:animate-out',
                 'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
                 'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
