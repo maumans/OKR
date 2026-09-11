@@ -244,7 +244,7 @@ class ObjectifController extends Controller
     {
         Gate::authorize('create', Objectif::class);
         $validated = $request->validate([
-            'titre' => 'required|string|max:255',
+            'titre' => 'required|string|max:2000',
             'axe' => 'nullable|string|max:255',
             'axe_objectif_id' => 'nullable|exists:axes_objectifs,id',
             'periode' => 'nullable|string|max:50',
@@ -436,7 +436,7 @@ class ObjectifController extends Controller
         Gate::authorize('update', $objectif);
 
         $validated = $request->validate([
-            'titre' => 'required|string|max:255',
+            'titre' => 'required|string|max:2000',
             'axe' => 'nullable|string|max:255',
             'axe_objectif_id' => 'nullable|exists:axes_objectifs,id',
             'periode' => 'nullable|string|max:50',
@@ -660,7 +660,7 @@ class ObjectifController extends Controller
         Gate::authorize('update', $resultatCle->objectif);
 
         $validated = $request->validate([
-            'description'           => 'required|string|max:255',
+            'description'           => 'required|string|max:2000',
             'description_detaillee' => 'nullable|string',
             'type_resultat_cle_id'  => 'nullable|exists:types_resultats_cles,id',
             'valeur_cible'          => 'nullable|numeric|min:0',
@@ -684,7 +684,7 @@ class ObjectifController extends Controller
         Gate::authorize('update', $objectif);
 
         $validated = $request->validate([
-            'description'           => 'required|string|max:255',
+            'description'           => 'required|string|max:2000',
             'description_detaillee' => 'nullable|string',
             'type_resultat_cle_id'  => 'nullable|exists:types_resultats_cles,id',
             'valeur_cible'          => 'nullable|numeric|min:0',

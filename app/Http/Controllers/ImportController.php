@@ -229,7 +229,7 @@ class ImportController extends Controller
                         'description'          => $krData['description'] ?? '',
                         'description_detaillee' => $krData['description_detaillee'] ?? '',
                         'progression'          => 0,
-                        'valeur_cible'         => $isV2 ? ($krData['valeur_cible'] ?? null) : null,
+                        'valeur_cible'         => $this->valeurCibleParDefaut($isV2 ? ($krData['valeur_cible'] ?? null) : null, $krData['type_mapped'] ?? null),
                         'unite'                => $isV2 ? ($krData['unite'] ?? null) : null,
                         'poids'                => $isV2 ? ($krData['poids'] ?? 1) : 1,
                     ]);
@@ -358,6 +358,18 @@ class ImportController extends Controller
     }
 
     // ─── Helpers privés ──────────────────────────────────────
+
+    /**
+     * La colonne valeur_cible est NOT NULL. Quand le fichier ne fournit pas de cible
+     * numérique exploitable, on applique la même convention que la saisie manuelle
+     * (ObjectifController) : 100 par défaut, 1 pour un KR booléen.
+     */
+    private function valeurCibleParDefaut($valeurCible, ?string $typeMapped): float
+    {
+        if (is_numeric($valeurCible)) return (float) $valeurCible;
+
+        return $typeMapped === 'booleen' ? 1.0 : 100.0;
+    }
 
     private function creerTache(
         array $tacheData,

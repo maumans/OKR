@@ -117,7 +117,7 @@ class TacheController extends Controller
     {
         Gate::authorize('create', Tache::class);
         $validated = $request->validate([
-            'titre'            => 'required|string|max:255',
+            'titre'            => 'required|string|max:2000',
             'description'      => 'nullable|string',
             'mode_operatoire'  => 'nullable|array',
             'mode_operatoire.*'=> 'string|max:500',
@@ -175,7 +175,7 @@ class TacheController extends Controller
         Gate::authorize('update', $tache);
 
         $validated = $request->validate([
-            'titre'            => 'required|string|max:255',
+            'titre'            => 'required|string|max:2000',
             'description'      => 'nullable|string',
             'mode_operatoire'  => 'nullable|array',
             'mode_operatoire.*'=> 'string|max:500',

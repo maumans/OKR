@@ -38,7 +38,7 @@ class ResultatCle extends Model
             'progression'       => 'decimal:2',
             'valeur_cible'      => 'decimal:2',
             'valeur_actuelle'   => 'decimal:2',
-            'poids'             => 'decimal:2',
+            'poids'             => 'decimal:4',
             'milestones'        => 'array',
             'source_crm'        => 'boolean',
             'source_crm_filtre' => 'array',
