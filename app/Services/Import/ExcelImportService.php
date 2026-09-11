@@ -678,25 +678,56 @@ class ExcelImportService
         return $ownerTrimmed;
     }
 
+    /**
+     * Extrait les périodes du champ "Période :" de la description.
+     * Formats supportés : "Q3 2026", "Q3–Q4 2026", "T1,T2", "T3", "T1–T4",
+     * "Année 2026 (T1–T4)". Les trimestres français (T1..T4) sont assimilés
+     * aux Q1..Q4 des périodes de la société.
+     */
     private function extrairePeriodesFromDesc(string $desc): array
     {
         if (empty($desc)) return [];
 
-        $periodes = [];
-        // Période : Q3 2026 ou Q3–Q4 2026
-        if (preg_match('/P[ée]riode\s*:\s*(Q[\d]+(?:\s*[–\-]\s*Q[\d]+)?\s+\d{4})/u', $desc, $m)) {
-            $raw = trim($m[1]);
-            if (preg_match('/^(Q\d+)\s*[–\-]\s*(Q\d+)\s+(\d{4})$/u', $raw, $rm)) {
-                $periodes[] = $rm[1] . ' ' . $rm[3];
-                $periodes[] = $rm[2] . ' ' . $rm[3];
-            } elseif (preg_match('/^(Q\d+)\s+(\d{4})$/u', $raw, $rm)) {
-                $periodes[] = $rm[1] . ' ' . $rm[2];
-            } else {
-                $periodes[] = $raw;
+        // Le champ s'arrête au séparateur de champs "·" ou en fin de ligne
+        if (!preg_match('/P[ée]riode\s*:\s*([^·\n]+)/ui', $desc, $m)) return [];
+
+        $segment = trim($m[1]);
+
+        // Année : dans le champ, sinon ailleurs dans la description, sinon année courante
+        if (preg_match('/\b(20\d{2})\b/', $segment, $am)) {
+            $annee = $am[1];
+        } elseif (preg_match('/\b(20\d{2})\b/', $desc, $am)) {
+            $annee = $am[1];
+        } else {
+            $annee = (string) now()->year;
+        }
+
+        // T1..T4 (trimestres) → Q1..Q4
+        $segment = preg_replace('/\bT(?=[1-4]\b)/ui', 'Q', $segment);
+
+        $trimestres = [];
+
+        // Plages : "Q1–Q4", "Q2 - Q3"
+        if (preg_match_all('/Q([1-4])\s*[–—\-]\s*Q?([1-4])\b/u', $segment, $plages, PREG_SET_ORDER)) {
+            foreach ($plages as $plage) {
+                $debut = (int) $plage[1];
+                $fin   = (int) $plage[2];
+                if ($debut > $fin) [$debut, $fin] = [$fin, $debut];
+                for ($q = $debut; $q <= $fin; $q++) $trimestres[] = $q;
             }
         }
 
-        return $periodes;
+        // Valeurs isolées : "Q3", "Q1,Q2"
+        if (preg_match_all('/Q([1-4])\b/u', $segment, $isoles)) {
+            foreach ($isoles[1] as $q) $trimestres[] = (int) $q;
+        }
+
+        if (empty($trimestres)) return [];
+
+        $trimestres = array_values(array_unique($trimestres));
+        sort($trimestres);
+
+        return array_map(fn ($q) => "Q{$q} {$annee}", $trimestres);
     }
 
     private function splitModeOperatoire(string $raw): array
