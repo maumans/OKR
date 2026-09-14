@@ -56,7 +56,12 @@ class DashboardController extends Controller
         // ─── Progression OKR ────────────────────────────────
         $objectifsActifsQuery = Objectif::where('societe_id', $societeId)
             ->where('statut', 'actif')
-            ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
+            ->when($periodeId, function ($query, $pId) {
+                $query->where(function ($q) use ($pId) {
+                    $q->where('periode_id', $pId)
+                      ->orWhereHas('periodes', fn($sq) => $sq->where('periodes.id', $pId));
+                });
+            })
             ->when($axeId, fn($q) => $q->where('axe_objectif_id', $axeId));
 
         $objectifsActifs = $objectifsActifsQuery->with(['resultatsCles', 'axeObjectif'])->get();
