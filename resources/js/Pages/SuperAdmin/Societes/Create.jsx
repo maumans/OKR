@@ -65,10 +65,11 @@ function TextInput({ error, ...props }) {
     );
 }
 
-export default function SocieteCreate({ modules, devises }) {
+export default function SocieteCreate({ modules, devises, utilisateurs = [] }) {
     const [step, setStep]           = useState(1);
     const [errors, setErrors]       = useState({});
     const [submitting, setSubmitting] = useState(false);
+    const [adminMode, setAdminMode] = useState(utilisateurs.length > 0 ? 'existing' : 'new');
 
     const [form, setForm] = useState({
         // Étape 1
@@ -76,11 +77,30 @@ export default function SocieteCreate({ modules, devises }) {
         // Étape 2
         modules_actifs: [],
         // Étape 3
+        user_id: '',
         admin_prenom: '', admin_nom: '', admin_email: '', admin_password: '',
         envoyer_email: false,
     });
 
     const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+    const handleSelectExistingUser = (userId) => {
+        set('user_id', userId);
+        const user = utilisateurs.find(u => String(u.id) === String(userId));
+        if (user) {
+            const parts = (user.name || '').trim().split(' ');
+            const prenom = parts[0] || '';
+            const nom = parts.slice(1).join(' ') || prenom;
+            setForm(f => ({
+                ...f,
+                user_id: user.id,
+                admin_prenom: prenom,
+                admin_nom: nom,
+                admin_email: user.email,
+                admin_password: '',
+            }));
+        }
+    };
 
     const toggleModule = (id) => {
         set('modules_actifs', form.modules_actifs.includes(id)
@@ -118,6 +138,7 @@ export default function SocieteCreate({ modules, devises }) {
         setSubmitting(true);
         router.post(route('superadmin.societes.store'), {
             ...form,
+            user_id: adminMode === 'existing' ? form.user_id : null,
             devise_id: form.devise_id || null,
             plan: null,
         }, {
@@ -128,7 +149,12 @@ export default function SocieteCreate({ modules, devises }) {
 
     const canNext = () => {
         if (step === 1) return form.nom.trim().length > 0;
-        if (step === 3) return form.admin_prenom && form.admin_nom && form.admin_email && form.admin_password;
+        if (step === 3) {
+            if (adminMode === 'existing') {
+                return !!form.user_id;
+            }
+            return form.admin_prenom && form.admin_nom && form.admin_email && form.admin_password;
+        }
         return true;
     };
 
@@ -251,26 +277,87 @@ export default function SocieteCreate({ modules, devises }) {
                     {/* ── Étape 3 — Admin ── */}
                     {step === 3 && (
                         <div className="space-y-4">
-                            <h3 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-5">
+                            <h3 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-3">
                                 <Users className="h-5 w-5 text-indigo-500" /> Administrateur principal
                             </h3>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <Field label="Prénom" required error={errors.admin_prenom}>
-                                    <TextInput value={form.admin_prenom} onChange={e => set('admin_prenom', e.target.value)} error={errors.admin_prenom} />
-                                </Field>
-                                <Field label="Nom" required error={errors.admin_nom}>
-                                    <TextInput value={form.admin_nom} onChange={e => set('admin_nom', e.target.value)} error={errors.admin_nom} />
-                                </Field>
+                            {/* Choix du mode : Utilisateur existant ou Nouveau compte */}
+                            <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-1 mb-4">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAdminMode('existing');
+                                        if (utilisateurs.length > 0 && !form.user_id) {
+                                            handleSelectExistingUser(utilisateurs[0].id);
+                                        }
+                                    }}
+                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                                        adminMode === 'existing'
+                                            ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                                    }`}
+                                >
+                                    Utilisateur existant ({utilisateurs.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAdminMode('new');
+                                        set('user_id', '');
+                                    }}
+                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                                        adminMode === 'new'
+                                            ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                                    }`}
+                                >
+                                    Créer un nouveau compte
+                                </button>
                             </div>
 
-                            <Field label="Email" required error={errors.admin_email}>
-                                <TextInput type="email" value={form.admin_email} onChange={e => set('admin_email', e.target.value)} placeholder="admin@acme.com" error={errors.admin_email} />
-                            </Field>
+                            {adminMode === 'existing' ? (
+                                <div className="space-y-4">
+                                    <Field label="Sélectionner l'utilisateur" required error={errors.user_id}>
+                                        <SearchableSelect
+                                            value={String(form.user_id || '')}
+                                            onChange={handleSelectExistingUser}
+                                            options={utilisateurs.map(u => ({
+                                                value: String(u.id),
+                                                label: `${u.name} — ${u.email}`,
+                                            }))}
+                                            placeholder="— Rechercher un utilisateur existant —"
+                                        />
+                                    </Field>
 
-                            <Field label="Mot de passe initial" required error={errors.admin_password}>
-                                <TextInput type="text" value={form.admin_password} onChange={e => set('admin_password', e.target.value)} placeholder="Min. 6 caractères" error={errors.admin_password} />
-                            </Field>
+                                    {form.user_id && (
+                                        <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg border border-indigo-100 dark:border-indigo-900/30 text-xs text-indigo-700 dark:text-indigo-300 flex items-start gap-2">
+                                            <span className="font-bold">✓</span>
+                                            <div>
+                                                <strong>{form.admin_prenom} {form.admin_nom}</strong> ({form.admin_email}) sera associé comme administrateur principal de la société. Son mot de passe existant sera conservé.
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Field label="Prénom" required error={errors.admin_prenom}>
+                                            <TextInput value={form.admin_prenom} onChange={e => set('admin_prenom', e.target.value)} error={errors.admin_prenom} />
+                                        </Field>
+                                        <Field label="Nom" required error={errors.admin_nom}>
+                                            <TextInput value={form.admin_nom} onChange={e => set('admin_nom', e.target.value)} error={errors.admin_nom} />
+                                        </Field>
+                                    </div>
+
+                                    <Field label="Email" required error={errors.admin_email}>
+                                        <TextInput type="email" value={form.admin_email} onChange={e => set('admin_email', e.target.value)} placeholder="admin@acme.com" error={errors.admin_email} />
+                                    </Field>
+
+                                    <Field label="Mot de passe initial" required error={errors.admin_password}>
+                                        <TextInput type="text" value={form.admin_password} onChange={e => set('admin_password', e.target.value)} placeholder="Min. 6 caractères" error={errors.admin_password} />
+                                    </Field>
+                                </div>
+                            )}
 
                             <label className="flex items-center gap-2 cursor-pointer pt-1">
                                 <input type="checkbox" checked={form.envoyer_email} onChange={e => set('envoyer_email', e.target.checked)}

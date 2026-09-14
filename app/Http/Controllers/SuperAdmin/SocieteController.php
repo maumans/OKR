@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Abonnement;
 use App\Models\Collaborateur;
 use App\Models\Module;
+use App\Models\Role;
 use App\Models\Societe;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -40,10 +41,12 @@ class SocieteController extends Controller
     {
         $modules = Module::where('actif', true)->orderBy('ordre')->get();
         $devises = \App\Models\Devise::where('actif', true)->orderBy('code')->get();
+        $utilisateurs = User::orderBy('name')->get(['id', 'name', 'email']);
 
         return Inertia::render('SuperAdmin/Societes/Create', [
-            'modules' => $modules,
-            'devises' => $devises,
+            'modules'      => $modules,
+            'devises'      => $devises,
+            'utilisateurs' => $utilisateurs,
         ]);
     }
 
@@ -63,17 +66,18 @@ class SocieteController extends Controller
             'limite_utilisateurs' => 'nullable|integer|min:1',
             'limite_okr'          => 'nullable|integer|min:1',
             // Admin
-            'admin_prenom'        => 'required|string|max:255',
-            'admin_nom'           => 'required|string|max:255',
-            'admin_email'         => 'required|email|max:255',
-            'admin_password'      => 'required|string|min:6',
+            'user_id'             => 'nullable|exists:users,id',
+            'admin_prenom'        => 'required_without:user_id|nullable|string|max:255',
+            'admin_nom'           => 'required_without:user_id|nullable|string|max:255',
+            'admin_email'         => 'required_without:user_id|nullable|email|max:255',
+            'admin_password'      => 'required_without:user_id|nullable|string|min:6',
             'envoyer_email'       => 'boolean',
         ]);
 
         $societe = null;
         $userCreated = null;
         $newUserCreated = false;
-        $password = $validated['admin_password'];
+        $password = $validated['admin_password'] ?? null;
 
         DB::transaction(function () use ($validated, &$societe, &$userCreated, &$newUserCreated, $password) {
             // 1. Créer la société
@@ -90,7 +94,6 @@ class SocieteController extends Controller
             // 2. Activer/désactiver les modules selon la sélection du wizard
             if (!empty($validated['modules_actifs'])) {
                 $modulesActifsIds = $validated['modules_actifs'];
-                // Tous les modules ont été attachés par le booted(), on met à jour l'état
                 foreach ($societe->modules as $module) {
                     $shouldBeActif = $module->est_core || in_array($module->id, $modulesActifsIds);
                     $societe->modules()->updateExistingPivot($module->id, [
@@ -114,28 +117,52 @@ class SocieteController extends Controller
             }
 
             // 4. User admin
-            $userCreated = User::firstOrCreate(
-                ['email' => $validated['admin_email']],
-                [
-                    'name'     => $validated['admin_prenom'] . ' ' . $validated['admin_nom'],
-                    'password' => Hash::make($validated['admin_password']),
-                ]
-            );
-            $newUserCreated = $userCreated->wasRecentlyCreated;
+            if (!empty($validated['user_id'])) {
+                $userCreated = User::findOrFail($validated['user_id']);
+                $newUserCreated = false;
+                $prenom = $validated['admin_prenom'] ?: (explode(' ', $userCreated->name)[0] ?? '');
+                $nom = $validated['admin_nom'] ?: (explode(' ', $userCreated->name, 2)[1] ?? $userCreated->name);
+            } else {
+                $userCreated = User::firstOrCreate(
+                    ['email' => $validated['admin_email']],
+                    [
+                        'name'     => trim(($validated['admin_prenom'] ?? '') . ' ' . ($validated['admin_nom'] ?? '')),
+                        'password' => Hash::make($validated['admin_password']),
+                    ]
+                );
+                $newUserCreated = $userCreated->wasRecentlyCreated;
+                $prenom = $validated['admin_prenom'] ?? (explode(' ', $userCreated->name)[0] ?? '');
+                $nom = $validated['admin_nom'] ?? (explode(' ', $userCreated->name, 2)[1] ?? $userCreated->name);
+            }
 
-            Collaborateur::create([
-                'user_id'    => $userCreated->id,
-                'societe_id' => $societe->id,
-                'prenom'     => $validated['admin_prenom'],
-                'nom'        => $validated['admin_nom'],
-                'role'       => 'admin',
-                'actif'      => true,
-            ]);
+            // 5. Créer ou associer le collaborateur
+            $collaborateur = Collaborateur::where('user_id', $userCreated->id)
+                ->where('societe_id', $societe->id)
+                ->first();
+
+            if (!$collaborateur) {
+                $collaborateur = Collaborateur::create([
+                    'user_id'    => $userCreated->id,
+                    'societe_id' => $societe->id,
+                    'prenom'     => $prenom ?: 'Admin',
+                    'nom'        => $nom ?: $societe->nom,
+                    'poste'      => 'Administrateur',
+                    'actif'      => true,
+                ]);
+            } else {
+                $collaborateur->update(['actif' => true]);
+            }
+
+            // 6. Associer impérativement le rôle "admin" dans la table pivot collaborateur_role
+            $roleAdmin = Role::where('code', 'admin')->first();
+            if ($roleAdmin) {
+                $collaborateur->roles()->syncWithoutDetaching([$roleAdmin->id]);
+            }
         });
 
         // Email hors transaction
         $emailSent = false;
-        if (!empty($validated['envoyer_email'])) {
+        if (!empty($validated['envoyer_email']) && $userCreated) {
             try {
                 \Illuminate\Support\Facades\Mail::to($userCreated->email)->send(
                     new \App\Mail\AdminInvitation($societe, $userCreated, $newUserCreated ? $password : 'Votre mot de passe existant')
@@ -147,7 +174,7 @@ class SocieteController extends Controller
         \audit('societe.creer', "Société « {$societe->nom} » créée.", ['societe_id' => $societe->id], $societe->id);
 
         $message = "Société « {$societe->nom} » créée avec succès.";
-        if ($newUserCreated && !$emailSent) {
+        if ($newUserCreated && !$emailSent && $password) {
             $message .= " Mot de passe temporaire : {$password}";
         }
 
@@ -157,7 +184,9 @@ class SocieteController extends Controller
     public function show(Societe $societe)
     {
         $societe->load([
-            'collaborateurs',
+            'collaborateurs.user',
+            'collaborateurs.roles',
+            'collaborateurs.departement',
             'modules',
             'abonnements.devise',
             'auditLogs' => fn ($q) => $q->latest()->limit(20),
@@ -165,11 +194,12 @@ class SocieteController extends Controller
         $societe->loadCount('collaborateurs', 'objectifs');
 
         $modules = Module::where('actif', true)->orderBy('ordre')->get();
+        $administrateurs = $societe->collaborateurs->filter(fn ($c) => $c->roles->contains('code', 'admin'))->values();
 
         return Inertia::render('SuperAdmin/Societes/Show', [
-            'societe'      => $societe,
-            'modules'      => $modules,
-            'administrateurs' => $societe->collaborateurs->where('role', 'admin')->values(),
+            'societe'         => $societe,
+            'modules'         => $modules,
+            'administrateurs' => $administrateurs,
         ]);
     }
 

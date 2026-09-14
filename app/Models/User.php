@@ -61,19 +61,23 @@ class User extends Authenticatable
     {
         $societeId = session('societe_id');
 
-        if (!$societeId) {
-            // Prendre la première société disponible
-            $collab = $this->collaborateurs()->with('societe')->first();
+        if ($societeId) {
+            $collab = $this->collaborateurs()
+                ->where('societe_id', $societeId)
+                ->first();
             if ($collab) {
-                session(['societe_id' => $collab->societe_id]);
                 return $collab;
             }
-            return null;
         }
 
-        return $this->collaborateurs()
-            ->where('societe_id', $societeId)
-            ->first();
+        // Fallback : prendre la première société disponible pour ce user
+        $collab = $this->collaborateurs()->with('societe')->first();
+        if ($collab) {
+            session(['societe_id' => $collab->societe_id]);
+            return $collab;
+        }
+
+        return null;
     }
 
     /**

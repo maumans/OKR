@@ -9,6 +9,7 @@ use App\Models\Import;
 use App\Models\Objectif;
 use App\Models\Periode;
 use App\Models\ResultatCle;
+use App\Models\Role;
 use App\Models\Tache;
 use App\Models\TypeResultatCle;
 use App\Services\Import\ExcelImportService;
@@ -156,6 +157,12 @@ class ImportController extends Controller
                     'poste'      => $collabData['poste']  ?? '',
                     'actif'      => true,
                 ]);
+
+                $roleCode = $collabData['role'] ?? 'collaborateur';
+                $roleObj = Role::where('code', $roleCode)->first() ?? Role::where('code', 'collaborateur')->first();
+                if ($roleObj) {
+                    $collab->roles()->syncWithoutDetaching([$roleObj->id]);
+                }
 
                 $collabIdMap[$collabData['nom_detecte']] = $collab->id;
                 $idsCrees['collaborateur_ids'][] = $collab->id;

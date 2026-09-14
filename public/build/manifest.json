@@ -2035,7 +2035,7 @@
     ]
   },
   "resources/js/Pages/SuperAdmin/Societes/Create.jsx": {
-    "file": "assets/Create-7z4izPYo.js",
+    "file": "assets/Create-BGs5TnDf.js",
     "name": "Create",
     "src": "resources/js/Pages/SuperAdmin/Societes/Create.jsx",
     "isDynamicEntry": true,
@@ -2122,7 +2122,7 @@
     ]
   },
   "resources/js/Pages/SuperAdmin/Societes/Show.jsx": {
-    "file": "assets/Show-DSh_b1J2.js",
+    "file": "assets/Show-Dp32WJS3.js",
     "name": "Show",
     "src": "resources/js/Pages/SuperAdmin/Societes/Show.jsx",
     "isDynamicEntry": true,
@@ -2343,7 +2343,7 @@
     ]
   },
   "resources/js/app.jsx": {
-    "file": "assets/app-CUmMljL8.js",
+    "file": "assets/app-CBzAWxMg.js",
     "name": "app",
     "src": "resources/js/app.jsx",
     "isEntry": true,
@@ -2422,7 +2422,7 @@
       "resources/js/Pages/Welcome.jsx"
     ],
     "css": [
-      "assets/app-9QP_vWKy.css"
+      "assets/app-BpBApPdW.css"
     ]
   }
 }

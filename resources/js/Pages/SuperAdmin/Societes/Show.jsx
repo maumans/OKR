@@ -72,8 +72,8 @@ export default function SocieteShow({ societe, modules, administrateurs }) {
     const abonnementActif = societe.abonnements?.find(a => a.statut === 'actif');
     const modulesActifsSet = new Set((societe.modules || []).filter(m => m.pivot?.actif).map(m => m.id));
 
-    const handleImpersonate = (adminId) => {
-        router.post(route('superadmin.impersonation.start', adminId));
+    const handleImpersonate = (userId) => {
+        router.post(route('superadmin.impersonation.start', userId), { societe_id: societe.id });
     };
 
     const handleSuspendre = () => {

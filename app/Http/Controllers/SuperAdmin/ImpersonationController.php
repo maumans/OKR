@@ -9,13 +9,26 @@ use Illuminate\Support\Facades\Auth;
 
 class ImpersonationController extends Controller
 {
-    public function start(User $user)
+    public function start(Request $request, User $user)
     {
         if ($user->is_superadmin) {
             return redirect()->back()->withErrors(['user' => 'Impossible d\'impersonner un autre superadmin.']);
         }
 
         session(['impersonator_id' => Auth::id()]);
+
+        $societeId = $request->input('societe_id');
+        if ($societeId) {
+            session(['societe_id' => (int) $societeId]);
+        } else {
+            $targetCollab = $user->collaborateurs()->first();
+            if ($targetCollab) {
+                session(['societe_id' => $targetCollab->societe_id]);
+            } else {
+                session()->forget('societe_id');
+            }
+        }
+
         Auth::login($user);
 
         \audit('impersonation.start', "Impersonation de « {$user->name} » démarrée.", ['impersonated_user_id' => $user->id]);
