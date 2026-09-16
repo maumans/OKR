@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Collaborateur;
+use App\Models\Role;
 use App\Models\Societe;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -13,6 +14,7 @@ class CollaborateurSeeder extends Seeder
     public function run(): void
     {
         $societe = Societe::first();
+        $roles = Role::all()->keyBy('code');
 
         // ─── SuperAdmin ──────────────────────────────────────────
         User::create([
@@ -31,15 +33,15 @@ class CollaborateurSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
-        Collaborateur::create([
+        $adminCollab = Collaborateur::create([
             'user_id' => $adminUser->id,
             'societe_id' => $societe->id,
             'nom' => 'Diallo',
             'prenom' => 'Mamadou',
             'poste' => 'Directeur Général',
-            'role' => 'admin',
             'actif' => true,
         ]);
+        $adminCollab->roles()->attach($roles['admin']);
 
         // ─── Manager ────────────────────────────────────────
         $managerUser = User::create([
@@ -49,15 +51,15 @@ class CollaborateurSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
-        Collaborateur::create([
+        $managerCollab = Collaborateur::create([
             'user_id' => $managerUser->id,
             'societe_id' => $societe->id,
             'nom' => 'Martin',
             'prenom' => 'Sophie',
             'poste' => 'Directrice Commerciale',
-            'role' => 'manager',
             'actif' => true,
         ]);
+        $managerCollab->roles()->attach($roles['manager']);
 
         // ─── Collaborateurs ─────────────────────────────────
         $collabData = [
@@ -74,15 +76,15 @@ class CollaborateurSeeder extends Seeder
                 'email_verified_at' => now(),
             ]);
 
-            Collaborateur::create([
+            $collab = Collaborateur::create([
                 'user_id' => $user->id,
                 'societe_id' => $societe->id,
                 'nom' => $data['nom'],
                 'prenom' => $data['prenom'],
                 'poste' => $data['poste'],
-                'role' => 'collaborateur',
                 'actif' => true,
             ]);
+            $collab->roles()->attach($roles['collaborateur']);
         }
     }
 }
